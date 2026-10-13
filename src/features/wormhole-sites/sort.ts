@@ -1,6 +1,7 @@
-import { gasClassRange } from './gas-classes';
-import { primarySiteIsk } from './site-primary-isk';
-import type { SiteDetail, WormholeClass } from './types';
+import { siteEwarTotals } from './ewar';
+import { siteClassRange, wormholeClassRank } from './site-class';
+import { primarySiteIsk, SITE_TYPE_DISPLAY_ORDER } from './site-type';
+import type { SiteDetail } from './types';
 
 const SORTABLE_KEYS = [
   'name',
@@ -13,14 +14,6 @@ const SORTABLE_KEYS = [
 
 export type SortableKey = (typeof SORTABLE_KEYS)[number];
 export type SortDir = 'asc' | 'desc';
-
-const TYPE_ORDER: Record<SiteDetail['siteType'], number> = {
-  combat: 0, ore: 1, gas: 2, relic: 3, data: 4,
-};
-
-const CLASS_ORDER: Record<WormholeClass, number> = {
-  C1: 1, C2: 2, C3: 3, C4: 4, C5: 5, C6: 6,
-};
 
 export function parseSortKey(raw: string | undefined): SortableKey | null {
   if (!raw) return null;
@@ -36,28 +29,21 @@ export function defaultDirFor(key: SortableKey): SortDir {
   return 'desc';
 }
 
-function siteIskValue(s: SiteDetail): number | null {
-  return primarySiteIsk(s);
-}
-
+/** The Scrams column value, shared by the table cell and its sort. */
 export function siteScramTotal(s: SiteDetail): number {
-  return s.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0);
+  return siteEwarTotals(s).scram;
 }
 
 function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
   switch (key) {
     case 'name':     return s.name;
-    case 'type':     return TYPE_ORDER[s.siteType];
-    case 'isk':      return siteIskValue(s);
+    case 'type':     return SITE_TYPE_DISPLAY_ORDER.indexOf(s.siteType);
+    case 'isk':      return primarySiteIsk(s);
     case 'blueLoot': return s.blueLootIsk;
     case 'scrams':   return siteScramTotal(s);
     case 'class': {
-      if (s.wormholeClass) return CLASS_ORDER[s.wormholeClass];
-      if (s.siteType === 'gas') {
-        const range = gasClassRange(s.name);
-        if (range) return CLASS_ORDER[range.min];
-      }
-      return null;
+      const range = siteClassRange(s);
+      return range ? wormholeClassRank(range.min) : null;
     }
   }
 }

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { StructureTypeOption } from '@/data/eve-data/structures';
 import { settle } from '@/lib/__tests__/hook-runtime';
+import { apiProblem, networkDown } from '@/transport/__tests__/failed-outcomes';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,
@@ -132,7 +133,7 @@ const bonuses = (p: Props) => 'onReadFit' in p;
 
 beforeEach(() => {
   h.apiFetch.mockReset();
-  h.suggest.mockClear();
+  h.suggest.mockReset();
   h.hits = [];
 });
 
@@ -210,11 +211,38 @@ test('a typed system pins only on an exact name, and suggests the rest', async (
   expect(c.find(system)!.sys).toMatchObject({ shown: '1DQ1-A' });
 });
 
-test('saving a new structure creates it and hands back the list', async () => {
+test('a system lookup that rejects clears the suggestions instead of going unhandled', async () => {
+  const c = mount(null);
+  // Each render looks the query up again, so answer by query rather than by call.
+  h.suggest.mockImplementation(async (query) => {
+    if (query === 'amx') throw new DOMException('Aborted', 'AbortError');
+    return ['Amamake'];
+  });
+  c.call(system, 'onType', 'ama');
+  c.find(system);
+  await settle();
+  expect(c.find(system)!.sys).toMatchObject({ shown: 'ama', suggestions: [{ name: 'Amamake' }] });
+
+  c.call(system, 'onType', 'amx');
+  c.find(system);
+  await settle();
+  expect(h.suggest).toHaveBeenLastCalledWith('amx');
+  expect(c.find(system)!.sys).toMatchObject({ shown: 'amx', suggestions: [] });
+  rt.hide();
+});
+
+test('saving a new structure names a full list, then creates it and hands back the list', async () => {
   const c = mount(null);
   c.call(named, 'onName', 'Home Raitaru');
   c.field('Hull', 'onValueChange', '35825');
   c.call(bonuses, 'onDraft', { bonus: { me: '1', te: '', cost: '', rxnMe: '', rxnTe: '' } });
+  // A full list is a refusal no retry fixes, so it says what to do instead.
+  h.apiFetch.mockResolvedValueOnce(apiProblem(409, 'structure_limit'));
+  c.button('Save');
+  await settle();
+  expect(c.error()).toBe('Structure limit reached. Delete one to make room.');
+  expect(c.onSaved).not.toHaveBeenCalled();
+
   const createdId = '38534fe4-6d47-4007-8d99-0890bc6c9770';
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: SAVED, createdId } });
   c.button('Save');
@@ -230,14 +258,18 @@ test('saving a new structure creates it and hands back the list', async () => {
 
 test('an edited structure updates or deletes in place, and a failed save says so', async () => {
   const c = mount(EDITING);
-  h.apiFetch.mockResolvedValueOnce({ ok: false });
+  h.apiFetch.mockResolvedValueOnce(networkDown());
   c.button('Save');
   await settle();
   expect(h.apiFetch).toHaveBeenCalledWith(updateCustomStructureEndpoint, {
     body: expect.objectContaining({ id: 'cs-1', name: 'Amamake Raitaru', bonuses: null }),
     cache: 'no-store',
   });
-  expect(c.error()).toBe('Could not save. Try again.');
+  expect(c.error()).toBe("Couldn't save. Try again.");
+  h.apiFetch.mockResolvedValueOnce(apiProblem(400, 'unknown_system'));
+  c.button('Save');
+  await settle();
+  expect(c.error()).toBe("Couldn't save. Try again.");
   expect(c.onSaved).not.toHaveBeenCalled();
 
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { structures: [] } });

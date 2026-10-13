@@ -2,12 +2,12 @@ import {
   systemIdentityReadout,
   type SystemIdentityReadout,
 } from '@/data/eve-data/system-identity';
-import type { SystemDirectoryEntry } from '@/data/eve-data/universe-assets';
+import type { SystemInfoLookup } from '@/data/eve-data/universe-assets-client';
 import { resolveSystemLabel } from '../chain/labels';
 
 export function destinationReadout(
   toSystemId: number | null,
-  systemInfo: ((id: number) => SystemDirectoryEntry | null) | null,
+  systemInfo: SystemInfoLookup | null,
 ): SystemIdentityReadout | null {
   if (toSystemId === null) return null;
   const label = resolveSystemLabel(toSystemId, systemInfo);

@@ -3,7 +3,6 @@
 import type { ConnectionAuthoringApi } from './connection-authoring-api';
 import { ActiveSignatureEditor } from './ActiveSignatureEditor';
 import { ActiveSiteViewer } from './ActiveSiteViewer';
-import { scannerPanelBodyKind } from './scanner-panel-body';
 import type { ScannerPanelTarget } from './signature-context';
 import type {
   ConnectionDetail,
@@ -31,8 +30,7 @@ export function ActiveScannerPanel({
   now,
   onClose,
 }: ActiveScannerPanelProps) {
-  const body = scannerPanelBodyKind(panelTarget, canEdit);
-  if (body === 'site' && panelTarget?.kind === 'site') {
+  if (panelTarget?.kind === 'site') {
     return (
       <ActiveSiteViewer
         siteId={panelTarget.siteId}
@@ -41,7 +39,9 @@ export function ActiveScannerPanel({
       />
     );
   }
-  if (body === 'connection' && panelTarget?.kind === 'connection') {
+  // Canvas menus open connections without row gating, and edit rights can
+  // drop while a target is open, so the editor checks canEdit itself.
+  if (panelTarget?.kind === 'connection' && canEdit) {
     return (
       <ActiveSignatureEditor
         mapId={mapId}

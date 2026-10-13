@@ -58,7 +58,7 @@ vi.mock('@/components/PreferencesProvider', () => ({
   usePreference: () => [live.remembered, vi.fn()],
 }));
 vi.mock('@/features/industry-jobs/use-slots-live', () => ({
-  useSlotsLive: () => ({ characters: live.slots, loading: false }),
+  useSlotsLive: () => ({ characters: live.slots, loading: false, failed: false, retry: vi.fn() }),
 }));
 vi.mock('../board/use-board-live', () => ({ useBoardLive }));
 vi.mock('@/features/industry-planner/use-available-structures', () => ({
@@ -100,7 +100,9 @@ function render(jobsByCharacter: Map<number, ViewerJobs> = new Map()): string {
   const jobs = { jobsByCharacter, loading: false, failed: false };
   const corp = { corporations: [], loading: false, failed: false };
   const hulls = [{ typeId: 35836, name: 'Tatara' }];
-  return renderToStaticMarkup(createElement(ProfileWorkspace, { jobs, corp, corpEligible: false, hulls }));
+  return renderToStaticMarkup(
+    createElement(ProfileWorkspace, { jobs, corp, corpEligible: false, skillEligibleCharacterIds: [], hulls }),
+  );
 }
 
 function capacityReadout(html: string): string {

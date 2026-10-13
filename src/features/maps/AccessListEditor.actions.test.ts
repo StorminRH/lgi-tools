@@ -41,7 +41,7 @@ test('revoking asks first, removes the grant on confirm, and the closing dialog 
         onPrincipalRemove,
       }),
     );
-  const consequence = 'Scout will lose this delegated map role after the access projection updates.';
+  const consequence = 'Scout will be removed from the access list.';
 
   let html = render();
   expect(dialogProbe.root?.open).toBe(false);

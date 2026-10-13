@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withHostNumberLocale } from '@/lib/__tests__/host-locale';
 import { siteResource } from '../__tests__/site-fixtures';
-import {
-  deriveResourceRowView,
-  formatM3,
-  resourceValueEligible,
-} from './resource-row-view';
+import { deriveResourceRowView, formatM3 } from './resource-row-view';
 
 describe('resource row view', () => {
   it('formats volume and derives relic, ore, and gas meta', () => {
@@ -29,10 +25,6 @@ describe('resource row view', () => {
     expect(deriveResourceRowView(siteResource({ units: null, volumeM3: 600 }), 'gas').meta).toBe(
       '600 m³',
     );
-
-    expect(resourceValueEligible(siteResource({ liveEligible: true, typeId: 22 }))).toBe(true);
-    expect(resourceValueEligible(siteResource({ liveEligible: false, typeId: 22 }))).toBe(false);
-    expect(resourceValueEligible(siteResource({ liveEligible: true, typeId: null }))).toBe(false);
   });
 
   it('groups volume and counts in en-US under any host locale, so the client hydrates the server text', () => {

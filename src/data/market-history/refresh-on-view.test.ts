@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import type { HistoryDailyRow } from './types';
 
 const fetchHistoryFromSourceMock = vi.fn();
@@ -122,16 +123,19 @@ describe('getLiveHistory — stale gate', () => {
       ],
       budgetExhausted: false,
     });
-    persistHistoryMock.mockRejectedValueOnce(new Error('neon: connection terminated'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failure = new Error('neon: connection terminated');
+    persistHistoryMock.mockRejectedValueOnce(failure).mockResolvedValueOnce({ written: 3 });
+    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
     const observer = vi.fn();
 
     await getLiveHistory([34, 35], observer);
-    await afterMock.mock.calls[0]![0]();
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
 
+    expect(persistHistoryMock.mock.calls.map(([, typeId]) => typeId)).toEqual([34, 35]);
     expect(commitMock).toHaveBeenCalledWith([meta(35)], { tag: 'eve:market_history' });
-    expect(observer).toHaveBeenCalledWith({ outcome: 'partial', attempted: 2, written: 0, durationMs: expect.any(Number) });
-    errorSpy.mockRestore();
+    expect(observer).toHaveBeenCalledWith({ outcome: 'partial', attempted: 2, written: 3, durationMs: expect.any(Number) });
+    expect(errors.mock.calls).toEqual([['[market-history/refresh-on-view] write-behind failed', failure]]);
+    errors.mockRestore();
   });
 
   it('does not let a write-behind observer failure escape', async () => {
@@ -142,15 +146,43 @@ describe('getLiveHistory — stale gate', () => {
       ],
       budgetExhausted: false,
     });
+    const failure = new Error('observer failed');
     const observer = vi.fn(() => {
-      throw new Error('observer failed');
+      throw failure;
     });
+    const errors = silenceConsolePrefixes('error', ['[market-history/refresh-on-view] ']);
 
     await getLiveHistory([34], observer);
     await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
 
     expect(observer).toHaveBeenCalledTimes(1);
     expect(persistHistoryMock).toHaveBeenCalledTimes(1);
+    expect(errors.mock.calls).toEqual([['[market-history/refresh-on-view] write-behind observer failed', failure]]);
+    errors.mockRestore();
+  });
+
+  it('reads the stored series only after the expiries resolve, so a newer expiry never vouches for older rows', async () => {
+    const pending = Promise.withResolvers<(number | null)[]>();
+    storedExpiriesMock.mockReturnValue(pending.promise);
+    getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)], [35, series('2026-06-12', 5)]]));
+    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
+
+    const read = getLiveHistory([34, 35]);
+    await Promise.resolve();
+
+    // Nothing reads the rows while the expiry read is in flight.
+    expect(getStoredHistoryMock).not.toHaveBeenCalled();
+    expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
+    pending.resolve([Date.now() - 1000, Date.now() + 60 * 60 * 1000]);
+
+    const { inputs, metrics } = await read;
+    expect(storedExpiriesMock.mock.invocationCallOrder[0]).toBeLessThan(getStoredHistoryMock.mock.invocationCallOrder[0]!);
+    expect(getStoredHistoryMock).toHaveBeenCalledOnce();
+    expect(getStoredHistoryMock).toHaveBeenCalledWith([34, 35]);
+    expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
+    expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
+    expect(inputs.get(35)?.latestDate).toBe('2026-06-12');
+    expect(metrics).toEqual({ requested: 2, freshEsi: 0, warmStored: 1, staleStored: 1, missing: 0 });
   });
 
   it('falls back to the stored series when a stale type fails to fetch', async () => {

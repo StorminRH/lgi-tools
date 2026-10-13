@@ -2,12 +2,12 @@ import { cn } from '@/components/ui/cn';
 import { fieldVariants, triggerShape } from '@/components/ui/input';
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
-import type { NodeMeState } from './me-overrides';
+import type { EfficiencyState } from './efficiency';
 import { REACTION_ACTIVITY } from './structure-bonus';
 
 const THIN_MARGIN_PCT = 5;
 
-export type EfficiencyToneState = NodeMeState | 'bonus' | 'reaction';
+export type EfficiencyToneState = EfficiencyState | 'bonus' | 'reaction';
 
 /** The rail's tool buttons wear the frosted trigger the profile picker wears. */
 export const PLANNER_TOOL_TRIGGER_CLASS = cn(

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq, inArray, type SQL } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from './schema';
@@ -7,11 +7,12 @@ import { MARKET_PRICES_TAG } from '@/data/market-prices/keys';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
-import { groupBy } from '@/lib/array';
+import { dedupe, groupBy } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
-import { classRangeIncludes, gasClassRange } from './gas-classes';
+import { waveEwar } from './ewar';
 import { overlayLivePrices } from './live-prices';
 import { liveRecipesForSearch } from './live-recipes-for-search';
+import { siteClassSet } from './site-filter';
 import type { SiteLiveRecipe } from './site-name-lookup';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
@@ -25,6 +26,37 @@ const SITE_LIST_COLUMNS = {
   blueLootIsk: sites.blueLootIsk,
   iskPerEhp: sites.iskPerEhp,
   resourceValueIsk: sites.resourceValueIsk,
+} as const;
+
+const WAVE_COLUMNS = {
+  id: waves.id,
+  siteId: waves.siteId,
+  waveNumber: waves.waveNumber,
+  waveLabel: waves.waveLabel,
+} as const;
+
+const NPC_COLUMNS = {
+  id: npcs.id,
+  waveId: npcs.waveId,
+  typeId: npcs.typeId,
+  orderInWave: npcs.orderInWave,
+  triggerLabel: npcs.triggerLabel,
+  quantity: npcs.quantity,
+  sleeperName: npcs.sleeperName,
+  sleeperClassCode: npcs.sleeperClassCode,
+} as const;
+
+const SITE_RESOURCE_COLUMNS = {
+  id: siteResources.id,
+  siteId: siteResources.siteId,
+  orderInSite: siteResources.orderInSite,
+  resourceKind: siteResources.resourceKind,
+  resourceName: siteResources.resourceName,
+  units: siteResources.units,
+  volumeM3: siteResources.volumeM3,
+  iskPerM3: siteResources.iskPerM3,
+  totalIsk: siteResources.totalIsk,
+  typeId: siteResources.typeId,
 } as const;
 
 type NpcRow = {
@@ -68,10 +100,6 @@ function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
   };
 }
 
-function nullIfZero(value: number, anyContrib: boolean): number | null {
-  return anyContrib ? value : null;
-}
-
 function aggregateWave(
   row: WaveRow,
   npcRows: NpcRow[],
@@ -84,43 +112,11 @@ function aggregateWave(
     .filter((x): x is { stats: CombatStats; quantity: number } => x.stats !== undefined);
   const totals = summariseWave(contributing);
 
-  let ewScramSum = 0;
-  let ewWebSum = 0;
-  let ewNeutSum = 0;
-  let ewRrepSum = 0;
-  let anyScram = false;
-  let anyWeb = false;
-  let anyNeut = false;
-  let anyRrep = false;
-  for (const n of npcRows) {
-    const stats = statsByType.get(n.typeId);
-    if (!stats) continue;
-    if (stats.ewar.scram > 0) {
-      ewScramSum += stats.ewar.scram;
-      anyScram = true;
-    }
-    if (stats.ewar.web !== 0) {
-      ewWebSum += 1;
-      anyWeb = true;
-    }
-    if (stats.ewar.neutCount > 0) {
-      ewNeutSum += -stats.ewar.neutCount;
-      anyNeut = true;
-    }
-    if (stats.ewar.rrepCount > 0) {
-      ewRrepSum += stats.ewar.rrepCount;
-      anyRrep = true;
-    }
-  }
-
   return {
     id: row.id,
     waveNumber: row.waveNumber,
     waveLabel: row.waveLabel,
-    ewScram: nullIfZero(ewScramSum, anyScram),
-    ewWeb: nullIfZero(ewWebSum, anyWeb),
-    ewNeut: nullIfZero(ewNeutSum, anyNeut),
-    ewRrep: nullIfZero(ewRrepSum, anyRrep),
+    ...waveEwar(enriched),
     dpsTotal: totals.dpsTotal,
     alphaTotal: totals.alphaTotal,
     ehpTotal: totals.ehpTotal,
@@ -128,13 +124,66 @@ function aggregateWave(
   };
 }
 
-function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass'>, cls: WormholeClass): boolean {
-  if (s.wormholeClass === cls) return true;
-  if (s.siteType === 'gas') {
-    const range = gasClassRange(s.name);
-    return range !== null && classRangeIncludes(range, cls);
-  }
-  return false;
+async function selectSiteRows(where?: SQL): Promise<SiteListItem[]> {
+  return db
+    .select(SITE_LIST_COLUMNS)
+    .from(sites)
+    .where(where)
+    .orderBy(sites.sourceTab, sites.name);
+}
+
+/**
+ * Builds each site's waves (NPCs enriched with combat stats) and unpriced
+ * resources, in siteRows order. An empty list makes no further reads.
+ */
+async function assembleSiteDetails(siteRows: SiteListItem[]): Promise<SiteDetail[]> {
+  if (siteRows.length === 0) return [];
+  const siteIds = siteRows.map((s) => s.id);
+
+  const [waveRows, resourceRows, npcRows] = await Promise.all([
+    db
+      .select(WAVE_COLUMNS)
+      .from(waves)
+      .where(inArray(waves.siteId, siteIds))
+      .orderBy(waves.siteId, waves.waveNumber),
+    db
+      .select(SITE_RESOURCE_COLUMNS)
+      .from(siteResources)
+      .where(inArray(siteResources.siteId, siteIds))
+      .orderBy(siteResources.orderInSite),
+    db
+      .select(NPC_COLUMNS)
+      .from(npcs)
+      .innerJoin(waves, eq(npcs.waveId, waves.id))
+      .where(inArray(waves.siteId, siteIds))
+      .orderBy(npcs.orderInWave),
+  ]);
+
+  const statsByType = await getCombatStatsBatch(dedupe(npcRows.map((n) => n.typeId)));
+  const npcsByWaveId = groupBy(npcRows, (n) => n.waveId);
+
+  const wavesBySiteId = groupBy(
+    waveRows,
+    (w) => w.siteId,
+    (w) => aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),
+  );
+
+  const resourcesBySiteId = groupBy(
+    resourceRows,
+    (r) => r.siteId,
+    ({ siteId: _siteId, ...resource }): SiteResource => ({
+      ...resource,
+      liveIsk: null,
+      effectiveIsk: resource.totalIsk,
+      liveEligible: false,
+    }),
+  );
+
+  return siteRows.map((site) => ({
+    ...site,
+    waves: wavesBySiteId.get(site.id) ?? [],
+    resources: resourcesBySiteId.get(site.id) ?? [],
+  }));
 }
 
 export async function listSites(filters: {
@@ -143,131 +192,18 @@ export async function listSites(filters: {
 }): Promise<SiteListItem[]> {
   'use cache';
   cacheLife('max');
-  const conditions = [
-    filters.type ? eq(sites.siteType, filters.type) : undefined,
-  ].filter((c) => c !== undefined);
-
+  const { type, wormholeClass } = filters;
   const rows = await withColdStartRetry(() =>
-    db
-      .select(SITE_LIST_COLUMNS)
-      .from(sites)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(sites.sourceTab, sites.name),
+    selectSiteRows(type ? eq(sites.siteType, type) : undefined),
   );
-
-  return filters.wormholeClass
-    ? rows.filter((s) => matchesClass(s, filters.wormholeClass!))
-    : rows;
+  return wormholeClass ? rows.filter((s) => siteClassSet(s).includes(wormholeClass)) : rows;
 }
 
-async function loadNpcsForWaves(waveIds: number[]): Promise<NpcRow[]> {
-  if (waveIds.length === 0) return [];
-  return db
-    .select({
-      id: npcs.id,
-      waveId: npcs.waveId,
-      typeId: npcs.typeId,
-      orderInWave: npcs.orderInWave,
-      triggerLabel: npcs.triggerLabel,
-      quantity: npcs.quantity,
-      sleeperName: npcs.sleeperName,
-      sleeperClassCode: npcs.sleeperClassCode,
-    })
-    .from(npcs)
-    .where(inArray(npcs.waveId, waveIds))
-    .orderBy(npcs.orderInWave);
-}
-
-export async function listSiteDetails(filters: {
-  type?: SiteType;
-  wormholeClass?: WormholeClass;
-}): Promise<SiteDetail[]> {
+export async function listSiteDetails(): Promise<SiteDetail[]> {
   'use cache';
   cacheLife('max');
   cacheTag(SDE_CACHE_TAG);
-  return withColdStartRetry(async () => {
-    const conditions = [
-      filters.type ? eq(sites.siteType, filters.type) : undefined,
-    ].filter((c) => c !== undefined);
-
-    const allRows = await db
-      .select(SITE_LIST_COLUMNS)
-      .from(sites)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(sites.sourceTab, sites.name);
-
-    const siteRows = filters.wormholeClass
-      ? allRows.filter((s) => matchesClass(s, filters.wormholeClass!))
-      : allRows;
-
-    if (siteRows.length === 0) return [];
-
-    const siteIds = siteRows.map((s) => s.id);
-
-    const [waveRows, resourceRows]: [
-      WaveRow[],
-      (Omit<SiteResource, 'liveIsk' | 'effectiveIsk' | 'liveEligible'> & { siteId: number })[],
-    ] = await Promise.all([
-      db
-        .select({
-          id: waves.id,
-          siteId: waves.siteId,
-          waveNumber: waves.waveNumber,
-          waveLabel: waves.waveLabel,
-        })
-        .from(waves)
-        .where(inArray(waves.siteId, siteIds))
-        .orderBy(waves.siteId, waves.waveNumber),
-      db
-        .select({
-          id: siteResources.id,
-          siteId: siteResources.siteId,
-          orderInSite: siteResources.orderInSite,
-          resourceKind: siteResources.resourceKind,
-          resourceName: siteResources.resourceName,
-          units: siteResources.units,
-          volumeM3: siteResources.volumeM3,
-          iskPerM3: siteResources.iskPerM3,
-          totalIsk: siteResources.totalIsk,
-          typeId: siteResources.typeId,
-        })
-        .from(siteResources)
-        .where(inArray(siteResources.siteId, siteIds))
-        .orderBy(siteResources.orderInSite),
-    ]);
-
-    const waveIds = waveRows.map((w) => w.id);
-
-    const npcRows = await loadNpcsForWaves(waveIds);
-
-    const distinctTypeIds = [...new Set(npcRows.map((n) => n.typeId))];
-    const statsByType = await getCombatStatsBatch(distinctTypeIds);
-
-    const npcsByWaveId = groupBy(npcRows, (n) => n.waveId);
-
-    const wavesBySiteId = groupBy(
-      waveRows,
-      (w) => w.siteId,
-      (w) => aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),
-    );
-
-    const resourcesBySiteId = groupBy(
-      resourceRows,
-      (r) => r.siteId,
-      ({ siteId: _siteId, ...resource }): SiteResource => ({
-        ...resource,
-        liveIsk: null,
-        effectiveIsk: resource.totalIsk,
-        liveEligible: false,
-      }),
-    );
-
-    return siteRows.map((site) => ({
-      ...site,
-      waves: wavesBySiteId.get(site.id) ?? [],
-      resources: resourcesBySiteId.get(site.id) ?? [],
-    }));
-  });
+  return withColdStartRetry(async () => assembleSiteDetails(await selectSiteRows()));
 }
 
 export type SiteSearchEntry = {
@@ -320,58 +256,8 @@ async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   cacheLife('max');
   cacheTag(SDE_CACHE_TAG);
   return withColdStartRetry(async () => {
-    const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
-    if (!site) return null;
-
-    const [siteWaves, resourceRows] = await Promise.all([
-      db
-        .select({
-          id: waves.id,
-          siteId: waves.siteId,
-          waveNumber: waves.waveNumber,
-          waveLabel: waves.waveLabel,
-        })
-        .from(waves)
-        .where(eq(waves.siteId, id))
-        .orderBy(waves.waveNumber),
-      db
-        .select({
-          id: siteResources.id,
-          orderInSite: siteResources.orderInSite,
-          resourceKind: siteResources.resourceKind,
-          resourceName: siteResources.resourceName,
-          units: siteResources.units,
-          volumeM3: siteResources.volumeM3,
-          iskPerM3: siteResources.iskPerM3,
-          totalIsk: siteResources.totalIsk,
-          typeId: siteResources.typeId,
-        })
-        .from(siteResources)
-        .where(eq(siteResources.siteId, id))
-        .orderBy(siteResources.orderInSite),
-    ]);
-
-    const waveIds = siteWaves.map((w) => w.id);
-
-    const allNpcs = await loadNpcsForWaves(waveIds);
-
-    const resources: SiteResource[] = resourceRows.map((r) => ({
-      ...r,
-      liveIsk: null,
-      effectiveIsk: r.totalIsk,
-      liveEligible: false,
-    }));
-
-    const distinctTypeIds = [...new Set(allNpcs.map((n) => n.typeId))];
-    const statsByType = await getCombatStatsBatch(distinctTypeIds);
-
-    const npcsByWaveId = groupBy(allNpcs, (n) => n.waveId);
-
-    const assembledWaves: Wave[] = siteWaves.map((w) =>
-      aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),
-    );
-
-    return { ...site, waves: assembledWaves, resources };
+    const [detail] = await assembleSiteDetails(await selectSiteRows(eq(sites.id, id)));
+    return detail ?? null;
   });
 }
 
@@ -387,7 +273,7 @@ export async function listPricedSiteDetails(): Promise<SiteDetail[]> {
   'use cache: remote';
   cacheLife('max');
   cacheTag(MARKET_PRICES_TAG);
-  const raw = await listSiteDetails({});
+  const raw = await listSiteDetails();
   return withColdStartRetry(() => overlayLivePrices(raw));
 }
 

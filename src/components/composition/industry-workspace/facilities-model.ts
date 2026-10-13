@@ -17,6 +17,7 @@ import {
 import { hostsReactions, structureCategoryBonus } from '@/features/industry-planner/structure-factors';
 import type { AvailableStructure } from '@/features/industry-planner/types';
 import { getOrInsertComputed } from '@/lib/array';
+import { matchesAllWords } from '@/platform/search/match';
 
 // ---------------------------------------------------------------------------
 // A profile's facilities as the page shows them: saved structures resolve to
@@ -124,14 +125,6 @@ export const STRUCTURE_SOURCE_GROUPS = [
 
 const STATION_RESULTS = 8;
 
-function nameMatches(name: string, query: string): boolean {
-  const lower = name.toLowerCase();
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .every((word) => lower.includes(word));
-}
-
 export function facilityOptionGroups(args: {
   query: string;
   structures: readonly AvailableStructure[];
@@ -147,7 +140,7 @@ export function facilityOptionGroups(args: {
     pick: { kind: 'structure', structure },
   });
   const open = args.structures.filter(
-    (s) => !args.taken.has(structureKey(s)) && (query === '' || nameMatches(s.name, query)),
+    (s) => !args.taken.has(structureKey(s)) && (query === '' || matchesAllWords(s.name, query)),
   );
   const groups: FacilityOptionGroup[] = [
     ...STRUCTURE_SOURCE_GROUPS.map(({ label, source }) => ({

@@ -835,7 +835,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user plan cap is application-enforced (count, then insert) and cannot be expressed as a plain constraint; its compensating delete can over-correct under concurrency — operator-declined as impractical for human click rates (2026-08-11 triage).',
+      note: 'One insert, update, or delete per user action. The per-user plan cap is one serializable conditional insert (insertWithinCap): the count and the insert are one statement, so of two saves racing for the last slot one is rejected, retried, and finds the account full.',
     },
     dataClass: 'personal',
   },
@@ -846,7 +846,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user profile cap is application-enforced (count, insert, recount, compensating delete), like saved plans.',
+      note: 'One insert or update per user action. Edits are revision-guarded in the update statement itself, so a stale writer changes nothing. Delete stamps deleted_at and keeps the row for later references. The per-user cap on live profiles is the same serializable conditional insert as saved plans (insertWithinCap).',
     },
     dataClass: 'personal',
   },
@@ -857,7 +857,7 @@ export const DATA_OWNERSHIP = [
     invariants: ['fk(user_id→user.id)', 'pk(id)'],
     boundary: {
       kind: 'single-statement',
-      note: 'One insert, update, or delete per user action. The per-user structure cap is application-enforced with no compensating recount, so two concurrent saves at the cap can both succeed — operator-declined as impractical for human click rates (2026-08-11 triage); a cardinality rule would need a trigger or counter column.',
+      note: 'One insert, update, or delete per user action. The per-user structure cap is the same serializable conditional insert as saved plans (insertWithinCap), so two concurrent saves at the cap admit exactly one.',
     },
     dataClass: 'personal',
   },

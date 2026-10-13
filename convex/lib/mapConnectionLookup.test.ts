@@ -1,10 +1,19 @@
+// @vitest-environment edge-runtime
+import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import type { Id } from '../_generated/dataModel';
-import { connectionTestDoc } from '../__tests__/connection-doc.setup';
+import schema from '../schema';
+import { connectionInsert, connectionTestDoc } from '../__tests__/connection-doc.setup';
+import { expectConvexErrorCode } from '../__tests__/convexTest.setup';
+import { modules } from '../__tests__/modules.setup';
 import {
+  MAP_CONNECTION_SIGNATURE_SCAN_LIMIT,
   connectionOwnsLocalSignature,
   findLocalSignatureConnection,
   findPasteConnection,
+  readInboundConnections,
+  readOriginConnections,
+  readTouchingConnections,
 } from './mapConnectionLookup';
 
 const MAP = 'map-a';
@@ -81,5 +90,39 @@ describe('local signature identity', () => {
       purgeAfter: 20,
     });
     expect(findPasteConnection([stub], HERE, 'WHL-001')?._id).toBe(stub._id);
+  });
+});
+
+describe('bounded door reads', () => {
+  it('fail past the default bound with a direction-named error unless the caller widens it', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
+        await ctx.db.insert('mapConnections', connectionInsert({
+          mapId: MAP,
+          fromSystemId: HERE,
+          toSystemId: THERE,
+        }));
+      }
+    });
+
+    const origin = await expectConvexErrorCode(
+      t.run((ctx) => readOriginConnections(ctx, MAP, HERE)),
+      'MAP_CONNECTION_SCAN_LIMIT',
+    );
+    expect(origin.data).toEqual({
+      code: 'MAP_CONNECTION_SCAN_LIMIT',
+      detail: 'Map map-a exceeds the 128-connection origin scan bound.',
+    });
+    const inbound = await expectConvexErrorCode(
+      t.run((ctx) => readInboundConnections(ctx, MAP, THERE)),
+      'MAP_CONNECTION_SCAN_LIMIT',
+    );
+    expect(inbound.data).toEqual({
+      code: 'MAP_CONNECTION_SCAN_LIMIT',
+      detail: 'Map map-a exceeds the 128-connection destination scan bound.',
+    });
+    const touching = await t.run((ctx) => readTouchingConnections(ctx, MAP, THERE, { limit: 129 }));
+    expect(touching).toHaveLength(129);
   });
 });

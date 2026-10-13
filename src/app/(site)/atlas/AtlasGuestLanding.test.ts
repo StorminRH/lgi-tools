@@ -20,6 +20,9 @@ it('gates guests behind EVE sign-in that returns to the shared map, and lists th
   expect(landing).toContain('Set up tracking');
   expect(landing.match(/<li\b/g)).toHaveLength(3);
   expect(landing).toContain('Add character');
+  expect(landing).toContain('Link your other characters');
+  expect(landing.match(/<p class="text-ui leading-relaxed text-muted">/g)).toHaveLength(2);
+  expect(landing).not.toContain('Sign in to access maps and tracking.');
   expect(landing).toContain('Tracking');
   expect(landing).not.toContain('data-map-catalogue');
   expect(landing).not.toContain('data-map-canvas');

@@ -1,30 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createBuildSystemApplier, type BuildSystemRef } from './build-system-apply';
-import type { BuildLocationData } from './types';
+import { createBuildSystemApplier } from './build-system-apply';
+import type { JobSystemRef, SystemJobCostIndex } from './types';
 
-const JITA: BuildSystemRef = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
-const AMARR: BuildSystemRef = { systemId: 30002187, systemName: 'Amarr', security: 1.0 };
+const JITA: JobSystemRef = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
+const AMARR: JobSystemRef = { systemId: 30002187, systemName: 'Amarr', security: 1.0 };
 
-const DATA: BuildLocationData = {
-  stations: [],
-  costIndices: { manufacturing: 0.05, reaction: null },
-  adjustedPrices: [{ typeId: 34, adjustedPrice: 4.2 }],
-};
+const DATA: SystemJobCostIndex = { systemId: 30000142, manufacturing: 0.05, reaction: null };
 
 function makeDeps(
-  fetchLocation: (systemId: number, signal: AbortSignal) => Promise<BuildLocationData | null>,
+  fetchLocation: (systemId: number, signal: AbortSignal) => Promise<SystemJobCostIndex | null>,
 ) {
   return {
     fetchLocation,
-    onApplied: vi.fn<(sys: BuildSystemRef, data: BuildLocationData) => void>(),
-    onPersist: vi.fn<(sys: BuildSystemRef) => void>(),
+    onApplied: vi.fn<(sys: JobSystemRef, data: SystemJobCostIndex) => void>(),
+    onPersist: vi.fn<(sys: JobSystemRef) => void>(),
   };
 }
 
 describe('createBuildSystemApplier', () => {
   it('cancelling the profile read prevents a late result from applying or persisting', async () => {
-    let release!: (data: BuildLocationData) => void;
-    const pending = new Promise<BuildLocationData>((resolve) => { release = resolve; });
+    let release!: (data: SystemJobCostIndex) => void;
+    const pending = new Promise<SystemJobCostIndex>((resolve) => { release = resolve; });
     const deps = makeDeps(() => pending);
     const controller = new AbortController();
     const result = createBuildSystemApplier(deps)(JITA, { persist: true, signal: controller.signal });
@@ -77,8 +73,8 @@ describe('createBuildSystemApplier', () => {
   });
 
   it('a later apply supersedes an in-flight one — last request wins even when the slow fetch resolves', async () => {
-    let releaseFirst!: (data: BuildLocationData) => void;
-    const first = new Promise<BuildLocationData>((resolve) => {
+    let releaseFirst!: (data: SystemJobCostIndex) => void;
+    const first = new Promise<SystemJobCostIndex>((resolve) => {
       releaseFirst = resolve;
     });
     const seen: AbortSignal[] = [];
@@ -106,7 +102,7 @@ describe('createBuildSystemApplier', () => {
 
   it('an aborted fetch that throws resolves superseded, not failed', async () => {
     let rejectFirst!: (err: unknown) => void;
-    const first = new Promise<BuildLocationData>((_resolve, reject) => {
+    const first = new Promise<SystemJobCostIndex>((_resolve, reject) => {
       rejectFirst = reject;
     });
     const deps = makeDeps((systemId) =>

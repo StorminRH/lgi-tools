@@ -76,6 +76,33 @@ describe('characterLocationReads.syncInputs', () => {
     expect(untracked).toEqual({ trackedIds: [], locations: [], online: [], leases: [] });
   });
 
+  it('keeps trackedIds order in every array and skips a pilot missing that row', async () => {
+    const t = convexTest(schema, modules);
+    const CHAR_C = CHAR_B + 1;
+    await t.run(async (ctx) => {
+      // Insert in reverse so creation order cannot stand in for trackedIds order.
+      for (const characterId of [CHAR_C, CHAR_B, CHAR_A]) {
+        await ctx.db.insert('mapTracking', { mapId: 'map-a', userId: USER, characterId });
+      }
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_C));
+      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+      await ctx.db.insert('characterLocationOnline', {
+        userId: USER,
+        characterId: CHAR_B,
+        online: true,
+        etagOnline: null,
+        onlineExpiresAt: GEN,
+      });
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_C));
+      await ctx.db.insert('characterLocationAccess', accessLease(USER, CHAR_B));
+    });
+    const inputs = await t.query(internal.characterLocationReads.syncInputs, { userId: USER });
+    expect(inputs.trackedIds).toEqual([CHAR_A, CHAR_B, CHAR_C]);
+    expect(inputs.locations.map((row) => row.characterId)).toEqual([CHAR_A, CHAR_C]);
+    expect(inputs.online.map((row) => row.characterId)).toEqual([CHAR_B]);
+    expect(inputs.leases.map((row) => row.characterId)).toEqual([CHAR_B, CHAR_C]);
+  });
+
   it('syncs distinct pilots when valid memberships across maps exceed 1024', async () => {
     const t = convexTest(schema, modules);
     const characterIds = Array.from({ length: 32 }, (_, index) => CHAR_A + index);

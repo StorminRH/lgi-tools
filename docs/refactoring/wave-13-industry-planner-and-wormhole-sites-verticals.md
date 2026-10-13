@@ -2,32 +2,34 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#681](https://github.com/StorminRH/lgi-tools/pull/681).
+
 ← [Wave 12: Market data, search and client data reads](wave-12-market-data-search-and-client-data-reads.md) · [Index](README.md#roadmap) · [Wave 14: Convex backend helpers](wave-14-convex-backend-helpers.md) →
 
 Planner: one efficiency module, then MeField/TeField reading context, then ledger parts. StructureFactors is built once, which unblocks P070 (adjusted prices seeded once, build-location endpoint retired; medium risk, high payoff). Then the batch ledger once, pricedTypeIds and shell glue. Wormhole sites: site class (on P042's taxonomy), then site type, then one site-detail assembly, then the EWAR module, the live-priced guard and deletion of the module-global site index. P298 in wave 15 depends on that deletion.
 
 | Status | ID | Item | Category | Effort | Risk | Payoff | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ☐ | [P301](#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
-| ☐ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
-| ☐ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
-| ☐ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
-| ☐ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
-| ☐ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
-| ☐ | [P325](#p325) | Share one pricedTypeIds(structure) between server pricing and the client refresh set | simplification | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
-| ☐ | [P326](#p326) | Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef | simplification | S | low | low | [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301) |
-| ☐ | [P120](#p120) | Give wormhole-sites one site-class range, class rank, class pill and site-type order | generic-utility | M | low | medium | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) |
-| ☐ | [P121](#p121) | Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet | generic-utility | S | low | medium | [P120](#p120) |
-| ☐ | [P227](#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](#p121) |
-| ☐ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
-| ☐ | [P071](#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
-| ☐ | [P072](#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](#p071) |
+| ☑ | [P301](#p301) | Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor | simplification | S | low | low | — |
+| ☑ | [P025](#p025) | Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line | ui-component | S | low | medium | [P301](#p301) |
+| ☑ | [P026](#p026) | Share the cockpit's ledger column head and item name stack inside industry-planner | ui-component | S | low | low | — |
+| ☑ | [P168](#p168) | Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus | server-pipeline | S | low | low | [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
+| ☑ | [P070](#p070) | Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint (cache shape reshaped by the ESI-cache merge) | client-data | M | medium | high | [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098) |
+| ☑ | [P291](#p291) | Resolve the batch ledger and marginal demand once per assemblePricing call | efficiency | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076) |
+| ☑ | [P325](#p325) | Share one pricedTypeIds(structure) between server pricing and the client refresh set (client reads reshaped by the ESI-cache merge) | simplification | S | low | low | [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304) |
+| ☑ | [P326](#p326) | Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef (owned-blueprint state reshaped by the ESI-cache merge) | simplification | S | low | low | [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301) |
+| ☑ | [P120](#p120) | Give wormhole-sites one site-class range, class rank, class pill and site-type order | generic-utility | M | low | medium | [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042) |
+| ☑ | [P121](#p121) | Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet | generic-utility | S | low | medium | [P120](#p120) |
+| ☑ | [P227](#p227) | Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters | persistence | S | low | medium | [P121](#p121) |
+| ☑ | [P169](#p169) | Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals | server-pipeline | M | low | medium | — |
+| ☑ | [P071](#p071) | Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts | client-data | S | low | low | [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084) |
+| ☑ | [P072](#p072) | Delete the module-global site-name index and make GlobalSearch the only writer of the site search index | client-data | S | low | medium | [P071](#p071) |
 
 <a id="p301"></a>
 
 ## P301: Fold te-overrides, node-frame-state and override-map into one efficiency module and share the ME/TE factor
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -40 production lines (te-overrides 19, meFactor/teFactor 3, IconState 1, file headers and imports) and 3 fewer modules; tests unchanged in substance
 - **Depends on:** —
@@ -100,7 +102,7 @@ export function setOverride(...); export function resetOverride(...); // moved v
 
 ## P025: Have MeField/TeField read useBuildPlan themselves, own their boxed icon row, and share one blueprint meta line
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +40 (two six-prop interfaces, ten-prop threading in four places, duplicate row markup and icon-state recomputation, one meta-line copy)
 - **Depends on:** [P301](#p301)
@@ -169,7 +171,7 @@ export function BlueprintMetaLine(props: { group: string; activity: string | nul
 
 ## P026: Share the cockpit's ledger column head and item name stack inside industry-planner
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** ui-component · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -24 lines at the call sites and +40 in the new file plus test. Net source grows by about 15 lines. The gain is one definition shared by two views.
 - **Depends on:** —
@@ -223,7 +225,7 @@ export function ItemNameStack(props: { name: string; label: ReactNode; className
 
 ## P168: Build StructureFactors in one place from a per-job bonus function, with bestOf in structure-bonus
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -25 / +22; net about -5, with the factor formula defined once
 - **Depends on:** [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098)
@@ -288,11 +290,13 @@ export function structureFactorsFrom(args: {
 
 ## P070: Seed blueprint adjusted prices once per planner, read system cost indices through costIndicesEndpoint, and retire the build-location endpoint
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** M · **Risk:** medium · **Payoff:** high · **Size:** About -110 net (use-component-fee-sources -40, location-writes -12, composeFeeInputs -5, the build-location contract, types, route and getBuildLocation -60, stations query -15; plus about 25 for the cached read, seeder generalisation and readCostIndices)
 - **Depends on:** [P168](#p168), [P185](wave-01-quick-wins-delete-dead-code-fix-small.md#p185), [P098](wave-04-formatting-dates-and-names-have-one-home.md#p098)
 - **Existing primitive:** `src/data/industry-indices/queries.ts:getAdjustedPrices; src/features/industry-planner/api-contract.ts:costIndicesEndpoint`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. getBlueprintAdjustedPrices follows development's shape for stored aggregates. It is a `'use cache: remote'` entry with `cacheLife('max')` and `cacheTag(INDUSTRY_INDICES_TAG, SDE_CACHE_TAG)`. Each industry-indices write clears INDUSTRY_INDICES_TAG through `commit(..., { tag: INDUSTRY_INDICES_TAG })`, so the entry lives across instances until the next industry-indices commit (hourly cost-index refresh or daily adjusted-price write). queries.db.test.ts pins those directives, and remote-readers.test.ts counts the reader among the write-cleared aggregates. Development had moved getBuildLocation's cost indices to `getSystemCostIndicesOnView`, but that change was dropped because this item retires getBuildLocation. The planner's cost indices still use that on-view read through getJobCostIndices and costIndicesEndpoint. The rest of the item (one seeded adjusted-price read, readCostIndices, the retired endpoint, contract and stations query) is kept as written.
 
 **Problem.** Adjusted prices depend only on the blueprint, but the planner fetches them through a per-system endpoint and keeps up to three identical copies. The build-system applier stores them on SelectedLocation, the reaction read on ReactionLocationSnapshot, and use-component-fee-sources gets them through a build-location read for an arbitrary component system, keyed `${blueprintTypeId}:${priceSystemId}`. composeFeeInputs then chooses among location, reactionLocation and components. With a profile, the build read and the price read fire together at mount, so the server resolves the same price set two or three times. The build-location response also carries stations, which no client code reads, so getIndustryStationsForSystem runs on every call for nothing. The three reads repeat the same readWithRetries(apiFetch(buildLocationEndpoint …)) body and the same `new Map(adjustedPrices.map(...))` conversion.
 
@@ -331,7 +335,7 @@ export function structureFactorsFrom(args: {
 
 ```ts
 // queries.ts (server)
-export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<{ typeId: number; adjustedPrice: number }[]> { 'use cache'; cacheLife('hours'); cacheTag(BLUEPRINT_STRUCTURE_TAG); /* getBlueprintStructure -> dedupe(collectTreeTypeIds(tree)) -> getAdjustedPrices */ }
+export async function getBlueprintAdjustedPrices(blueprintId: number): Promise<{ typeId: number; adjustedPrice: number }[]> { 'use cache'; cacheLife('hours'); cacheTag(BLUEPRINT_STRUCTURE_TAG); /* getBlueprintStructure -> dedupe(collectTreeTypeIds(tree)) -> getAdjustedPrices */ }  // after the ESI-cache merge: 'use cache: remote'; cacheLife('max'); cacheTag(INDUSTRY_INDICES_TAG, SDE_CACHE_TAG)
 // PricingProvider props
 adjustedPricesPromise: Promise<{ typeId: number; adjustedPrice: number }[]>
 // generic seeder replacing PricingSeeder/HistorySeeder
@@ -343,14 +347,14 @@ composeFeeInputs(args: { adjustedPriceOf: (id: number) => number | null; locatio
 
 **Migration steps.**
 
-1. Server: add getBlueprintAdjustedPrices to queries.ts using 'use cache' with cacheLife('hours'). Adjusted prices are rewritten daily by cron:industry-indices, which revalidates no tag, so cap staleness like getBlueprintPricing does. Wrap it in withColdStartRetry and return [] on a missing structure.
+1. Server: add getBlueprintAdjustedPrices to queries.ts using 'use cache' with cacheLife('hours'). Adjusted prices are rewritten daily by cron:industry-indices, which revalidates no tag, so cap staleness like getBlueprintPricing does. Wrap it in withColdStartRetry and return [] on a missing structure. (After the ESI-cache merge: 'use cache: remote' with cacheLife('max') and cacheTag(INDUSTRY_INDICES_TAG, SDE_CACHE_TAG). The cron's adjusted-price commit now clears INDUSTRY_INDICES_TAG, so no hours cap is needed.)
 2. page.tsx: create `const adjustedPricesPromise = getBlueprintAdjustedPrices(id)` next to pricingPromise and pass it to PricingProvider.
 3. PricingProvider: generalise PricingSeeder/HistorySeeder (L86-114) into one PromiseSeeder<T>; this third use is what justifies it. Seed the adjusted prices into a `Map<number, number> | null` state and derive one `adjustedPriceOf`.
 4. Add the feature-local readCostIndices(systemIds, signal), built from the body in use-component-fee-sources L77-89. Use it in the component read, in the applier (use-planner-location-writes L36-44, returning bySystem.get(systemId)) and in the reaction read (L75-82).
 5. Retype build-system-apply.ts from BuildLocationData to SystemJobCostIndex. SelectedLocation drops stations and adjustedPrices; ReactionLocationSnapshot drops adjustedPrices.
 6. use-component-fee-sources: delete priceSystemId, priceKey, ReadPrices, readPrices, readPricesEnabled and pricesStatus, plus the needAdjustedPrices parameter. Remove adjustedPriceOf from ComponentFeeInputs, so failed and pending come from indices alone. Drop the fourth argument at PricingProvider L300-302.
 7. composeFeeInputs: take a single `adjustedPriceOf` argument and remove the location/reactionLocation/components fallback (L206-211). Keep the early `return undefined` when no location, reaction or components exist.
-8. Delete the build-location path: buildLocationEndpoint, buildLocationRequestSchema, buildLocationResponseSchema and industryStationViewSchema (api-contract.ts L43-75); BuildLocationData and IndustryStationView (types.ts L91-103); getBuildLocation (queries.ts L262-287); src/app/api/industry/build-location/route.ts; 'resolve-build-location' in data/telemetry/capability.ts L60; the industryBuildLocationRoute entry in composition/__tests__/idempotency-registry.ts L375-378; and getIndustryStationsForSystem (data/eve-data/queries.ts L319) once fallow reports it unused. Update queries.db.test.ts and coverage.test.ts references.
+8. Delete the build-location path: buildLocationEndpoint, buildLocationRequestSchema, buildLocationResponseSchema and industryStationViewSchema (api-contract.ts L43-75); BuildLocationData and IndustryStationView (types.ts L91-103); getBuildLocation (queries.ts L262-287); src/app/api/industry/build-location/route.ts; 'resolve-build-location' in data/telemetry/capability.ts L60; the industryBuildLocationRoute entry in composition/__tests__/idempotency-registry.ts L375-378; and getIndustryStationsForSystem (data/eve-data/queries.ts L319) once fallow reports it unused. Update queries.db.test.ts and coverage.test.ts references. (After the ESI-cache merge: development's switch of getBuildLocation to the on-view cost-index read went with the retired function, and so did its queries.db.test.ts case with the runAfterResponse mock and the esi_responses table. The planner's on-view cost-index read lives on in getJobCostIndices behind costIndicesEndpoint.)
 
 **Tests.** Rewrite structure-factors.test.ts composeFeeInputs cases L465+ ('uses independent component prices…', 'composes the mfg keys from the build location…', 'routes the reaction-slot fetch…') to pass adjustedPriceOf directly; build-pricing.test.ts L652 does the same. In use-component-fee-sources.test.ts, delete L184-L190 (prices read and its failure, current-blueprint price keying) and keep the index tests L62-L129. use-planner-location-writes.test.ts L70-L167 must mock costIndicesEndpoint instead of buildLocationEndpoint, keeping 'the system priced until now stays while the next is read' and the reaction snapshot reuse. build-system-apply.test.ts needs only a type change. Add a queries.db.test.ts case: getBlueprintAdjustedPrices returns the tree's type ids priced and skips null adjusted prices. Extend PricingProvider.test.ts so fees use the seeded prices before any location read lands.
 
@@ -362,7 +366,7 @@ composeFeeInputs(args: { adjustedPriceOf: (id: number) => number | null; locatio
 
 ## P291: Resolve the batch ledger and marginal demand once per assemblePricing call
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** efficiency · **Kind:** efficiency · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -15 / +10 in source, plus mechanical test renames
 - **Depends on:** [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304), [P076](wave-12-market-data-search-and-client-data-reads.md#p076)
@@ -423,11 +427,13 @@ interface CostBill { basis; runs; meOpts; ledger: BatchLedger; marginalRuns: Rea
 
 ## P325: Share one pricedTypeIds(structure) between server pricing and the client refresh set
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -14 / +10
 - **Depends on:** [P304](wave-01-quick-wins-delete-dead-code-fix-small.md#p304)
 - **Existing primitive:** `src/features/industry-planner/build-plan-view.ts:unitPriceMap`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. The shared `pricedTypeIds(structure)` is kept on both sides: getBlueprintPricing prices `pricedTypeIds(structure)`, and usePlannerOwnedResources memoises it as toRefresh. On the client it now feeds development's reads. The owned-assets request is development's `useLiveDataset({ endpoint: ownedAssetsEndpoint, body: { typeIds: toRefresh }, key: idsKey(toRefresh) })`, with live re-checks and the `refreshing` flag, in place of the useResourceRead and apiFetch read the steps cite. getBlueprintPricing is development's `'use cache: remote'` entry under MARKET_PRICES_TAG.
 
 **Problem.** The set of type ids the planner prices (raw materials, the product, and intermediates) is assembled twice: once in the server pricing query and once in the client PricingProvider that drives live refresh and owned-asset reads. The client copy also skips the shared dedupe helper. If either list changes without the other, the server and the live-refresh set will disagree about what gets priced.
 
@@ -483,11 +489,13 @@ export function pricedTypeIds(
 
 ## P326: Trim planner-shell glue: one PromiseSeeder, inline TierRow, CockpitKpis owns its margin mode, ownedTe from mapOwnedBlueprints, shared CostBasis and SystemRef
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** simplification · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** about -75 / +20
 - **Depends on:** [P260](wave-06-config-env-ids-and-shared-domain-vocabularies.md#p260), [P025](#p025), [P301](#p301)
 - **Existing primitive:** `src/features/industry-planner/cost-basis-view.ts:CostBasis`
+
+**Merged with the ESI-cache rewrite (#689/#690).** The sections below describe the pre-rewrite code; read them as history. Step 5's single `useState<OwnedBlueprintMaps | null>` is superseded. Owned blueprints come from development's `useLiveDataset({ endpoint: ownedBlueprintsEndpoint, ... })`, and the maps are a `useMemo` of `mapOwnedBlueprints(blueprints.response.blueprints)` that stays null until a read lands. The rest of the step is kept on top of that read: mapOwnedBlueprints emits ownedTe (step 4), usePlannerOwnedResources returns `owned?.ownedTe ?? null`, and usePlannerLedger takes ownedTe in place of development's memo over ownedDetail. Steps 1-3, 6 and 7 are kept as written.
 
 **Problem.** The industry-planner shell has accumulated pass-through layers and repeated type spellings. There are two identical Suspense seeders. TierRow re-declares and forwards all 12 NodeCard props. PlannerRail drills marginMode and setMarginMode into a component that already reads the same context. A memo rebuilds the TE map from the detail map on every fetch, although mapOwnedBlueprints already loops over the blueprints. The 'batched' | 'marginal' union is spelled inline 7 times (6 in the feature, 1 in lib) although CostBasis exists. The system-ref shape is declared twice (SelectedReactionSystem, BuildSystemRef) and spelled inline a third time. A change to any of these has to be made in several places.
 
@@ -554,7 +562,7 @@ export function CockpitKpis({ structure }: { structure: BlueprintStructure })
 2. CockpitBuildPlan.tsx: delete TierRow (lines 41-86). In TierRowSlot, render <NodeCard typeId={item.typeId} name={item.name} label={item.label} icon=... qty=... value=... efficiency=... detail=... ownedQty=... heldBy=... lit=... dimmed=... onOpen=... onHover=... /> directly. Remove the imports that are now unused (ConsolidatedItem and AssetHolding if nothing else uses them).
 3. CockpitKpis.tsx: drop the marginMode and setMarginMode props and read them in the existing call: const { runs, marginMode, setMarginMode } = usePlannerConfig(). PlannerRail.tsx: delete line 257 and pass only structure at line 266. In CockpitKpis.test.ts, add marginMode: 'net' and setMarginMode: vi.fn() to the usePlannerConfig mock (line 13) and render with { structure } only (line 35).
 4. owned-blueprint-maps.ts: add ownedTe to OwnedBlueprintMaps and fill it in the existing loop with ownedTe.set(blueprint.blueprintTypeId, blueprint.te).
-5. PricingProvider.tsx usePlannerOwnedResources: replace the ownedMe/ownedDetail useState pair with one useState<OwnedBlueprintMaps | null>(null). applyOwnedBlueprints becomes setOwnedBlueprints. Return ownedMe, ownedDetail and ownedTe as maps?.x ?? null. Change usePlannerLedger to take ownedTe in place of ownedDetail and delete the memo at lines 438-441. Pass owned.ownedTe at the call site (around line 520).
+5. PricingProvider.tsx usePlannerOwnedResources: replace the ownedMe/ownedDetail useState pair with one useState<OwnedBlueprintMaps | null>(null). applyOwnedBlueprints becomes setOwnedBlueprints. Return ownedMe, ownedDetail and ownedTe as maps?.x ?? null. Change usePlannerLedger to take ownedTe in place of ownedDetail and delete the memo at lines 438-441. Pass owned.ownedTe at the call site (around line 520). (After the ESI-cache merge the maps come from a useMemo over development's useLiveDataset read of owned blueprints, not a useState; ownedTe and the usePlannerLedger change are kept.)
 6. CostBasis: in cost-basis-view.ts, derive the type from lib/preferences (or keep the literal). Replace the inline unions at PricingProvider.tsx:282, planner-contexts.tsx:47-48, build-pricing.ts:139 and 228, and types.ts:167 with CostBasis. cost-basis-view.ts imports nothing, so these imports cannot form a cycle. Optionally update build-pricing.test.ts:617.
 7. SystemRef: add SystemRef to types.ts. Delete BuildSystemRef (build-system-apply.ts:3-7) and import SystemRef there and in use-planner-location-writes.ts:6 and 59. Replace SelectedReactionSystem with SystemRef in planner-contexts.tsx:60, PricingProvider.tsx:83 and 168, and use-planner-profile.ts:20 and 96, then delete the interface so unused-types stays clean. Write SelectedLocation as extends SystemRef, and replace the inline shape at use-planner-profile.ts:92 with SystemRef.
 
@@ -568,7 +576,7 @@ export function CockpitKpis({ structure }: { structure: BlueprintStructure })
 
 ## P120: Give wormhole-sites one site-class range, class rank, class pill and site-type order
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -45 / +25 in production code across 10 files, +25 in tests
 - **Depends on:** [P042](wave-01-quick-wins-delete-dead-code-fix-small.md#p042)
@@ -658,7 +666,7 @@ Keeping site-class.ts drizzle-free is the point of moving WORMHOLE_CLASSES. I di
 
 ## P121: Centralise wormhole site-type predicates and display order; route class-range logic through siteClassSet
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** generic-utility · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About 45 lines removed and 30 added (new site-type.ts plus test); net about -15
 - **Depends on:** [P120](#p120)
@@ -777,7 +785,7 @@ site-meta's label copy has identical values to wormhole-styles, so removing it c
 
 ## P227: Share one site-detail assembly in wormhole-sites/queries.ts, route class matching through siteClassSet, and drop listSiteDetails' unused filters
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** persistence · **Kind:** simplification · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -75 / +20 in queries.ts; -10 in types.ts; test churn about +/-40
 - **Depends on:** [P121](#p121)
@@ -847,7 +855,7 @@ export type SiteListItem = Omit<SiteDetail, 'waves' | 'resources'>;
 
 ## P169: Give wormhole-sites one EWAR module (waveEwar, siteEwarTotals, activeEwarKeys) and drop summariseWave's dead ew* totals
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** server-pipeline · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** M · **Risk:** low · **Payoff:** medium · **Size:** about -70 / +40 (removes the aggregateWave loop and nullIfZero, the dead summariseWave ew* fields and test lines, the mock reduce, and the four reduces in activeSiteEwar)
 - **Depends on:** —
@@ -917,7 +925,7 @@ export function activeEwarKeys(counts: EwarCounts): EwarKey[]; // EWAR_ORDER, no
 
 ## P071: Make resourceValueEligible a type guard in live-isk.ts and share the live-price lookup type between the site and scanner contexts
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** low · **Size:** About -10 net (two casts and three predicate copies removed, two NO_LIVE/memo blocks folded; plus about 20 for the guard and lookup module)
 - **Depends on:** [P084](wave-04-formatting-dates-and-names-have-one-home.md#p084)
@@ -980,7 +988,7 @@ export function useLivePriceLookup(typeIds: number[], opts: { enabled: boolean; 
 
 ## P072: Delete the module-global site-name index and make GlobalSearch the only writer of the site search index
 
-- **Status:** [ ] not started
+- **Status:** [x] done
 - **Category:** client-data · **Kind:** duplicate-implementation · **Verdict:** revised
 - **Effort:** S · **Risk:** low · **Payoff:** medium · **Size:** About -45 production lines (module index, setter coupling, layout effect, fallback, barrel file) and +20 (pure builder, empty lookups). About 40 test lines rewritten.
 - **Depends on:** [P071](#p071)

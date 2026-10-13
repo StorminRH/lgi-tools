@@ -18,7 +18,7 @@ const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
+      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property written by the useStyleProperty / useStyleProperties ref (components/ui/use-style-ref) for runtime-dynamic ones (inline styles are CSP-permitted but not the default).",
   },
 ];
 
@@ -236,9 +236,9 @@ const apiFetchSelectors = [
       "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts.",
   },
   {
-    selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
+    selector: "CallExpression[callee.name=/^apiFetch(Data)?$/] > ObjectExpression:first-child",
     message:
-      "Inline apiFetch endpoint objects bypass the declared API-contract convention — pass the named defineEndpoint contract from the owning slice's api-contract.ts.",
+      "Inline apiFetch or apiFetchData endpoint objects bypass the declared API-contract convention — pass the named defineEndpoint contract from the owning slice's api-contract.ts.",
   },
 ];
 

@@ -1,16 +1,14 @@
 import { v } from 'convex/values';
 import {
   RETENTION_MS,
-  LOCATION_COLD_AFTER_MS,
-  isColdFromPresence,
   SYNC_DATASET_HISTORY,
   SYNC_DATASETS,
 } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import { getLocationSync, stopSync } from './lib/locationSchedule';
+import { retireLocationSync } from './lib/locationSchedule';
 import { handOffLocationSync } from './engineComplete';
-import { getPresence } from './lib/subjects';
+import { isLocationWatcherCold } from './lib/subjects';
 import { clearCoverageForUser } from './lib/locationCoverage';
 import { drainCharacterOnline } from './onlineStatus';
 
@@ -49,11 +47,10 @@ async function sweepRetiredRows(
   const subjects = await ctx.db.query('syncSubjects').take(RETIRED_GC_BATCH);
   for (const row of subjects) {
     if (row.dataset === 'characterLocation') {
-      const presence = await getPresence(ctx.db, 'characterLocation', row.userId);
-      if (!isColdFromPresence(presence, LOCATION_COLD_AFTER_MS, Date.now())) {
-        await handOffLocationSync(ctx, row.userId);
-      } else {
+      if (await isLocationWatcherCold(ctx.db, row.userId, Date.now())) {
         await clearCoverageForUser(ctx, row.userId);
+      } else {
+        await handOffLocationSync(ctx, row.userId);
       }
     }
     await ctx.db.delete('syncSubjects', row._id);
@@ -88,16 +85,12 @@ async function sweepAbandoned(
     .take(SWEEP_DELETE_BATCH);
   let deleted = 0;
   for (const presence of abandoned) {
-    const state = presence.dataset === 'characterLocation'
-      ? await getLocationSync(ctx.db, presence.userId)
-      : null;
-    if (state !== null) {
-      await stopSync(ctx, state, now);
-      await ctx.db.delete('locationSync', state._id);
-      deleted += 1;
-    }
-    if (presence.dataset === 'characterLocation' && state === null) {
-      await clearCoverageForUser(ctx, presence.userId);
+    if (presence.dataset === 'characterLocation') {
+      const state = await retireLocationSync(ctx, presence.userId, now);
+      if (state !== null) {
+        await ctx.db.delete('locationSync', state._id);
+        deleted += 1;
+      }
     }
     await ctx.db.delete('syncPresence', presence._id);
   }

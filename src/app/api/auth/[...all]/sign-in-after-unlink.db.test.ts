@@ -108,7 +108,8 @@ vi.mock('@/composition/character-authorization', () => ({
   checkUserCharacterAuthorizations: async () => {},
 }));
 
-vi.mock('@/lib/convex-http-door', () => ({
+vi.mock('@/lib/convex-http-door', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/convex-http-door')>()),
   postConvexHttpDoor: async () => {
     throw new Error('sign-in-after-unlink: Convex is out of reach');
   },

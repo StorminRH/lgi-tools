@@ -15,6 +15,7 @@ import {
 } from '@/platform/esi';
 import { esiPageCount } from '@/platform/esi/headers';
 import { dedupe, getOrInsertComputed } from '@/lib/array';
+import { bestEffort } from '@/lib/best-effort';
 import { mapConcurrent } from '@/lib/fan-out';
 import {
   computeDepth,
@@ -228,20 +229,39 @@ function fallbackMeta(typeId: number, checkedAt: number): EsiResponseMeta {
   return { key: priceKey(typeId), expiresAt: null, etags: [], lastModified: null, checkedAt };
 }
 
+interface FallbackRows {
+  prices: RawMarketPrice[];
+  metas: [number, EsiResponseMeta][];
+}
+
+type FallbackPricer = (typeIds: number[]) => Promise<FallbackRows>;
+
 /** The Fuzzwork rows for types ESI could not price, each with the meta that clears its old ETag. */
-async function fallbackPrices(typeIds: number[]): Promise<{ prices: RawMarketPrice[]; metas: [number, EsiResponseMeta][] }> {
+async function fallbackPrices(typeIds: number[]): Promise<FallbackRows> {
   const prices = await fallbackToFuzzwork(typeIds);
   const checkedAt = Date.now();
   return { prices, metas: prices.map((price) => [price.typeId, fallbackMeta(price.typeId, checkedAt)]) };
 }
 
 /**
- * Every type through its own order-book call: one store read for all of
- * them, PER_TYPE_CONCURRENCY calls in flight, one write for the 304s. This
- * is the only path a page view takes, whatever the count: the region dump
- * belongs to the cron sweep alone.
+ * The page view's fallback: a Fuzzwork outage is logged once and those
+ * types stay unpriced, with no meta, so the view serves their seed and the
+ * ESI answers already in hand still return and write behind.
  */
-export async function fetchPricesPerType(typeIds: number[]): Promise<SourcePrices> {
+async function bestEffortFallbackPrices(typeIds: number[]): Promise<FallbackRows> {
+  let rows: FallbackRows = { prices: [], metas: [] };
+  await bestEffort('market-prices/source', 'Fuzzwork fallback', null, async () => {
+    rows = await fallbackPrices(typeIds);
+  });
+  return rows;
+}
+
+/**
+ * Every type through its own order-book call: one store read for all of
+ * them, PER_TYPE_CONCURRENCY calls in flight, one write for the 304s. The
+ * types ESI could not price go to `fallback` in one batch.
+ */
+async function pricePerType(typeIds: number[], fallback: FallbackPricer): Promise<SourcePrices> {
   const unique = dedupe(typeIds);
   const answers = await fetchStoredMany(unique.map(priceKey), { concurrency: PER_TYPE_CONCURRENCY, parse: parseEsiOrders });
   const results: RawMarketPrice[] = [];
@@ -261,12 +281,21 @@ export async function fetchPricesPerType(typeIds: number[]): Promise<SourcePrice
   }
 
   if (fallbackNeeded.length > 0) {
-    const fb = await fallbackPrices(fallbackNeeded);
+    const fb = await fallback(fallbackNeeded);
     results.push(...fb.prices);
     for (const [typeId, meta] of fb.metas) metaByType.set(typeId, meta);
   }
 
   return { prices: results, budgetExhausted, metaByType };
+}
+
+/**
+ * The only path a page view takes, whatever the count: the region dump
+ * belongs to the cron sweep alone. A failed Fuzzwork fallback never fails
+ * the view; the cron's per-type read still lets it throw.
+ */
+export function fetchPricesPerType(typeIds: number[]): Promise<SourcePrices> {
+  return pricePerType(typeIds, bestEffortFallbackPrices);
 }
 
 async function fallbackToFuzzwork(
@@ -311,5 +340,5 @@ export async function fetchPricesFromSource(typeIds: number[]): Promise<SourcePr
   if (typeIds.length === 0) return { prices: [], budgetExhausted: false, metaByType: new Map() };
   const unique = dedupe(typeIds);
   if (unique.length >= BULK_THRESHOLD) return fetchViaBulk(unique);
-  return fetchPricesPerType(unique);
+  return pricePerType(unique, fallbackPrices);
 }

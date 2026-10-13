@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { siteDetail, siteResource, siteWave } from '../__tests__/site-fixtures';
 import { deriveSiteCardHeaderView } from './site-card-header-view';
+import { CLASS_TONE } from './wormhole-styles';
 
 describe('deriveSiteCardHeaderView', () => {
   it('uses a DPS/EHP sub-line and shows the ISK unit for a combat site', () => {
@@ -41,6 +42,14 @@ describe('deriveSiteCardHeaderView', () => {
     const view = deriveSiteCardHeaderView(siteDetail({ siteType: 'combat', wormholeClass: 'C5' }), []);
     expect(view.classPill).toEqual({ tone: 'red', label: 'C5' });
     expect(view.typePill).toEqual({ tone: 'red-soft', label: 'Combat' });
+  });
+
+  it('shows a class-less gas site’s spawn range, toned by its lowest class', () => {
+    const view = deriveSiteCardHeaderView(
+      siteDetail({ siteType: 'gas', wormholeClass: null, name: 'Barren Perimeter Reservoir' }),
+      [],
+    );
+    expect(view.classPill).toEqual({ tone: CLASS_TONE.C1, label: 'C1–C6' });
   });
 
   it('has no class pill for a classless non-gas site', () => {

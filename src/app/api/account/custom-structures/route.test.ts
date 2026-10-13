@@ -5,7 +5,6 @@ const h = vi.hoisted(() => ({
   getStructureTypesMock: vi.fn(),
   getStructureRigsMock: vi.fn(),
   solarSystemExistsMock: vi.fn(),
-  countCustomStructuresMock: vi.fn(),
   createCustomStructureMock: vi.fn(),
   listCustomStructuresMock: vi.fn(),
 }));
@@ -19,7 +18,6 @@ vi.mock('@/data/eve-data/queries', () => ({
   solarSystemExists: (...args: unknown[]) => h.solarSystemExistsMock(...args),
 }));
 vi.mock('@/features/custom-structures/queries', () => ({
-  countCustomStructures: (...args: unknown[]) => h.countCustomStructuresMock(...args),
   createCustomStructure: (...args: unknown[]) => h.createCustomStructureMock(...args),
   listCustomStructures: (...args: unknown[]) => h.listCustomStructuresMock(...args),
 }));
@@ -61,8 +59,7 @@ beforeEach(() => {
   h.getStructureTypesMock.mockReset().mockResolvedValue([azbel]);
   h.getStructureRigsMock.mockReset().mockResolvedValue([lMfgRig]);
   h.solarSystemExistsMock.mockReset().mockResolvedValue(true);
-  h.countCustomStructuresMock.mockReset().mockResolvedValue(0);
-  h.createCustomStructureMock.mockReset().mockResolvedValue(undefined);
+  h.createCustomStructureMock.mockReset().mockResolvedValue(true);
   h.listCustomStructuresMock.mockReset().mockResolvedValue([savedRow]);
 });
 
@@ -83,13 +80,14 @@ describe('POST /api/account/custom-structures', () => {
     expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for a selection that fails validation', async () => {
+  it('returns 400 for a selection that fails validation, before the cap is ever checked', async () => {
     const res = await POST(postJson(ROUTE, { ...VALID_BODY, structureTypeId: 99999 }));
     expect(res.status).toBe(400);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'invalid_structure',
       detail: 'unknown structure type',
     });
+    expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 for a pin to an unknown system', async () => {
@@ -100,6 +98,18 @@ describe('POST /api/account/custom-structures', () => {
       code: 'unknown_system',
       detail: 'unknown system',
     });
+  });
+
+  it('maps a full account to 409 without listing', async () => {
+    h.createCustomStructureMock.mockResolvedValue(false);
+    const res = await POST(postJson(ROUTE, VALID_BODY));
+    expect(res.status).toBe(409);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'structure_limit',
+      detail: 'structure limit reached',
+    });
+    expect(h.createCustomStructureMock).toHaveBeenCalledTimes(1);
+    expect(h.listCustomStructuresMock).not.toHaveBeenCalled();
   });
 
   it('saves the structure and returns the updated list with 201', async () => {

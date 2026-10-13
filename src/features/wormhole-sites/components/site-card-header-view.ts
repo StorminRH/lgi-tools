@@ -1,16 +1,15 @@
 import type { PillTone } from '@/components/ui/tones';
 import { formatIskShort } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
-import { formatClassRange, gasClassRange } from '../gas-classes';
+import { activeEwarKeys, siteEwarTotals, type EwarKey } from '../ewar';
+import { isWaveDrivenSiteType } from '../site-type';
 import type { SiteDetail, SiteResource } from '../types';
 import {
-  CLASS_TONE,
   EWAR_LABEL,
-  EWAR_ORDER,
   EWAR_TONE,
   SITE_TYPE_LABEL,
   SITE_TYPE_TONE,
-  type EwarKey,
+  siteClassPill,
 } from './wormhole-styles';
 
 function combatSubLine(site: SiteDetail): string {
@@ -22,27 +21,6 @@ function combatSubLine(site: SiteDetail): string {
 function resourceSubLine(resources: SiteResource[]): string | null {
   const names = resources.map((r) => r.resourceName).filter(Boolean);
   return names.length > 0 ? names.join(' · ') : null;
-}
-
-function activeSiteEwar(site: SiteDetail): EwarKey[] {
-  const counts: Record<EwarKey, number> = {
-    web:   site.waves.reduce((n, w) => n + (w.ewWeb   ?? 0), 0),
-    scram: site.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0),
-    neut:  site.waves.reduce((n, w) => n + (w.ewNeut  ?? 0), 0),
-    rr:    site.waves.reduce((n, w) => n + (w.ewRrep  ?? 0), 0),
-  };
-  return EWAR_ORDER.filter((k) => counts[k] !== 0);
-}
-
-function deriveClassPill(site: SiteDetail): { tone: PillTone; label: string } | null {
-  if (site.wormholeClass) {
-    return { tone: CLASS_TONE[site.wormholeClass], label: site.wormholeClass };
-  }
-  if (site.siteType === 'gas') {
-    const range = gasClassRange(site.name);
-    return range ? { tone: CLASS_TONE[range.min], label: formatClassRange(range) } : null;
-  }
-  return null;
 }
 
 export type SiteCardHeaderView = {
@@ -64,10 +42,10 @@ export function deriveSiteCardHeaderView(
     subLine: isCombat ? combatSubLine(site) : resourceSubLine(liveResources),
     waveValue: formatIskShort(site.blueLootIsk),
     showIskUnit: site.blueLootIsk != null,
-    isWaveDriven: isCombat || site.siteType === 'relic' || site.siteType === 'data',
-    classPill: deriveClassPill(site),
+    isWaveDriven: isWaveDrivenSiteType(site.siteType),
+    classPill: siteClassPill(site),
     typePill: { tone: SITE_TYPE_TONE[site.siteType], label: SITE_TYPE_LABEL[site.siteType] },
-    ewarPills: activeSiteEwar(site).map((key) => ({
+    ewarPills: activeEwarKeys(siteEwarTotals(site)).map((key) => ({
       key,
       tone: EWAR_TONE[key],
       label: EWAR_LABEL[key],

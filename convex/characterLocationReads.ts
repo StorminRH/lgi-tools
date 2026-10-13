@@ -1,6 +1,7 @@
 import { v } from 'convex/values';
 import { internalQuery } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
+import { uniqueByUserCharacter } from './lib/indexedQuery';
 
 /**
  * Everything one location run reads before calling ESI, in one query. It only
@@ -35,18 +36,16 @@ export const syncInputs = internalQuery({
     if (trackedIds.length === 0) {
       return { trackedIds, locations: [], online: [], leases: [] };
     }
+    // One read set per pilot, all in flight together; trackedIds order is kept.
+    const perPilot = await Promise.all(trackedIds.map((characterId) => Promise.all([
+      uniqueByUserCharacter(ctx, 'characterLocation', userId, characterId),
+      uniqueByUserCharacter(ctx, 'characterLocationOnline', userId, characterId),
+      uniqueByUserCharacter(ctx, 'characterLocationAccess', userId, characterId),
+    ])));
     const locations: Doc<'characterLocation'>[] = [];
     const online: Doc<'characterLocationOnline'>[] = [];
     const leases: Doc<'characterLocationAccess'>[] = [];
-    for (const characterId of trackedIds) {
-      const [location, probe, lease] = await Promise.all([
-        ctx.db.query('characterLocation').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
-        ctx.db.query('characterLocationOnline').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
-        ctx.db.query('characterLocationAccess').withIndex('by_user_character', (q) =>
-          q.eq('userId', userId).eq('characterId', characterId)).unique(),
-      ]);
+    for (const [location, probe, lease] of perPilot) {
       if (location !== null) locations.push(location);
       if (probe !== null) online.push(probe);
       if (lease !== null) leases.push(lease);

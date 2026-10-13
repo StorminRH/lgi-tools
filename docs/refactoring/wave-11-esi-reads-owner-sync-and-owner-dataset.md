@@ -2,6 +2,8 @@
 
 Part of the [primitive extraction guide](README.md). Audit of `e5b7b17` on 2026-10-09; line ranges drift, so re-open each site before editing.
 
+Landed in [StorminRH/lgi-tools#678](https://github.com/StorminRH/lgi-tools/pull/678).
+
 ← [Wave 10: Server pipelines, purge, telemetry and the admin console](wave-10-server-pipelines-purge-telemetry-and-the-admin.md) · [Index](README.md#roadmap) · [Wave 12: Market data, search and client data reads](wave-12-market-data-search-and-client-data-reads.md) →
 
 Share the ESI header parsers and the scoped search loop. The search routes are aligned, then request-init and path builders land. Owner-sync gets shared port bases, EnumeratedOwner fixtures, ownerSyncDataset, single-flight token vending, a per-phase sheet memo and reuse of fresh corp roles. Persistence follows: one skill-row read, then batched sync-state reads, then tx-only writers, then replaceOwnerSnapshot, then expireNow. Last come purge cache tags and the rig-slot helpers.

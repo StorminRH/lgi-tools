@@ -1,6 +1,11 @@
 import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/types';
-import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+import type {
+  DepthBand,
+  PlainPriceFigures,
+  PriceSource,
+  RegionalDiscount,
+} from '@/data/market-prices/types';
 import type { EsiOwnerType } from '@/platform/owner-sync/owner-type';
 import type { CostBasis } from './cost-basis-view';
 
@@ -63,45 +68,39 @@ export interface BlueprintStructure {
   >;
 }
 
-export interface MaterialCostRow {
+/** The price columns rowPriceFields puts on every material and intermediate row; null where unpriced. */
+export type RowPriceFields = Pick<
+  PlainPriceFigures,
+  'bestSell' | 'pct5Buy' | 'pct5Sell' | 'buyVolume' | 'sellVolume'
+> & {
+  source: PriceSource | null;
+  staleAfterMs: number | null;
+};
+
+export interface MaterialCostRow extends RowPriceFields {
   typeId: number;
   name: string;
   quantity: number;
   unitBuy: number | null;
   extendedCost: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  source: PriceSource | null;
-  staleAfterMs: number | null;
 }
 
-export interface IntermediatePrice {
+export interface IntermediatePrice extends RowPriceFields {
   typeId: number;
   bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: number | null;
-  sellVolume: number | null;
-  source: PriceSource | null;
-  staleAfterMs: number | null;
 }
 
-export interface IndustryStationView {
-  id: number;
-  name: string | null;
-  operationName: string;
-  manufacturingCapable: boolean;
-  researchCapable: boolean;
+/** One type's CCP adjusted price, the value install fees are charged on. */
+export interface TypeAdjustedPrice {
+  typeId: number;
+  adjustedPrice: number;
 }
 
-export interface BuildLocationData {
-  stations: IndustryStationView[];
-  costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: { typeId: number; adjustedPrice: number }[];
+/** A solar system a job is priced in, as the planner names and rates it. */
+export interface JobSystemRef {
+  systemId: number;
+  systemName: string;
+  security: number | null;
 }
 
 /** One system's job cost indices; null where the system has none for the activity. */

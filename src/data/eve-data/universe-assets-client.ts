@@ -1,4 +1,6 @@
+import { createClientResource } from '@/lib/client-resource';
 import { apiFetch } from '@/transport/api-client';
+import { apiFailureLabel, apiFetchData } from '@/transport/api-fetch-data';
 import {
   adjacencyEndpoint,
   systemDirectoryEndpoint,
@@ -29,23 +31,11 @@ export interface WormholeCodex {
   effect(effect: WormholeEffect, wormholeClass: number): WormholeEffectEntry | null;
 }
 
-let universeAssetsPromise: Promise<UniverseAssets> | null = null;
-let wormholeCodexPromise: Promise<WormholeCodex> | null = null;
-
-function failureLabel(
-  result: { ok: false; kind: string; status?: number },
-): string {
-  return result.status === undefined
-    ? result.kind
-    : `${result.kind} ${result.status}`;
-}
+/** Looks a system up in the loaded universe assets. */
+export type SystemInfoLookup = UniverseAssets['systemInfo'];
 
 async function loadManifestVersion(): Promise<string> {
-  const result = await apiFetch(universeAssetManifestEndpoint);
-  if (!result.ok) {
-    throw new Error(`universe asset manifest ${failureLabel(result)}`);
-  }
-  return result.data.version;
+  return (await apiFetchData(universeAssetManifestEndpoint, 'universe asset manifest')).version;
 }
 
 async function fetchUniverseAssets(
@@ -59,13 +49,13 @@ async function fetchUniverseAssets(
     !systemsResult.ok &&
     (!('status' in systemsResult) || systemsResult.status !== 404)
   ) {
-    throw new Error(`universe assets ${failureLabel(systemsResult)}`);
+    throw new Error(`universe assets ${apiFailureLabel(systemsResult)}`);
   }
   if (
     !adjacencyResult.ok &&
     (!('status' in adjacencyResult) || adjacencyResult.status !== 404)
   ) {
-    throw new Error(`universe assets ${failureLabel(adjacencyResult)}`);
+    throw new Error(`universe assets ${apiFailureLabel(adjacencyResult)}`);
   }
   if (!systemsResult.ok || !adjacencyResult.ok) return null;
 
@@ -96,7 +86,7 @@ async function fetchWormholeCodex(
   });
   if (!result.ok) {
     if ('status' in result && result.status === 404) return null;
-    throw new Error(`wormhole codex ${failureLabel(result)}`);
+    throw new Error(`wormhole codex ${apiFailureLabel(result)}`);
   }
   const codex = indexWormholeCodex(result.data.types);
   const effectByKey = new Map(
@@ -129,28 +119,20 @@ async function loadVersionedAsset<T>(
   return value;
 }
 
+/** The universe assets for this page, loaded once by the first reader or caller. */
+export const universeAssetsResource = createClientResource(() =>
+  loadVersionedAsset(fetchUniverseAssets, 'universe assets remained stale after one manifest refresh'),
+);
+
+/** The wormhole codex for this page, loaded once by the first reader or caller. */
+export const wormholeCodexResource = createClientResource(() =>
+  loadVersionedAsset(fetchWormholeCodex, 'wormhole codex remained stale after one manifest refresh'),
+);
+
 export function loadUniverseAssets(): Promise<UniverseAssets> {
-  if (universeAssetsPromise === null) {
-    universeAssetsPromise = loadVersionedAsset(
-      fetchUniverseAssets,
-      'universe assets remained stale after one manifest refresh',
-    ).catch((error: unknown) => {
-      universeAssetsPromise = null;
-      throw error;
-    });
-  }
-  return universeAssetsPromise;
+  return universeAssetsResource.load();
 }
 
 export function loadWormholeCodex(): Promise<WormholeCodex> {
-  if (wormholeCodexPromise === null) {
-    wormholeCodexPromise = loadVersionedAsset(
-      fetchWormholeCodex,
-      'wormhole codex remained stale after one manifest refresh',
-    ).catch((error: unknown) => {
-      wormholeCodexPromise = null;
-      throw error;
-    });
-  }
-  return wormholeCodexPromise;
+  return wormholeCodexResource.load();
 }

@@ -3,15 +3,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
-  seat: { current: null as unknown },
+  writes: [] as (readonly [string, string])[],
   marks: [] as string[],
   pilots: null as { pilots: unknown[] } | null,
 }));
 
-vi.mock('react', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('react')>()),
-  useRef: () => h.seat,
-  useLayoutEffect: (effect: () => void) => effect(),
+vi.mock('@/components/ui/use-style-ref', () => ({
+  useStyleProperty: (name: string, value: string) => {
+    h.writes.push([name, value]);
+    return undefined;
+  },
 }));
 vi.mock('../signatures/use-glance-mark-index', () => ({ useGlanceMarks: () => h.marks }));
 vi.mock('../tracking/presence-context', () => ({ useSystemPresence: () => h.pilots }));
@@ -23,8 +24,6 @@ function markup(): string {
 }
 
 test('seats glance marks as labelled images and the pilot badge last, each placed around the disc', () => {
-  const setProperty = vi.fn();
-  h.seat.current = { style: { setProperty } };
   h.marks = ['combat', 'hacking'];
   h.pilots = { pilots: [{}, {}, {}] };
 
@@ -37,15 +36,16 @@ test('seats glance marks as labelled images and the pilot badge last, each place
   expect(pilotSeat).toContain('data-pilot-presence-count');
   expect(html.indexOf('data-glance-mark="hacking"')).toBeLessThan(html.indexOf('data-pilot-presence'));
 
-  expect(setProperty).toHaveBeenCalledTimes(3);
-  expect(setProperty).toHaveBeenNthCalledWith(1, '--node-widget-seat-transform', 'translate(-50%, -50%) translate(38.5px, 0px)');
-  expect(setProperty).toHaveBeenNthCalledWith(3, '--node-widget-seat-transform', 'translate(-50%, -50%) translate(0px, 38.5px)');
+  expect(h.writes).toHaveLength(3);
+  expect(h.writes[0]).toEqual(['--node-widget-seat-transform', 'translate(-50%, -50%) translate(38.5px, 0px)']);
+  expect(h.writes[2]).toEqual(['--node-widget-seat-transform', 'translate(-50%, -50%) translate(0px, 38.5px)']);
 
-  // No marks and no pilots: an empty track, and an unmounted seat is skipped.
-  h.seat.current = null;
+  // No marks and no pilots: an empty track.
+  h.writes.length = 0;
   h.marks = [];
   h.pilots = null;
   expect(markup()).not.toContain('data-chain-node-widget-seat');
+  expect(h.writes).toEqual([]);
   h.marks = ['harvestables'];
   expect(markup()).toContain('aria-label="Harvestables"');
 });

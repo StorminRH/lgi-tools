@@ -6,6 +6,7 @@ import {
 } from '@/data/maps/connection-door-destinations';
 import {
   connectionTypePatch,
+  sameDoorTyping,
   typedDoorsFrom,
 } from '@/data/maps/connection-door-types';
 import {
@@ -26,9 +27,12 @@ import {
   readOriginConnections,
 } from './mapConnectionLookup';
 import { connectionProvenanceValidator } from './mapEntityContracts';
-import { claimStaticPlaceholder, mergeSeatFields } from './mapStaticClaim';
-import { stampObservationKey } from './observationKey';
-import { findSystem, requireSystemId } from './mapSystemLookup';
+import {
+  claimStaticPlaceholder,
+  mergeSeatFields,
+  writeDoorTypeAndClaim,
+} from './mapStaticClaim';
+import { findLiveSystem, requireSystemId } from './mapSystemLookup';
 import {
   MAP_ELIMINATION_CONNECTION_LIMIT,
   MAP_SCAN_ROW_LIMIT,
@@ -112,8 +116,7 @@ export async function collectEliminationEvidence(
   systemId: number,
 ): Promise<EliminationEvidence> {
   requireSystemId(systemId);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return { canEdit: true, signatures: [], connections: [] };
   }
 
@@ -186,12 +189,9 @@ async function applyTypeDeduction(
     return { signatureId, outcome: 'stale', observationKey: null };
   }
   const observationKey = source.observationKey ?? null;
-  if (
-    source.from.typeCode === typeCode
-    && source.identity.kind === 'typed'
-    && source.identity.provenance === 'assumed'
-  ) {
-    await claimStaticPlaceholder(ctx, source, 'from');
+  const typePatch = connectionTypePatch(source, 'from', typeCode, 'assumed');
+  if (sameDoorTyping(source, typePatch)) {
+    await claimStaticPlaceholder(ctx, source._id, 'from');
     return { signatureId, outcome: 'unchanged', observationKey };
   }
   if (
@@ -200,14 +200,8 @@ async function applyTypeDeduction(
   ) {
     return { signatureId, outcome: 'protected', observationKey };
   }
-  const stamped = stampObservationKey(source.observationKey);
-  await ctx.db.patch(source._id, {
-    ...connectionTypePatch(source, 'from', typeCode, 'assumed'),
-    ...stamped.patch,
-  });
-  const typed = await ctx.db.get(source._id);
-  if (typed !== null) await claimStaticPlaceholder(ctx, typed, 'from');
-  return { signatureId, outcome: 'applied', observationKey: stamped.observationKey };
+  const written = await writeDoorTypeAndClaim(ctx, source, 'from', typePatch);
+  return { signatureId, outcome: 'applied', observationKey: written.observationKey };
 }
 
 function occupiedLeadsTo(target: Doc<'mapConnections'>, side: ConnectionDoorSide) {
@@ -412,8 +406,7 @@ export async function applyEliminationDeductionBatch(
 ): Promise<EliminationOutcome[]> {
   requireSystemId(systemId);
   requireEliminationDeductions(deductions);
-  const system = await findSystem(ctx, mapId, systemId);
-  if (system === null || isTombstoned(system)) {
+  if ((await findLiveSystem(ctx, mapId, systemId)) === null) {
     return deductions.map(({ signatureId }) => ({
       signatureId,
       outcome: 'stale' as const,

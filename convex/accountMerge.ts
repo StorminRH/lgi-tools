@@ -1,12 +1,22 @@
 import { ConvexError, v, type Infer } from 'convex/values';
-import { MERGE_RECEIPT_BATCH_SIZE, MERGE_RECEIPT_RETENTION_MS } from '@/data/location-tracking/constants';
+import {
+  MERGE_RECEIPT_BATCH_SIZE,
+  MERGE_RECEIPT_RETENTION_MS,
+  MERGE_TRACKING_LIMIT,
+} from '@/data/location-tracking/constants';
 import { groupBy } from '@/lib/array';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx } from './_generated/server';
+import { takeIndexedOrThrow } from './lib/indexedQuery';
 import { characterTrackable, requireMapTrackingOpen, tryMapAccessForUser } from './lib/mapAccess';
-import { TRACKED_CHARACTERS_PER_MAP_USER_CAP } from './mapTrackingOptIn';
-import { readMapTracking, requireMapTrackingSpace } from './lib/mapTrackingCapacity';
+import {
+  readMapTracking,
+  readUserMapTracking,
+  requireMapTrackingSpace,
+  TRACKED_CHARACTERS_PER_MAP_USER_CAP,
+} from './lib/mapTrackingCapacity';
+import { advanceJumpStamp, findJumpStamp } from './mapJumpBookkeeping';
 import { deleteTrackingRow } from './mapTrackingTeardown';
 
 export interface MergeUserStateResult {
@@ -20,10 +30,7 @@ async function moveTrackingRow(
   row: Doc<'mapTracking'>,
   survivorUserId: string,
 ): Promise<'moved' | 'duplicate' | 'dropped'> {
-  const survivorRows = await ctx.db
-    .query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', row.mapId).eq('userId', survivorUserId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+  const survivorRows = await readUserMapTracking(ctx, row.mapId, survivorUserId);
   if (survivorRows.some((survivorRow) => survivorRow.characterId === row.characterId)) {
     await ctx.db.delete(row._id);
     return 'duplicate';
@@ -71,7 +78,6 @@ export const mergeUserState = internalMutation({
   },
 });
 
-const MERGE_TRACKING_LIMIT = 1000;
 const trackingSelectionValidator = v.object({
   mapId: v.string(), characterId: v.number(), lastProcessedTransitionAt: v.optional(v.number()),
 });
@@ -80,16 +86,17 @@ export const snapshotMergeTracking = internalQuery({
   args: { sourceUserId: v.string() },
   returns: v.object({ selections: v.array(trackingSelectionValidator) }),
   handler: async (ctx, { sourceUserId }) => {
-    const rows = await ctx.db.query('mapTracking')
-      .withIndex('by_user_character', (q) => q.eq('userId', sourceUserId))
-      .take(MERGE_TRACKING_LIMIT + 1);
-    if (rows.length > MERGE_TRACKING_LIMIT) {
-      throw new ConvexError('Too many tracking selections to safely snapshot this merge');
-    }
+    const rows = await takeIndexedOrThrow(
+      ctx.db.query('mapTracking')
+        .withIndex('by_user_character', (q) => q.eq('userId', sourceUserId)),
+      MERGE_TRACKING_LIMIT,
+      {
+        code: 'MERGE_TRACKING_LIMIT',
+        detail: 'Too many tracking selections to safely snapshot this merge',
+      },
+    );
     const selections = await Promise.all(rows.map(async ({ mapId, characterId }) => {
-      const stamp = await ctx.db.query('mapJumpBookkeeping')
-        .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
-        .unique();
+      const stamp = await findJumpStamp(ctx, mapId, characterId);
       return { mapId, characterId,
         ...(stamp === null ? {} : { lastProcessedTransitionAt: stamp.lastProcessedTransitionAt }),
       };
@@ -107,7 +114,10 @@ export const restoreMergeTracking = internalMutation({
   returns: v.object({ restored: v.number(), skipped: v.number(), alreadyApplied: v.boolean() }),
   handler: async (ctx, { operationId, survivorUserId, selections }) => {
     if (selections.length > MERGE_TRACKING_LIMIT) {
-      throw new ConvexError('Too many tracking selections to safely restore this merge');
+      throw new ConvexError({
+        code: 'MERGE_TRACKING_LIMIT',
+        detail: 'Too many tracking selections to safely restore this merge',
+      });
     }
     const receipt = await ctx.db.query('accountMergeTrackingReceipts')
       .withIndex('by_operation', (q) => q.eq('operationId', operationId)).unique();
@@ -158,7 +168,10 @@ export const deleteExpiredTrackingReceipts = internalMutation({
   returns: v.object({ deleted: v.number() }),
   handler: async (ctx, { cutoff, receipts }) => {
     if (receipts.length > MERGE_RECEIPT_BATCH_SIZE) {
-      throw new ConvexError('Too many tracking receipts to delete in one batch');
+      throw new ConvexError({
+        code: 'MERGE_RECEIPT_BATCH_LIMIT',
+        detail: 'Too many tracking receipts to delete in one batch',
+      });
     }
     const expiredBefore = Math.min(cutoff, Date.now() - MERGE_RECEIPT_RETENTION_MS);
     let deleted = 0;
@@ -196,9 +209,7 @@ async function restoreMapSelections(
   if (principal === null) {
     return { restored: 0, skipped: selections.length };
   }
-  const existing = await ctx.db.query('mapTracking')
-    .withIndex('by_map_user', (q) => q.eq('mapId', mapId).eq('userId', survivorUserId))
-    .take(TRACKED_CHARACTERS_PER_MAP_USER_CAP);
+  const existing = await readUserMapTracking(ctx, mapId, survivorUserId);
   const slots: SurvivorTrackingSlots = {
     tracked: new Set(existing.map((row) => row.characterId)),
     count: existing.length,
@@ -216,7 +227,7 @@ async function restoreMapSelections(
     if (outcome === 'inserted') counts.restored += 1;
     else counts.skipped += 1;
     if (lastProcessedTransitionAt !== undefined) {
-      await restoreTransitionStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
+      await advanceJumpStamp(ctx, mapId, characterId, lastProcessedTransitionAt);
     }
   }
   return counts;
@@ -239,17 +250,4 @@ async function restoreTrackingRow(
   slots.tracked.add(characterId);
   slots.count += 1;
   return 'inserted';
-}
-
-async function restoreTransitionStamp(
-  ctx: MutationCtx, mapId: string, characterId: number, lastProcessedTransitionAt: number,
-): Promise<void> {
-  const stamp = await ctx.db.query('mapJumpBookkeeping')
-    .withIndex('by_map_character', (q) => q.eq('mapId', mapId).eq('characterId', characterId))
-    .unique();
-  if (stamp === null) {
-    await ctx.db.insert('mapJumpBookkeeping', { mapId, characterId, lastProcessedTransitionAt });
-  } else if (stamp.lastProcessedTransitionAt < lastProcessedTransitionAt) {
-    await ctx.db.patch(stamp._id, { lastProcessedTransitionAt });
-  }
 }

@@ -8,10 +8,11 @@ import { SearchIcon } from '@/components/ui/icons';
 import { TypeIcon } from '@/components/type-icon';
 import { searchOneSource, type SearchResult } from '@/platform/search';
 import { useSourceSearch } from '@/platform/search/use-source-search';
+import { blueprintsSearchSource } from '../search';
 
 const SEARCH_DEBOUNCE_MS = 150;
 
-const searchBlueprints = (query: string, signal: AbortSignal) => searchOneSource(query, 'blueprints', signal);
+const searchBlueprints = (query: string, signal: AbortSignal) => searchOneSource(query, blueprintsSearchSource, signal);
 
 /** Finds a blueprint and opens it in the planner. */
 export function BlueprintSearch() {

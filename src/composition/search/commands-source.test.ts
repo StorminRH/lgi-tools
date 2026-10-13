@@ -1,10 +1,5 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import {
-  registerSearchSource,
-  listRegisteredSources,
-  __resetSearchSources,
-  type SearchContext,
-} from '@/platform/search';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { SearchContext } from '@/platform/search';
 import { commandsSearchSource } from './commands-source';
 import type { Session } from '@/platform/auth/types';
 
@@ -14,11 +9,6 @@ const signInOauth2 = vi.hoisted(() => vi.fn());
 vi.mock('@/platform/auth/auth-client', () => ({
   authClient: { signOut, signIn: { oauth2: signInOauth2 } },
 }));
-
-beforeAll(() => {
-  __resetSearchSources();
-  registerSearchSource(commandsSearchSource);
-});
 
 function mockSession(): Session {
   return {
@@ -38,11 +28,7 @@ function ctx(over: Partial<SearchContext> = {}): SearchContext {
   };
 }
 
-async function runCommands(query: string, c: SearchContext) {
-  const source = listRegisteredSources().find((s) => s.name === 'Commands');
-  if (!source) throw new Error('Commands source not registered');
-  return source.search(query, c);
-}
+const runCommands = (query: string, c: SearchContext) => commandsSearchSource.search(query, c);
 
 describe('commands search source', () => {
   it('filters by substring and exposes auth onSelect handlers without a discriminator', async () => {

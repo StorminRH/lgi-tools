@@ -1,5 +1,3 @@
-export const ESI_REGION_ID_FORGE = 10000002;
-
 export const JITA_44_STATION_ID = 60003760;
 
 export const NPC_STATION_ID_CEILING = 1e9;

@@ -25,6 +25,12 @@ describe('POST /purge-online', () => {
     expect(
       (await postConvexHttp('/purge-online', JSON.stringify({ userId: 42, characterId: 'nope' }))).status,
     ).toBe(400);
+    expect(
+      (await postConvexHttp('/purge-online', JSON.stringify({ userId: '', characterId: null }))).status,
+    ).toBe(400);
+    expect(
+      (await postConvexHttp('/purge-online', JSON.stringify({ userId: 'user-1', characterId: 0 }))).status,
+    ).toBe(400);
   });
 
   it('answers 500 and logs, not 401, when the deployment has no service secret', async () => {

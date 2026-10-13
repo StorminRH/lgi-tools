@@ -16,8 +16,11 @@ import { ChipToggle, ChipToggleGroup, ToggleRow } from '@/components/ui/chip-tog
 import { Dot } from '@/components/ui/dot';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedControl } from '@/components/ui/segmented';
+import { eyebrow } from '@/components/ui/type-roles';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
+import { WORMHOLE_CLASSES } from '../site-taxonomy';
+import { SITE_TYPE_DISPLAY_ORDER } from '../site-type';
 import type { SiteType, WormholeClass } from '../types';
 import {
   CLASS_TONE,
@@ -25,9 +28,6 @@ import {
   SITE_TYPE_LABEL,
 } from './wormhole-styles';
 
-const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
-const CLASS_CHIPS: WormholeClass[] = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
-const TYPE_ROWS: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 const DETAIL_OPTIONS = [
   { value: 'lightbox', label: 'Lightbox' },
   { value: 'expand', label: 'Expand' },
@@ -99,18 +99,18 @@ export function SitesFilterLayout({
           <Card className="reveal reveal-1 p-4 split:sticky split:top-24">
             <div className="flex flex-col gap-5">
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Display</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Display</span>
                 <div className="mt-2">{tools}</div>
               </div>
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Class</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Class</span>
                 <ChipToggleGroup
                   label="Filter by class"
                   value={cls}
                   onValueChange={(next) => setCls(next as WormholeClass[])}
                   className="mt-2 grid grid-cols-3 gap-2"
                 >
-                  {CLASS_CHIPS.map((c) => (
+                  {WORMHOLE_CLASSES.map((c) => (
                     <ChipToggle
                       key={c}
                       value={c}
@@ -124,14 +124,14 @@ export function SitesFilterLayout({
               </div>
 
               <div>
-                <span className="text-label uppercase tracking-wide text-muted">Type</span>
+                <span className={eyebrow({ font: 'inherit', weight: 'inherit' })}>Type</span>
                 <ChipToggleGroup
                   label="Filter by site type"
                   value={types}
                   onValueChange={(next) => setTypes(next as SiteType[])}
                   className="mt-2 flex-col items-stretch"
                 >
-                  {TYPE_ROWS.map((t) => (
+                  {SITE_TYPE_DISPLAY_ORDER.map((t) => (
                     <ToggleRow key={t} value={t} className="w-full gap-2">
                       <Dot
                         tone={SITE_TYPE_DOT_TONE[t]}
@@ -219,7 +219,7 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           </Button>
         </EmptyState>
       ) : view === 'cards' ? (
-        SECTION_ORDER.map((type) => {
+        SITE_TYPE_DISPLAY_ORDER.map((type) => {
           const sectionCards = cards.filter(
             (card) => card.meta.type === type && matches(card.meta),
           );
@@ -227,7 +227,14 @@ export function SitesResults({ cards, table }: { cards: SiteCardItem[]; table: R
           return (
             <section key={type} className="mb-12 last:mb-0">
               <div className="w-full flex items-center gap-3.5 mb-5">
-                <span className="text-label font-semibold tracking-eyebrow uppercase text-muted whitespace-nowrap">
+                <span
+                  className={eyebrow({
+                    font: 'inherit',
+                    weight: 'semibold',
+                    emphasis: 'strong',
+                    className: 'whitespace-nowrap',
+                  })}
+                >
                   {SITE_TYPE_LABEL[type]} Sites
                 </span>
                 <div className="flex-1 h-px bg-border" />

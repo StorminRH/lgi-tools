@@ -1,5 +1,3 @@
-export const THE_FORGE_REGION_ID = 10000002;
-
 /**
  * How many trailing days of daily history to retain per type. ESI serves a
  * ~13-month rolling window; we keep ~400 days, which covers every scoring

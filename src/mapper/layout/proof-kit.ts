@@ -1,6 +1,6 @@
-import type { ChainPosition } from '../chain/intents';
+import { samePosition, type ChainPosition } from '../chain/intents';
 import { mulberry32 } from '../lib/prng';
-import { deriveChainTree } from './facts';
+import { deriveChainTree, treeLinkClaim } from './facts';
 import { segmentsIntersect } from './geometry';
 import type { LayoutFacts } from './layout-contract';
 import { distance } from './trig';
@@ -145,7 +145,7 @@ export function movedSystems(
   const moved: number[] = [];
   for (const [systemId, position] of before) {
     const next = after.get(systemId);
-    if (next === undefined || next.x !== position.x || next.y !== position.y) {
+    if (next === undefined || !samePosition(next, position)) {
       moved.push(systemId);
     }
   }
@@ -167,27 +167,15 @@ function layoutSegments(
   facts: LayoutFacts,
   positions: ReadonlyMap<number, ChainPosition>,
 ): LayoutSegment[] {
-  const tree = deriveChainTree(facts);
+  const isSolid = treeLinkClaim(deriveChainTree(facts).parents);
   const segments: LayoutSegment[] = [];
-  const treeSlotUsed = new Set<number>();
   for (const edge of facts.connections) {
     const from = positions.get(edge.fromSystemId);
     const to = positions.get(edge.toSystemId);
     if (from === undefined || to === undefined || edge.fromSystemId === edge.toSystemId) {
       continue;
     }
-    if (tree.parents.get(edge.toSystemId) === edge.fromSystemId && !treeSlotUsed.has(edge.toSystemId)) {
-      treeSlotUsed.add(edge.toSystemId);
-      segments.push({ from, to, loop: false });
-    } else if (
-      tree.parents.get(edge.fromSystemId) === edge.toSystemId &&
-      !treeSlotUsed.has(edge.fromSystemId)
-    ) {
-      treeSlotUsed.add(edge.fromSystemId);
-      segments.push({ from, to, loop: false });
-    } else {
-      segments.push({ from, to, loop: true });
-    }
+    segments.push({ from, to, loop: !isSolid(edge.fromSystemId, edge.toSystemId) });
   }
   return segments;
 }

@@ -1,45 +1,37 @@
-import { internalMutation } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { internalMutation, type MutationCtx } from './_generated/server';
+import type { UserCharacterTable } from './lib/indexedQuery';
 import { purgeScopeArgs } from './lib/syncFields';
 import { deleteBookkeepingIfUntracked, deleteTrackingRow } from './mapTrackingTeardown';
+
+type UserScopeTable = UserCharacterTable | 'mapTracking';
+
+/** Every row the user holds in `table`, or only the named character's when one is given. */
+async function collectUserScope<T extends UserScopeTable>(
+  ctx: MutationCtx,
+  table: T,
+  userId: string,
+  characterId: number | null,
+): Promise<Doc<T>[]> {
+  // The query runs over the union so withIndex resolves; every row it returns comes from T.
+  const rows: Doc<UserScopeTable>[] = await ctx.db
+    .query(table as UserScopeTable)
+    .withIndex('by_user_character', (q) => {
+      const byUser = q.eq('userId', userId);
+      return characterId === null ? byUser : byUser.eq('characterId', characterId);
+    })
+    .collect();
+  return rows as unknown as Doc<T>[];
+}
 
 export const purgeForUser = internalMutation({
   args: purgeScopeArgs,
   handler: async (ctx, { userId, characterId }) => {
-    const locations = await ctx.db
-      .query('characterLocation')
-      .withIndex('by_user_character', (q) => {
-        const byUser = q.eq('userId', userId);
-        return characterId === null ? byUser : byUser.eq('characterId', characterId);
-      })
-      .collect();
-    const heldOnline = await ctx.db
-      .query('characterLocationOnline')
-      .withIndex('by_user_character', (q) => {
-        const byUser = q.eq('userId', userId);
-        return characterId === null ? byUser : byUser.eq('characterId', characterId);
-      })
-      .collect();
-    const tracking = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_user_character', (q) => {
-        const byUser = q.eq('userId', userId);
-        return characterId === null ? byUser : byUser.eq('characterId', characterId);
-      })
-      .collect();
-    const accessLeases = await ctx.db
-      .query('characterLocationAccess')
-      .withIndex('by_user_character', (q) => {
-        const byUser = q.eq('userId', userId);
-        return characterId === null ? byUser : byUser.eq('characterId', characterId);
-      })
-      .collect();
-    const covered = await ctx.db
-      .query('characterLocationCovered')
-      .withIndex('by_user_character', (q) => {
-        const byUser = q.eq('userId', userId);
-        return characterId === null ? byUser : byUser.eq('characterId', characterId);
-      })
-      .collect();
+    const locations = await collectUserScope(ctx, 'characterLocation', userId, characterId);
+    const heldOnline = await collectUserScope(ctx, 'characterLocationOnline', userId, characterId);
+    const tracking = await collectUserScope(ctx, 'mapTracking', userId, characterId);
+    const accessLeases = await collectUserScope(ctx, 'characterLocationAccess', userId, characterId);
+    const covered = await collectUserScope(ctx, 'characterLocationCovered', userId, characterId);
 
     for (const doc of locations) await ctx.db.delete(doc._id);
     for (const doc of heldOnline) await ctx.db.delete(doc._id);

@@ -160,7 +160,6 @@ describe('node follower model', () => {
       '2',
       [100, 50, 2],
       node(),
-      true,
       card,
       layer,
     );
@@ -172,7 +171,6 @@ describe('node follower model', () => {
         '2',
         [100, 50, 2],
         node(),
-        true,
         card,
         layer,
       ),
@@ -187,7 +185,6 @@ describe('node follower model', () => {
       '2',
       [0, 0, 1],
       node(),
-      true,
       card,
       layer,
     );
@@ -197,7 +194,6 @@ describe('node follower model', () => {
         '2',
         [1, 0, 1],
         node(),
-        true,
         card,
         layer,
       ),
@@ -208,7 +204,6 @@ describe('node follower model', () => {
         '2',
         [0, 0, 1],
         node(11),
-        true,
         card,
         layer,
       ),
@@ -219,13 +214,12 @@ describe('node follower model', () => {
         '3',
         [0, 0, 1],
         node(),
-        true,
         card,
         layer,
       ),
     ).not.toBeNull();
     expect(
-      computeFollowerTransform(null, '2', [0, 0, 1], undefined, false, card, layer),
+      computeFollowerTransform(null, '2', [0, 0, 1], undefined, card, layer),
     ).toBeNull();
   });
 
@@ -237,7 +231,6 @@ describe('node follower model', () => {
       '2',
       [0, 0, 1],
       declaredNode(0, 0, SYSTEM_FRAME_WIDTH, SYSTEM_FRAME_HEIGHT),
-      true,
       card,
       layer,
     );

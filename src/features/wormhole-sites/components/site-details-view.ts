@@ -1,3 +1,4 @@
+import { isWaveDrivenSiteType } from '../site-type';
 import type { SiteDetail, SiteType } from '../types';
 
 const RESOURCE_SECTION_COPY = {
@@ -19,10 +20,9 @@ export type SiteDetailsView = {
 };
 
 export function deriveSiteDetailsView(site: SiteDetail): SiteDetailsView {
-  const isHackSite = site.siteType === 'relic' || site.siteType === 'data';
   const copy = RESOURCE_SECTION_COPY[site.siteType];
   return {
-    isWaveDriven: site.siteType === 'combat' || isHackSite,
+    isWaveDriven: isWaveDrivenSiteType(site.siteType),
     hasResources: site.resources.length > 0,
     isGas: site.siteType === 'gas',
     hasWaves: site.waves.length > 0,

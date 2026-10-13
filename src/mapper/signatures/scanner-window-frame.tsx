@@ -12,6 +12,7 @@ import {
   useScannerScrollBump,
 } from './scanner-scroll-dismiss';
 import type { WormholeCellContext } from './scanner-wormhole-cells';
+import type { ScannerPanelTarget } from './signature-context';
 import {
   groupSignatureSections,
   type SignatureWindowRow,
@@ -24,7 +25,7 @@ function ScannerPasteHint() {
       className={cn(mapNestedSurface, 'min-w-0 max-w-full')}
     >
       <h3 className="px-2.5 py-1.5 text-center font-ui text-label font-semibold text-isk">
-        Paste signatures anywhere on the page.
+        Paste signatures anywhere.
       </h3>
     </section>
   );
@@ -114,7 +115,7 @@ export function ScannerWindowFrame({
   originLeadConnections,
   onIdentify,
   resolveSiteId,
-  onOpenActions,
+  onOpenTarget,
 }: {
   readonly scannerSystemId: number | null;
   readonly rows: readonly SignatureWindowRow[];
@@ -127,12 +128,7 @@ export function ScannerWindowFrame({
   readonly originLeadConnections?: readonly OriginLeadConnection[];
   readonly onIdentify?: WormholeCellContext['onIdentify'];
   readonly resolveSiteId: (name: string) => number | null;
-  readonly onOpenActions: (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => void;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
 }) {
   const sections = groupSignatureSections(rows, scannerSystemId);
   const filled = sections.length > 0;
@@ -171,7 +167,7 @@ export function ScannerWindowFrame({
                 bindConnectionSetters={bindConnectionSetters}
                 originLeadConnections={originLeadConnections ?? []}
                 onIdentify={onIdentify}
-                onOpenActions={onOpenActions}
+                onOpenTarget={onOpenTarget}
               />
             </ScannerListScroller>
           ) : null}

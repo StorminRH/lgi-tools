@@ -26,7 +26,7 @@ export interface DockCharacterResolution {
   readonly characters: readonly DockCharacter[];
 }
 
-export function dockCharacters(input: {
+export interface DockCharactersInput {
   readonly ownTrackedCharacterIds: readonly number[];
   readonly tracked: readonly {
     readonly characterId: number;
@@ -37,7 +37,9 @@ export function dockCharacters(input: {
     } | null;
   }[];
   readonly coverage: ReadonlyMap<number, boolean>;
-}): readonly DockCharacter[] {
+}
+
+export function dockCharacters(input: DockCharactersInput): readonly DockCharacter[] {
   const own = new Set(input.ownTrackedCharacterIds);
   const byId = new Map<number, DockCharacter>();
   for (const characterId of own) {

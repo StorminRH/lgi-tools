@@ -4,7 +4,7 @@ import { computeBatchLedger } from './build-batch';
 import { deriveMarginFigures } from './industry-styles';
 import {
   assemblePricing,
-  collectIntermediateTypeIds,
+  pricedTypeIds,
   type PriceLite,
 } from './build-pricing';
 import type { CostBasis } from './cost-basis-view';
@@ -61,6 +61,22 @@ test('assemblePricing carries source + buy/sell volume onto each material row, n
 
   const partly = assemblePricing(STRUCTURE, (typeId) => (typeId === 34 ? PRICES[34] : undefined));
   expect(partly.rows.find((r) => r.typeId === 35)).toMatchObject({ source: null, buyVolume: null, sellVolume: null });
+
+  // A row is its cost columns plus exactly the row price fields: no bestBuy, depth or discount.
+  expect(pricing.rows.find((r) => r.typeId === 34)).toStrictEqual({
+    typeId: 34,
+    name: 'Tritanium',
+    quantity: 100,
+    unitBuy: 5,
+    extendedCost: 500,
+    bestSell: 6,
+    pct5Buy: 4,
+    pct5Sell: 7,
+    buyVolume: 8_200,
+    sellVolume: 1_200,
+    source: 'esi',
+    staleAfterMs: 1_700_000_000_000,
+  });
 });
 
 describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
@@ -131,20 +147,32 @@ const BUILD_TREE: BuildNode[] = [
   },
 ];
 
-test('collectIntermediateTypeIds returns buildable non-root nodes once, excluding roots and raws', () => {
-  expect(collectIntermediateTypeIds(BUILD_TREE, DISPLAY)).toEqual([500]);
+test('pricedTypeIds lists the raws, the product, then the intermediates, each once', () => {
+  const structure: BlueprintStructure = {
+    ...STRUCTURE,
+    tree: [
+      {
+        typeId: 500,
+        quantity: 2,
+        producedBy: { blueprintTypeId: 1500, quantityPerRun: 1, runsNeeded: 2 },
+        inputs: [{ typeId: 34, quantity: 100, inputs: [] }],
+      },
+      { typeId: 35, quantity: 50, inputs: [] },
+    ],
+    buildTree: BUILD_TREE,
+    buildNodeDisplay: DISPLAY,
+  };
+  expect(pricedTypeIds(structure)).toEqual([34, 35, 999, 500]);
 
-  const shared: BuildNode[] = [
-    {
-      typeId: 999,
-      quantity: 1,
-      inputs: [
-        { typeId: 500, quantity: 2, inputs: [] },
-        { typeId: 500, quantity: 3, inputs: [] },
-      ],
-    },
-  ];
-  expect(collectIntermediateTypeIds(shared, DISPLAY)).toEqual([500]);
+  // A product or intermediate that also turns up among the raws keeps its first place.
+  const repeated: BlueprintStructure = {
+    ...structure,
+    tree: [
+      { typeId: 500, quantity: 2, inputs: [] },
+      { typeId: 999, quantity: 1, inputs: [] },
+    ],
+  };
+  expect(pricedTypeIds(repeated)).toEqual([500, 999]);
 });
 
 describe('assemblePricing intermediate side-channel', () => {
@@ -170,10 +198,36 @@ describe('assemblePricing intermediate side-channel', () => {
       typeId === 500 ? intermediatePrice : PRICES[typeId],
     );
 
-    expect(pricing.intermediatePrices).toEqual([
-      expect.objectContaining({ typeId: 500, bestBuy: 1_000, buyVolume: 30, source: 'esi' }),
+    // Its own buy quote plus exactly the row price fields.
+    expect(pricing.intermediatePrices).toStrictEqual([
+      {
+        typeId: 500,
+        bestBuy: 1_000,
+        bestSell: 1_200,
+        pct5Buy: 950,
+        pct5Sell: 1_250,
+        buyVolume: 30,
+        sellVolume: 40,
+        source: 'esi',
+        staleAfterMs: 1_700_000_000_000,
+      },
     ]);
     expect(pricing.summary.inputCost).toBe(650);
+  });
+
+  it('prices an intermediate the build tree reaches twice once', () => {
+    const shared: BuildNode[] = [
+      {
+        typeId: 999,
+        quantity: 1,
+        inputs: [
+          { typeId: 500, quantity: 2, inputs: [] },
+          { typeId: 500, quantity: 3, inputs: [] },
+        ],
+      },
+    ];
+    const pricing = assemblePricing({ ...structure, buildTree: shared }, (typeId) => PRICES[typeId]);
+    expect(pricing.intermediatePrices.map((p) => p.typeId)).toEqual([500]);
   });
 });
 
@@ -583,8 +637,8 @@ describe('assemblePricing component job fees', () => {
 
   it.each([1, 11])('a component-only profile charges known jobs while uncovered activity %i and net remain unknown', (activityId) => {
     const fee = composeFeeInputs({
-      location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
-      structureCostBonusPct: 0, components: { ...components, adjustedPriceOf: adjusted },
+      adjustedPriceOf: adjusted, location: null, reactionLocation: null, buildStructure: null, reactionStructure: null,
+      structureCostBonusPct: 0, components,
     });
     const net = assemblePricing({ ...CHAIN, activityId }, (t) => NET_PRICES[t], { fee }).net!;
     expect(net.componentJobs!.total).toBeCloseTo(5.11, 9);
@@ -624,12 +678,16 @@ describe('assemblePricing component job fees', () => {
     expect(deriveMarginFigures(null, net).missingAdjustedPriceCount).toBe(1);
   });
 
-  it('a precomputed ledger charges the same runs as walking the tree', () => {
-    const walked = price('batched').net!;
+  it.each(['batched', 'marginal'] as const)('a precomputed ledger prices the same %s bill as walking the tree', (basis) => {
+    const walked = price(basis);
     const reused = assemblePricing(CHAIN, (t) => NET_PRICES[t], {
+      basis,
       ledger: computeBatchLedger(CHAIN.tree, 1),
       fee: { adjustedPriceOf: adjusted, systemCostIndex: 0.04, components },
-    }).net!;
+    });
     expect(reused).toEqual(walked);
+    // The rows stay the whole-run line; the plates' job runs follow the basis.
+    expect(reused.rows).toEqual([expect.objectContaining({ typeId: 34, quantity: 7 })]);
+    expect(reused.net!.componentJobs!.jobs[0]!.runs).toBe(basis === 'marginal' ? 0.5 : 1);
   });
 });

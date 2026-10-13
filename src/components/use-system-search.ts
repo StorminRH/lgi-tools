@@ -1,15 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import {
-  getLoadedSystems,
-  loadedSystemsById,
-  loadSystems,
   lookupSystem,
   matchSystem,
+  systemsResource,
+  systemsSource,
   type SystemSearchEntry,
 } from '@/data/eve-data/systems-search';
-import { useClientStore } from '@/lib/client-store';
+import { useClientResource } from '@/lib/client-resource';
 import { searchOneSource } from '@/platform/search';
 
 export type SystemParams = { system: SystemSearchEntry };
@@ -21,30 +20,15 @@ export interface SystemSearch {
   suggest: (input: string) => Promise<string[]>;
 }
 
-const SYSTEM_INDEX_RETRY_MS = 15_000;
+const NO_SYSTEMS: SystemSearchEntry[] = [];
 
 /**
  * The system index keyed by id, or null until it loads. Any caller's
  * successful load reaches every reader; a failed load tries again every 15
- * seconds while the caller still wants it.
+ * seconds while any caller still wants it.
  */
 export function useSystemsById(enabled = true): ReadonlyMap<number, SystemSearchEntry> | null {
-  const systemsById = useClientStore(loadedSystemsById);
-  const [attempt, setAttempt] = useState(0);
-  const wanted = enabled && systemsById === null;
-  useEffect(() => {
-    if (!wanted) return;
-    let alive = true;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    loadSystems().catch(() => {
-      if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_INDEX_RETRY_MS);
-    });
-    return () => {
-      alive = false;
-      clearTimeout(retry);
-    };
-  }, [wanted, attempt]);
-  return systemsById;
+  return useClientResource(systemsResource, enabled).value?.byId ?? null;
 }
 
 export function useSystemName(systemId: number | null): string | null {
@@ -53,25 +37,9 @@ export function useSystemName(systemId: number | null): string | null {
 }
 
 export function useSystemSearch(): SystemSearch {
-  const [systems, setSystems] = useState<SystemSearchEntry[]>(() => getLoadedSystems() ?? []);
-  const healedRef = useRef(getLoadedSystems() !== null);
+  // A load from anywhere, the search palette included, reaches this list.
+  const systems = useClientResource(systemsResource).value?.systems ?? NO_SYSTEMS;
   const ctrlRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    loadSystems()
-      .then((s) => {
-        if (alive) {
-          healedRef.current = true;
-          setSystems(s);
-        }
-      })
-      .catch(() => {
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const parse = useCallback(
     (input: string): { ok: true; params: SystemParams } | { ok: false; error: SystemErr } => {
@@ -85,14 +53,7 @@ export function useSystemSearch(): SystemSearch {
     ctrlRef.current?.abort();
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
-    const results = await searchOneSource(input, 'systems', ctrl.signal);
-    if (!healedRef.current) {
-      const loaded = getLoadedSystems();
-      if (loaded !== null) {
-        healedRef.current = true;
-        setSystems(loaded);
-      }
-    }
+    const results = await searchOneSource(input, systemsSource, ctrl.signal);
     return results.map((r) => r.label);
   }, []);
 

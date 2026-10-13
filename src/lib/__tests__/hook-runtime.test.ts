@@ -89,6 +89,42 @@ test('effects and memos re-run only when deps change by identity or count, or on
   expect(rt.render(() => react.useCallback(latest, [held]))).toBe(latest);
 });
 
+test('a runtime that memoizes callbacks keeps one while its deps hold, so an effect keyed on it runs once', () => {
+  const rt = createHookRuntime({ memoizeCallbacks: true });
+  const { react } = rt;
+  const runs: string[] = [];
+  const component = (key: string) => {
+    const read = react.useCallback(() => key, [key]);
+    react.useEffect(() => {
+      runs.push(read());
+    }, [read]);
+    return read;
+  };
+
+  const first = rt.render(component, 'a');
+  expect(rt.render(component, 'a')).toBe(first);
+  expect(rt.render(component, 'b')).not.toBe(first);
+  expect(runs).toEqual(['a', 'b']);
+});
+
+test("an effect event that an earlier render's effect kept calls the latest render's callback", () => {
+  const rt = createHookRuntime();
+  const { react } = rt;
+  const kept: Array<(step: number) => string> = [];
+  const component = (label: string) => {
+    const say = react.useEffectEvent((step: number) => `${label} ${step}`);
+    react.useEffect(() => {
+      kept.push(say);
+    }, []);
+  };
+
+  rt.render(component, 'first');
+  expect(kept[0]?.(1)).toBe('first 1');
+  rt.render(component, 'second');
+  expect(kept).toHaveLength(1);
+  expect(kept[0]?.(2)).toBe('second 2');
+});
+
 test('hide cleans up live effects and keeps state, while unmount drops every slot and leaves old setters inert', () => {
   const rt = createHookRuntime();
   const { react } = rt;
@@ -119,6 +155,30 @@ test('hide cleans up live effects and keeps state, while unmount drops every slo
   expect(rt.render(component)).toMatchObject({ count: 0, renders: 1 });
   expect(rt.states).toEqual([0]);
   expect(seen.at(-1)).toBe('subscribe 0');
+});
+
+test('an external store gets one subscription per mounted reader, moved when subscribe changes and dropped on hide and unmount', () => {
+  const rt = createHookRuntime();
+  const { react } = rt;
+  const live = new Set<string>();
+  const subscribeAs = (name: string) => () => {
+    live.add(name);
+    return () => live.delete(name);
+  };
+  const first = subscribeAs('first');
+  const reader = (subscribe: () => () => void) => react.useSyncExternalStore(subscribe, () => [...live].join());
+
+  expect(rt.render(reader, first)).toBe('');
+  expect([...live]).toEqual(['first']);
+  expect(rt.render(reader, first)).toBe('first');
+  rt.render(reader, subscribeAs('second'));
+  expect([...live]).toEqual(['second']);
+  rt.hide();
+  expect(live.size).toBe(0);
+  rt.render(reader, first);
+  expect([...live]).toEqual(['first']);
+  rt.unmount();
+  expect(live.size).toBe(0);
 });
 
 test('settle lets promise callbacks and zero-delay timers queued before it run', async () => {

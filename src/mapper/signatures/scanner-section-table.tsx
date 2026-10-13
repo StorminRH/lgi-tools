@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Collapsible, CollapsibleChevron } from '@/components/ui/collapsible';
+import { eyebrow } from '@/components/ui/type-roles';
 import { ScannerEstIskCell } from '@/features/wormhole-sites/widget';
 import type { OriginLeadConnection } from '../authoring/leads-to-origin';
 import { mapNestedSurface } from '../map-frosted-surface';
@@ -13,18 +14,19 @@ import {
   SignatureRow,
   SiteTypeCell,
 } from './scanner-row-cells';
+import { scannerRowOpenTarget } from './scanner-row-open';
 import {
   useWormholeCellContext,
   wormholeCells,
   type WormholeCellContext,
 } from './scanner-wormhole-cells';
+import type { ScannerPanelTarget } from './signature-context';
 import {
   signatureIdentityKey,
   type ScannerSection,
   type ScannerSectionId,
   type SignatureWindowRow,
 } from './signature-model';
-import { scannerRowShowsOpenAffordance } from './scanner-row-open';
 
 const SECTION_COLUMNS: Readonly<Record<ScannerSectionId, string>> = {
   unknown:
@@ -55,7 +57,6 @@ function sectionCells(
               preferredCodes={ctx.preferredCodes}
               classLabelOf={ctx.classLabelOf}
               rowId={row.signatureId}
-              disabled={false}
               onIdentify={(group, code) => ctx.onIdentify?.(row, group, code)}
             />
           ) : (
@@ -120,7 +121,7 @@ function ColumnHeader({
       aria-hidden
       className={cn(
         columnsClassName,
-        'px-2.5 font-ui text-label font-medium uppercase tracking-label text-muted',
+        eyebrow({ emphasis: 'label', className: 'px-2.5' }),
       )}
     >
       {labels.map((label) => (
@@ -140,7 +141,7 @@ function ScannerSectionBlock({
   canIdentify,
   resolveSiteId,
   cells,
-  onOpenActions,
+  onOpenTarget,
 }: {
   readonly section: ScannerSection;
   readonly missingIds: ReadonlySet<string>;
@@ -150,12 +151,7 @@ function ScannerSectionBlock({
   readonly canIdentify: boolean;
   readonly resolveSiteId: (name: string) => number | null;
   readonly cells: (row: SignatureWindowRow) => ReactNode;
-  readonly onOpenActions: (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => void;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
 }) {
   const columnsClassName = SECTION_COLUMNS[section.id];
   return (
@@ -170,7 +166,7 @@ function ScannerSectionBlock({
         header={
           <span className="flex w-full items-center gap-2">
             <CollapsibleChevron />
-            <span className="font-ui text-label font-semibold uppercase tracking-label text-muted">
+            <span className={eyebrow({ weight: 'semibold', emphasis: 'label' })}>
               {section.title}
             </span>
             <span
@@ -198,24 +194,20 @@ function ScannerSectionBlock({
                 && canEdit
                 && row.group === null
                 && canIdentify;
+              const openTarget =
+                inlineWormhole || inlineIdentify
+                  ? null
+                  : scannerRowOpenTarget(row, canEdit, resolveSiteId);
               return (
                 <SignatureRow
                   key={row.key}
                   row={row}
                   missing={missingIds.has(row.signatureId)}
                   updated={updatedIds.has(signatureIdentityKey(row))}
-                  canEdit={canEdit}
-                  resolveSiteId={resolveSiteId}
                   columnsClassName={columnsClassName}
                   cells={cells(row)}
-                  showOpenAffordance={
-                    !inlineWormhole &&
-                    !inlineIdentify &&
-                    scannerRowShowsOpenAffordance(row, canEdit, resolveSiteId)
-                  }
-                  onOpenActions={(trigger, clientX, clientY) =>
-                    onOpenActions(row, trigger, clientX, clientY)
-                  }
+                  openTarget={openTarget}
+                  onOpenTarget={onOpenTarget}
                 />
               );
             })}
@@ -232,7 +224,7 @@ function ScannerRowsLoading() {
       data-signature-empty
       className="px-3 py-4 text-center font-ui text-ui text-muted"
     >
-      Reading scanner rows…
+      Loading signatures…
     </p>
   );
 }
@@ -249,7 +241,7 @@ export function ScannerSections({
   bindConnectionSetters,
   originLeadConnections,
   onIdentify,
-  onOpenActions,
+  onOpenTarget,
 }: {
   readonly sections: readonly ScannerSection[];
   readonly scannerSystemId: number | null;
@@ -263,12 +255,7 @@ export function ScannerSections({
   readonly bindConnectionSetters?: WormholeCellContext['bindConnectionSetters'];
   readonly originLeadConnections: readonly OriginLeadConnection[];
   readonly onIdentify?: WormholeCellContext['onIdentify'];
-  readonly onOpenActions: (
-    row: SignatureWindowRow,
-    trigger: HTMLElement,
-    clientX: number,
-    clientY: number,
-  ) => void;
+  readonly onOpenTarget: (target: ScannerPanelTarget) => void;
 }) {
   const ctx = useWormholeCellContext({
     scannerSystemId,
@@ -293,7 +280,7 @@ export function ScannerSections({
           canIdentify={ctx.onIdentify !== undefined}
           resolveSiteId={resolveSiteId}
           cells={(row) => sectionCells(section.id, row, ctx)}
-          onOpenActions={onOpenActions}
+          onOpenTarget={onOpenTarget}
         />
       ))}
     </div>

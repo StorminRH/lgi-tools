@@ -1,18 +1,11 @@
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import type { Id } from '@/data/convex/data-model';
 import { blankDoor } from '@/data/maps/connection-hallway';
-import { setSiteNameIndex } from '@/features/wormhole-sites/site-name-lookup';
+import { siteSearchEntry } from '@/features/wormhole-sites/__tests__/site-fixtures';
+import { createSiteNameLookups } from '@/features/wormhole-sites/site-name-lookup';
 import { connectionEditorFixture } from '../chain/__tests__/connection-editor-fixture';
-import {
-  applyScannerRowOpenAction,
-  scannerRowOpenAction,
-  scannerRowShowsOpenAffordance,
-} from './scanner-row-open';
+import { scannerRowOpenTarget } from './scanner-row-open';
 import type { SignatureWindowRow } from './signature-model';
-
-afterEach(() => {
-  setSiteNameIndex([]);
-});
 
 function row(
   over: Partial<SignatureWindowRow> &
@@ -47,10 +40,10 @@ const WH: SignatureWindowRow = row({
   }),
 });
 
-test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
-  setSiteNameIndex([
-    { id: 49, name: 'Barren Perimeter Reservoir' },
-    { id: 17, name: 'Forgotten Frontier Quarantine Outpost' },
+test('scanner row open targets gate catalogue sites and wormhole edits', () => {
+  const { siteIdForName } = createSiteNameLookups([
+    siteSearchEntry({ id: 49, name: 'Barren Perimeter Reservoir' }),
+    siteSearchEntry({ id: 17, name: 'Forgotten Frontier Quarantine Outpost' }),
   ]);
 
   const gas = row({
@@ -81,31 +74,26 @@ test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
     name: 'Forgotten Frontier',
   });
 
-  expect(scannerRowOpenAction(WH, true)).toEqual({
+  expect(scannerRowOpenTarget(WH, true, siteIdForName)).toEqual({
     kind: 'connection',
     connectionId: 'connection-1',
     signatureId: 'WHL-001',
   });
-  expect(scannerRowOpenAction(unnamed, true)).toBeNull();
-  expect(scannerRowOpenAction(gas, false)).toEqual({
+  expect(scannerRowOpenTarget(unnamed, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenTarget(gas, false, siteIdForName)).toEqual({
     kind: 'site',
     siteId: 49,
     signatureId: 'GAS-001',
   });
-  expect(scannerRowOpenAction(anomaly, false)).toEqual({
+  expect(scannerRowOpenTarget(anomaly, false, siteIdForName)).toEqual({
     kind: 'site',
     siteId: 17,
     signatureId: 'ANO-001',
   });
-  expect(scannerRowOpenAction(unknownName, true)).toBeNull();
-  expect(scannerRowOpenAction(partial, true)).toBeNull();
-  expect(scannerRowOpenAction(WH, false)).toBeNull();
-  expect(scannerRowOpenAction(unnamed, false)).toBeNull();
-
-  expect(scannerRowShowsOpenAffordance(gas, false)).toBe(true);
-  expect(scannerRowShowsOpenAffordance(unknownName, true)).toBe(false);
-  expect(scannerRowShowsOpenAffordance(WH, true)).toBe(true);
-  expect(scannerRowShowsOpenAffordance(WH, false)).toBe(false);
+  expect(scannerRowOpenTarget(unknownName, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenTarget(partial, true, siteIdForName)).toBeNull();
+  expect(scannerRowOpenTarget(WH, false, siteIdForName)).toBeNull();
+  expect(scannerRowOpenTarget(unnamed, false, siteIdForName)).toBeNull();
 
   const far: SignatureWindowRow = {
     ...WH,
@@ -120,42 +108,9 @@ test('scanner row open gates catalogue sites, edit, and host dispatch', () => {
           to: { ...WH.connection.to, signatureId: 'YXX-744' },
         },
   };
-  expect(scannerRowOpenAction(far, true)).toEqual({
+  expect(scannerRowOpenTarget(far, true, siteIdForName)).toEqual({
     kind: 'connection',
     connectionId: 'connection-1',
     signatureId: 'YXX-744',
   });
-
-  const openEditor = vi.fn();
-  const openSite = vi.fn();
-  const handlers = { openEditor, openSite };
-  const trigger = {} as HTMLElement;
-
-  applyScannerRowOpenAction(null, handlers, {
-    row: gas,
-    trigger,
-    clientX: 1,
-    clientY: 2,
-  });
-  expect(openEditor).not.toHaveBeenCalled();
-  expect(openSite).not.toHaveBeenCalled();
-
-  applyScannerRowOpenAction(
-    {
-      kind: 'connection',
-      connectionId: 'connection-1' as Id<'mapConnections'>,
-      signatureId: 'WHL-001',
-    },
-    handlers,
-    { row: WH, trigger, clientX: 1, clientY: 2 },
-  );
-  expect(openEditor).toHaveBeenCalledWith('connection-1', 'WHL-001');
-
-  applyScannerRowOpenAction(
-    { kind: 'site', siteId: 49, signatureId: 'GAS-001' },
-    handlers,
-    { row: gas, trigger, clientX: 3, clientY: 4 },
-  );
-  expect(openSite).toHaveBeenCalledWith(49, 'GAS-001');
-
 });

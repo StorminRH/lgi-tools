@@ -33,6 +33,9 @@ describe('ScannerCharacterPrompt', () => {
         onCancel: () => undefined,
       }),
     );
+    expect(markup).toContain(
+      'role="group" aria-label="Choose scanning character"',
+    );
     expect(markup).toContain('Which character scanned this?');
     expect(markup).toContain('data-scanner-character-candidate="7"');
     expect(markup).toContain('Alpha Pilot');

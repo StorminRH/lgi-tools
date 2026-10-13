@@ -1,5 +1,6 @@
 import type { DotTone } from '@/components/ui/tones';
 import { formatQuantity } from '@/lib/format/number';
+import { isHackingSiteType } from '../site-type';
 import type { SiteResource, SiteType } from '../types';
 import { HACKING_DOT_TONE } from './wormhole-styles';
 
@@ -15,7 +16,7 @@ export type ResourceRowView = {
 };
 
 export function deriveResourceRowView(resource: SiteResource, siteType: SiteType): ResourceRowView {
-  if (siteType === 'relic' || siteType === 'data') {
+  if (isHackingSiteType(siteType)) {
     return { colsClass: 'grid-cols-[1fr_auto]', meta: null, dotTone: HACKING_DOT_TONE[siteType] };
   }
   if (siteType === 'ore') {
@@ -31,8 +32,4 @@ export function deriveResourceRowView(resource: SiteResource, siteType: SiteType
       ? `${formatQuantity(resource.units)} units · ${formatM3(resource.volumeM3)}`
       : formatM3(resource.volumeM3);
   return { colsClass: 'grid-cols-[1fr_auto_auto]', meta: gasMeta, dotTone: null };
-}
-
-export function resourceValueEligible(resource: SiteResource): boolean {
-  return resource.liveEligible && resource.typeId != null;
 }

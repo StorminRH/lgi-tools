@@ -12,7 +12,7 @@ import { conflictFailure } from '@/lib/failure';
 import { notLinkedFailure } from '@/platform/auth/linked-characters';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
-import { addsUnlinkedMembers, insertWithinCap } from './profile-writes';
+import { addsUnlinkedMembers, createProfileWithNewId } from './profile-writes';
 
 // authz: auth
 export async function GET(): Promise<Response> {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       if (await addsUnlinkedMembers(userId, body.document, null)) {
         return apiResponse(createIndustryProfileEndpoint, 400, notLinkedFailure());
       }
-      const id = await insertWithinCap(userId, body);
+      const id = await createProfileWithNewId(userId, body);
       if (id === null) {
         return apiResponse(
           createIndustryProfileEndpoint,

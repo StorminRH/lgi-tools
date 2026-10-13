@@ -15,7 +15,7 @@ vi.mock('react', async (importOriginal) => ({
   },
 }));
 vi.mock('@/components/ui/toast', () => ({ toast: { error: vi.fn() } }));
-vi.mock('../windows/MapWindow', () => ({ isAdoptedPopupOpen: () => false }));
+vi.mock('@/components/ui/popup-open', () => ({ isPopupOpen: () => false }));
 
 const candidates = [
   { characterId: 7, systemId: 1, lastMovementAt: 100 },

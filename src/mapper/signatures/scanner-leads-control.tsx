@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import * as Combobox from '@/components/ui/combobox';
-import { pickOrType } from '@/components/ui/combobox-pick';
 import { useSystemSearch } from '@/components/use-system-search';
 import { formatSecurityStatus } from '@/data/eve-data/security';
 import type { SystemSearchEntry } from '@/data/eve-data/systems-search';
@@ -14,47 +12,26 @@ import {
 import type { SystemIdentityReadout } from '@/data/eve-data/system-identity';
 import { isPositiveSafeInteger } from '@/lib/id-schemas';
 import { UNSET_FIELD } from '../authoring/connection-field-group';
-import {
-  parseDestinationSystem,
-  type ConnectionFieldSetters,
-  type OriginLeadOption,
+import type {
+  ConnectionFieldSetters,
+  OriginLeadOption,
 } from '../authoring/connection-fields';
+import {
+  DESTINATION_HINT_LABELS,
+  leadsToReadout,
+} from '../authoring/connection-labels';
 import {
   decodeOriginLead,
   encodeOriginLead,
   originLeadForSystem,
   originLeadForTypedLabel,
 } from '../authoring/leads-to-origin';
-import {
-  ScannerComboPanel,
-  consumeScannerEnter,
-  type ScannerComboGroup,
-} from './scanner-combo-panel';
+import { parseDestinationSystem } from '../authoring/system-terminal-search';
+import { ScannerCombo, type ScannerComboGroup } from './scanner-combo-panel';
 import { scannerSelectedFieldClass } from './scanner-field-class';
-import { useCloseOnScannerScroll } from './scanner-scroll-dismiss';
 
 const HINT_PREFIX = 'hint:';
 const SYSTEM_PREFIX = 'system:';
-
-const HINT_LABELS: Record<WormholeDestinationHint, string> = {
-  hisec: 'High-sec',
-  lowsec: 'Low-sec',
-  nullsec: 'Null-sec',
-  unknown: 'Unknown (C1–C3)',
-  dangerous: 'Dangerous (C4–C5)',
-  deadly: 'Deadly (C6)',
-  thera: 'Thera',
-  pochven: 'Pochven',
-  drifter: 'Drifter',
-};
-
-export function scannerLeadsSeed(
-  hint: WormholeDestinationHint | null,
-  destination: SystemIdentityReadout | null,
-): string {
-  if (destination !== null) return destination.label;
-  return hint === null ? '' : HINT_LABELS[hint];
-}
 
 export function scannerLeadsSuggestionGroups(
   query: string,
@@ -78,12 +55,12 @@ export function scannerLeadsSuggestionGroups(
   const hintItems = WORMHOLE_DESTINATION_HINTS.filter((value) => {
     if (browsing) return true;
     return (
-      HINT_LABELS[value].toLowerCase().includes(needle)
+      DESTINATION_HINT_LABELS[value].toLowerCase().includes(needle)
       || value.startsWith(needle)
     );
   }).map((value) => ({
     value: `${HINT_PREFIX}${value}`,
-    text: HINT_LABELS[value],
+    text: DESTINATION_HINT_LABELS[value],
     meta: '',
   }));
   const unsetItem = {
@@ -184,7 +161,7 @@ export function commitScannerLeadsQuery(
   }
   const hintMatch = WORMHOLE_DESTINATION_HINTS.find((value) => {
     return (
-      HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
+      DESTINATION_HINT_LABELS[value].toLowerCase() === trimmed.toLowerCase()
       || value === trimmed.toLowerCase()
     );
   });
@@ -207,7 +184,6 @@ export function ScannerLeadsControl({
   originLeads,
   originSystemId,
   rowId,
-  disabled,
   onChange,
   onSetDestination,
   onLinkOrigin,
@@ -217,12 +193,11 @@ export function ScannerLeadsControl({
   readonly originLeads: readonly OriginLeadOption[];
   readonly originSystemId: number;
   readonly rowId: string;
-  readonly disabled: boolean;
   readonly onChange: ConnectionFieldSetters['setLeadsTo'];
   readonly onSetDestination: ConnectionFieldSetters['setDestination'];
   readonly onLinkOrigin: ConnectionFieldSetters['linkToOrigin'];
 }) {
-  const seed = scannerLeadsSeed(hint, destination);
+  const seed = leadsToReadout(hint, destination, '');
   const [query, setQuery] = useState(seed);
   const { systems, parse } = useSystemSearch();
   const offeredLeads = useMemo(
@@ -240,10 +215,7 @@ export function ScannerLeadsControl({
       ),
     [query, systems, seed, offeredLeads, originSystemId],
   );
-  const items = groups.flatMap((group) => group.items.map((item) => item.value));
   const resolved = destination !== null || hint !== null;
-  const popup = useCloseOnScannerScroll();
-  const browsing = query.trim().length === 0 || query === seed;
   const setters = {
     setLeadsTo: onChange,
     setDestination: onSetDestination,
@@ -252,48 +224,19 @@ export function ScannerLeadsControl({
     originLeads,
   };
   return (
-    <Combobox.Root
-      open={popup.open}
-      onOpenChange={popup.onOpenChange}
-      value={query}
-      onValueChange={(next, details) =>
-        pickOrType(next, details, {
-          onType: setQuery,
-          onPick: (picked) => commitScannerLeadsValue(picked, setters),
-        })
-      }
-      items={items}
-      filter={null}
-      openOnInputClick
-    >
-      <Combobox.Field
-        size="sm"
-        placeholder="Unresolved"
-        disabled={disabled}
-        aria-label={`Destination ${rowId}`}
-        className={cn(
-          scannerSelectedFieldClass(resolved),
-          resolved ? destination?.tone : 'font-normal',
-        )}
-        onKeyDown={(event) => {
-          if (!consumeScannerEnter(event)) return;
-          commitScannerLeadsQuery(query, parse, setters);
-        }}
-      />
-      <ScannerComboPanel
-        groups={groups}
-        itemValues={items}
-        showLabels={browsing}
-        footer={browsing ? 'Type to search systems…' : null}
-      />
-    </Combobox.Root>
+    <ScannerCombo
+      query={query}
+      onQueryChange={setQuery}
+      groups={groups}
+      browsing={query.trim().length === 0 || query === seed}
+      browseFooter="Type to search systems…"
+      ariaLabel={`Destination ${rowId}`}
+      fieldClassName={cn(
+        scannerSelectedFieldClass(resolved),
+        resolved ? destination?.tone : 'font-normal',
+      )}
+      onCommitValue={(picked) => commitScannerLeadsValue(picked, setters)}
+      onCommitQuery={(text) => commitScannerLeadsQuery(text, parse, setters)}
+    />
   );
-}
-
-export function scannerLeadsReadout(
-  hint: WormholeDestinationHint | null,
-  destination: SystemIdentityReadout | null,
-): string {
-  if (destination !== null) return destination.label;
-  return hint === null ? 'Unset' : HINT_LABELS[hint];
 }

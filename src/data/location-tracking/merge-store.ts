@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { executeRows } from '@/lib/db-execute';
 import type { AnyPgDb } from '@/lib/db-types';
-import { pendingTrackingMerges, type TrackingSelection } from './schema';
+import { pendingTrackingMerges } from './schema';
 import { MERGE_RECEIPT_BATCH_SIZE } from './constants';
+import type { TrackingSelection } from './merge-contract';
 
 export async function enqueueTrackingMerge(
   database: AnyPgDb,

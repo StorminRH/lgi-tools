@@ -1,8 +1,10 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
+import { searchAll, type SearchResult } from '@/platform/search';
+import { useSourceSearch } from '@/platform/search/use-source-search';
+import { SEARCH_SOURCES } from '@/composition/search/register-all';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { pushRecent, useSearchRecents } from '@/features/search-recents/storage';
@@ -13,6 +15,7 @@ import * as Combobox from '@/components/ui/combobox';
 import { pickOrType } from '@/components/ui/combobox-pick';
 import { Kbd } from '@/components/ui/kbd';
 import { SearchIcon } from '@/components/ui/icons';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
 import { formatCount } from '@/lib/format/number';
 import { searchIconClass, searchRowImage, searchRowKey, searchRowsByKey, splitMatchRuns } from './global-search-view';
 
@@ -29,34 +32,16 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [sections, setSections] = useState<SearchSection[]>([]);
   const recents = useSearchRecents();
+  const search = useCallback(
+    (query: string, signal: AbortSignal) => searchAll(SEARCH_SOURCES, query, { session, isAdmin, recents, signal }),
+    [session, isAdmin, recents],
+  );
+  const sections = useSourceSearch(value, search, DEBOUNCE_MS);
 
   useEffect(() => {
     setSiteSearchIndex(siteIndex);
   }, [siteIndex]);
-
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), DEBOUNCE_MS);
-    return () => clearTimeout(id);
-  }, [value]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    searchAll(debounced, { session, isAdmin, recents, signal: controller.signal })
-      .then((next) => {
-        if (controller.signal.aborted) return;
-        setSections(next);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        throw err;
-      });
-    return () => {
-      controller.abort();
-    };
-  }, [debounced, session, isAdmin, recents]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -186,7 +171,7 @@ function SearchRow({ row, value }: { row: SearchResult; value: string }) {
           {renderLabel(row.label, row.matchIndices)}
         </span>
         {row.sub && (
-          <span className="truncate font-data text-label uppercase tracking-[0.07em] text-muted">
+          <span className={cn(dataLabel({ className: 'truncate' }), 'tracking-[0.07em]')}>
             {row.sub}
           </span>
         )}
@@ -214,7 +199,15 @@ function renderLabel(label: string, indices?: number[]) {
 
 function SearchFooter() {
   return (
-    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-label text-faint">
+    <div
+      className={eyebrow({
+        font: 'inherit',
+        tone: 'faint',
+        weight: 'inherit',
+        emphasis: 'label',
+        className: 'mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2',
+      })}
+    >
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
       </span>

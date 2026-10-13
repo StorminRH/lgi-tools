@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { SystemWithSecurity } from '@/components/security-status';
 import { TypeIcon } from '@/components/type-icon';
@@ -10,7 +10,7 @@ import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { SidePanel } from '@/components/ui/side-panel';
 import { StatFigure } from '@/components/ui/stat-figure';
-import { eyebrow } from '@/components/ui/type-roles';
+import { dataLabel, eyebrow } from '@/components/ui/type-roles';
 import { useSystemsById } from '@/components/use-system-search';
 import { activityLabel } from '@/data/eve-data/constants';
 import { lookupSystem } from '@/data/eve-data/systems-search';
@@ -19,75 +19,30 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import { isEfficiencyEligible, unitPriceMap } from '../build-plan-view';
 import { componentSheet, type ComponentInputRow, type ComponentSheet } from '../component-sheet-view';
-import { nodeMeState } from '../me-overrides';
-import { nodeTeState } from '../te-overrides';
 import { typeName } from '../type-name';
 import type { BlueprintStructure } from '../types';
-import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
+import { BlueprintMetaLine } from './BlueprintMetaLine';
+import { EfficiencyStepperRows } from './MeAdjuster';
 import { useBuildPlan, useBuildSetup, useMarketData } from './planner-contexts';
 import { UnpricedInputs } from './UnpricedInputs';
 
 function Steppers({ sheet }: { sheet: ComponentSheet }) {
-  const plan = useBuildPlan();
-  const bp = sheet.blueprintTypeId;
-  if (!isEfficiencyEligible(bp, sheet.label)) return null;
-  const row = (icon: ReactNode, field: ReactNode) => (
-    <div className="flex items-center gap-2.5">
-      <span aria-hidden className="inline-flex size-3.5 shrink-0">
-        {icon}
-      </span>
-      {field}
-    </div>
-  );
+  if (!isEfficiencyEligible(sheet.blueprintTypeId, sheet.label)) return null;
   return (
     <div className="flex flex-col gap-2.5">
-      {row(
-        <GemIcon state={nodeMeState(plan.ownedMe?.get(bp), plan.meOverrides.get(bp))} />,
-        <MeField
-          blueprintTypeId={bp}
-          name={sheet.name}
-          ownedMe={plan.ownedMe}
-          meOverrides={plan.meOverrides}
-          setMeOverride={plan.setMeOverride}
-          resetMeOverride={plan.resetMeOverride}
-          boxed
-        />,
-      )}
-      {row(
-        <HourglassIcon state={nodeTeState(plan.ownedTe?.get(bp), plan.teOverrides.get(bp))} />,
-        <TeField
-          blueprintTypeId={bp}
-          name={sheet.name}
-          ownedTe={plan.ownedTe}
-          teOverrides={plan.teOverrides}
-          setTeOverride={plan.setTeOverride}
-          resetTeOverride={plan.resetTeOverride}
-          boxed
-        />,
-      )}
+      <EfficiencyStepperRows blueprintTypeId={sheet.blueprintTypeId} name={sheet.name} />
     </div>
   );
 }
 
 function Identity({ sheet }: { sheet: ComponentSheet }) {
-  const activity = sheet.activityId === null ? null : activityLabel(sheet.activityId);
   return (
     <div className="flex flex-col gap-4">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-data text-micro uppercase tracking-label text-muted">
-        {sheet.label && (
-          <>
-            <span>{sheet.label}</span>
-            <span aria-hidden className="text-faint">·</span>
-          </>
-        )}
-        {activity !== null && activity !== sheet.label && (
-          <>
-            <span className="text-tone-blue">{activity}</span>
-            <span aria-hidden className="text-faint">·</span>
-          </>
-        )}
-        <span>{formatQuantity(sheet.batch)} per run</span>
-      </p>
+      <BlueprintMetaLine
+        group={sheet.label}
+        activity={sheet.activityId === null ? null : activityLabel(sheet.activityId)}
+        perRun={sheet.batch}
+      />
       <div className="flex items-center gap-5">
         <TypeIcon
           {...nodeImage(sheet.blueprintTypeId, sheet.typeId)}
@@ -144,7 +99,7 @@ function InputRow({ row, onOpen, refreshing }: { row: ComponentInputRow; onOpen:
       />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate font-data text-ui text-name">{row.name}</span>
-        {row.label && <span className="truncate font-data text-label uppercase tracking-label text-muted">{row.label}</span>}
+        {row.label && <span className={dataLabel({ className: 'truncate' })}>{row.label}</span>}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-0.5 font-data tabular-nums">
         <span className="text-ui text-name">{formatQuantity(row.quantity)}</span>
