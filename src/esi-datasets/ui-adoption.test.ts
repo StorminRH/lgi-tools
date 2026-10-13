@@ -132,24 +132,44 @@ describe('UI adoption type-role census', () => {
     expect(found).toEqual(recorded);
   });
 
-  it('counts an uppercase class at any variant, in any literal, or as a style value, not a word in copy', () => {
+  it('counts an uppercase class at any variant, in any literal, or as a style value', () => {
     const source = [
       '<span className="font-ui uppercase text-micro">a</span>',
       "const head = 'md:hover:uppercase text-label';",
       "const style = { textTransform: 'uppercase' };",
       '<a aria-label="Don\'t" className="uppercase">b</a>',
+      '<p>Don\'t</p><span className="!uppercase">c</span>',
       "const mark = \"before:content-['/'] uppercase\";",
       'const wrapped = `',
       '  uppercase text-label',
       '`;',
-      '<p>Shown in uppercase</p>',
-      "const note = 'not uppercase-ish';",
       "const imp = 'uppercase! text-label';",
       "const imp2 = 'md:!uppercase';",
-      '<b className="[text-transform:uppercase] x">c</b>',
+      '<b className="[text-transform:uppercase] x">d</b>',
+      "const chip = cn('font-ui', active && 'lg:uppercase', size);",
+      'const badge = cva(',
+      "  'inline-flex uppercase',",
+      "  { variants: { tone: { loud: 'tracking-label uppercase!' } } },",
+      ');',
+      '<p className={`${link} md:uppercase`}>e</p>',
+      "const nested = `${cn('uppercase')} text-label`;",
     ].join('\n');
 
-    expect(uppercaseCount(source, 'script')).toBe(9);
+    expect(uppercaseCount(source, 'script')).toBe(15);
+  });
+
+  it('does not count the word in copy, as JSX text or in a copy string', () => {
+    const source = [
+      '<p>Use uppercase letters</p>',
+      '<p>',
+      '  Shown in uppercase',
+      '</p>',
+      "const copy = 'Shown in uppercase.';",
+      'const hint = `Hi ${name}, set in uppercase`;',
+      "const note = 'not uppercase-ish';",
+    ].join('\n');
+
+    expect(uppercaseCount(source, 'script')).toBe(0);
   });
 
   it('counts a capitals declaration or an applied uppercase class in a stylesheet', () => {
