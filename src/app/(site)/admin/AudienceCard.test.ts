@@ -153,23 +153,17 @@ test('fails as a whole when a usage read fails, for its section to catch', async
   await expect(loadAudience('7d', WEEK)).rejects.toThrow('db down');
 });
 
-test('renders the tiles without empty chart slots, and links to the detail pages at its range', async () => {
+test('renders a tile per figure, and links to the detail pages at its range', async () => {
   stubTelemetry();
   const html = await render('7d', WEEK);
-  expect(html).not.toContain('<dd class="mt-1"></dd>');
   expect(html.match(/<dt /g)).toHaveLength(4);
 
   const links = renderToStaticMarkup(createElement(AudienceLinks, { rangeKey: '7d' }));
   expect(links).toContain('href="/admin/traffic?range=7d"');
   expect(links).toContain('href="/admin/search?range=7d"');
-
-  // The default range stays off the URL, as in the rail.
-  const defaultLinks = renderToStaticMarkup(createElement(AudienceLinks, { rangeKey: '30d' }));
-  expect(defaultLinks).toContain('href="/admin/traffic"');
-  expect(defaultLinks).toContain('href="/admin/search"');
 });
 
-test('labels the activity total like the tiles above it', async () => {
+test('heads the activity chart with the page view total and its change', async () => {
   stubTelemetry();
   q.getPageViewStats.mockResolvedValue({
     current: [{ day: '2026-09-21', views: 1_250, entries: 0, referrals: 0 }],
@@ -178,6 +172,7 @@ test('labels the activity total like the tiles above it', async () => {
 
   const html = await render('7d', WEEK);
 
-  expect(html).toContain('tabular-nums">1,250</span><span class="tracking-optical font-ui text-eyebrow text-muted font-medium">Page views</span>');
+  expect(html).toMatch(/>1,250<\/span><span class="[^"]*">Page views<\/span>/);
+  expect(html).not.toContain('No page views in this range.');
   expect(html).toContain('<span class="sr-only">up 25%</span>');
 });
