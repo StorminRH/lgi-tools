@@ -7,7 +7,13 @@ import {
   REGIONAL_DISCOUNT_MIN_PCT,
   REGIONAL_DISCOUNT_MIN_UNITS,
 } from './constants';
-import { fetchStored, fetchStoredMany, type EsiResponseMeta, type StoredManyAnswer } from '@/data/esi-store';
+import {
+  fetchStored,
+  fetchStoredMany,
+  type EsiResponseMeta,
+  type StoredManyAnswer,
+  type StoredManyInit,
+} from '@/data/esi-store';
 import {
   EsiBudgetExhaustedError,
   EsiContractError,
@@ -26,7 +32,7 @@ import {
   type OrderEntry,
   type RemoteStationBook,
 } from './book-math';
-import { priceKey, regionDumpKey } from './keys';
+import { priceKey, pricePageKey, regionDumpKey } from './keys';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
@@ -148,10 +154,14 @@ class DumpUnavailable extends Error {
   }
 }
 
-/** One dump page as its own call parsed it: the wanted types' orders, and the page count page 1 states. */
-interface DumpPage {
+/** One order-book page as its own call parsed it: the orders it kept, and the page count it states. */
+interface OrderPage {
   readonly totalPages: number;
   readonly orders: EsiOrder[];
+}
+
+function parseOrderPage(body: unknown, headers: Headers): OrderPage {
+  return { totalPages: esiPageCount(headers), orders: parseEsiOrders(body) };
 }
 
 /**
@@ -160,13 +170,10 @@ interface DumpPage {
  * dump learns about expiry is fanned out to the type keys it priced. The
  * page is cut down to the wanted types inside its own call.
  */
-async function fetchDumpPage(page: number, wanted: Set<number>): Promise<{ value: DumpPage; meta: EsiResponseMeta }> {
+async function fetchDumpPage(page: number, wanted: Set<number>): Promise<{ value: OrderPage; meta: EsiResponseMeta }> {
   const result = await fetchStored(regionDumpKey(page), {
     conditional: false,
-    parse: (body, headers): DumpPage => ({
-      totalPages: esiPageCount(headers),
-      orders: parseEsiOrders(filterRawByWantedType(body, wanted)),
-    }),
+    parse: (body, headers) => parseOrderPage(filterRawByWantedType(body, wanted), headers),
   });
   if (result.kind === 'unchanged') throw new DumpUnavailable();
   if (result.kind === 'error') throw new EsiServerError(result.status);
@@ -205,19 +212,147 @@ type TypeRead =
   | { kind: 'unchanged' }
   | { kind: 'fallback'; budgetExhausted: boolean };
 
+type Unpriced = Exclude<TypeRead, { kind: 'priced' }>;
+
+/** One page of a type's book, read whole, with the meta its answer carried. */
+interface BookPage {
+  readonly kind: 'page';
+  readonly value: OrderPage;
+  readonly meta: EsiResponseMeta;
+}
+
+/** One type's book as its pages come in: `pages[n - 1]` is page n. The first page read without a body settles the type. */
+interface Book {
+  readonly typeId: number;
+  readonly pages: BookPage[];
+  settled?: Unpriced;
+}
+
+/** One page of one type's book: the unit a store read asks for. */
+interface PageRef {
+  readonly typeId: number;
+  readonly page: number;
+}
+
+/** Page 1 asks under the type's own key, conditionally: the one page whose ETag is ever held. */
+const FIRST_PAGES: StoredManyInit<OrderPage> = { concurrency: PER_TYPE_CONCURRENCY, parse: parseOrderPage };
+
+/** Later pages and refetches are unconditional: a 304 against page 1's stored ETag would come back with no body. */
+const WHOLE_PAGES: StoredManyInit<OrderPage> = { ...FIRST_PAGES, conditional: false };
+
 /**
- * One type's answer from the batched store read, its orders already parsed
+ * What one page's answer means for its type, its orders already parsed
  * inside its call. Unexpired, a 304 and the downtime halt all mean the
- * stored price stands; an error status, a malformed body (a failed key) or
- * a refused call sends the type to Fuzzwork, as before.
+ * stored price stands, and so does a 404 past page 1: the book shrank
+ * between its pages, so the type is read again next time. Any other error
+ * status, a malformed body (a failed key) or a refused call sends the type
+ * to Fuzzwork, as before.
  */
-function readOneType(typeId: number, answer: StoredManyAnswer<EsiOrder[]>): TypeRead {
+function readPage(answer: StoredManyAnswer<OrderPage>, page: number): BookPage | Unpriced {
+  if (answer.kind === 'fresh') return { kind: 'page', value: answer.value, meta: answer.meta };
   if (answer.kind === 'unchanged') return { kind: 'unchanged' };
   if (answer.kind === 'failed') return { kind: 'fallback', budgetExhausted: answer.error instanceof EsiBudgetExhaustedError };
-  if (answer.kind === 'error') return { kind: 'fallback', budgetExhausted: false };
+  return page > 1 && answer.status === 404 ? { kind: 'unchanged' } : { kind: 'fallback', budgetExhausted: false };
+}
+
+/** Reads `refs` in one store batch and files each answer under its type. */
+async function fillBooks(books: ReadonlyMap<number, Book>, refs: readonly PageRef[], init: StoredManyInit<OrderPage>): Promise<void> {
+  if (refs.length === 0) return;
+  const answers = await fetchStoredMany(refs.map((ref) => pricePageKey(ref.typeId, ref.page)), init);
+  refs.forEach((ref, i) => {
+    const book = books.get(ref.typeId)!;
+    const read = readPage(answers[i]!, ref.page);
+    if (read.kind === 'page') book.pages[ref.page - 1] = read;
+    else book.settled ??= read;
+  });
+}
+
+/** Pages 2 to N of every unsettled book whose page 1 states N. */
+function laterPages(books: Iterable<Book>): PageRef[] {
+  return [...books].flatMap((book) => {
+    const total = book.settled === undefined ? book.pages[0]!.value.totalPages : 1;
+    return Array.from({ length: total - 1 }, (_unused, i) => ({ typeId: book.typeId, page: i + 2 }));
+  });
+}
+
+/** The newest Last-Modified any page of a book carries; null when none carries one. */
+function newestLastModified(pages: readonly BookPage[]): number | null {
+  const stamps = pages.flatMap(({ meta }) => (meta.lastModified === null ? [] : [meta.lastModified]));
+  return stamps.length === 0 ? null : Math.max(...stamps);
+}
+
+/** A page whose Last-Modified is older than its book's newest was served from the cache cycle before. */
+function isOlderPage(page: BookPage, newest: number | null): boolean {
+  return page.meta.lastModified !== null && page.meta.lastModified !== newest;
+}
+
+/**
+ * Every page of an unsettled book served from an older cache cycle than the
+ * book's newest page. CCP's check is that every page of one read carries the
+ * same Last-Modified; each older page is read once more.
+ */
+function olderPages(books: Iterable<Book>): PageRef[] {
+  return [...books].flatMap((book) => {
+    if (book.settled !== undefined) return [];
+    const newest = newestLastModified(book.pages);
+    return book.pages.flatMap((page, i) => (isOlderPage(page, newest) ? [{ typeId: book.typeId, page: i + 1 }] : []));
+  });
+}
+
+/** Every page from one cache cycle: one Last-Modified, and each stating the page count the book was read to. */
+function isOneCycle(pages: readonly BookPage[]): boolean {
+  const newest = newestLastModified(pages);
+  return pages.every((page) => page.value.totalPages === pages.length && !isOlderPage(page, newest));
+}
+
+/** The earliest expiry over a book's pages: null when any page has none, since the book is then due. */
+function earliestPageExpiry(pages: readonly BookPage[]): number | null {
+  let earliest = Number.POSITIVE_INFINITY;
+  for (const { meta } of pages) {
+    if (meta.expiresAt === null) return null;
+    earliest = Math.min(earliest, meta.expiresAt);
+  }
+  return earliest;
+}
+
+/**
+ * The meta a type's price commits, under the type's own key. A one-page book
+ * keeps its answer's. A longer one expires with its earliest page and holds
+ * no ETag: page 1's alone would let a 304 stand for pages nobody read, so
+ * the next read of a longer book is unconditional.
+ */
+function bookMeta(pages: readonly BookPage[]): EsiResponseMeta {
+  const first = pages[0]!.meta;
+  if (pages.length === 1) return first;
+  return { ...first, etags: [], expiresAt: earliestPageExpiry(pages) };
+}
+
+/**
+ * A type's price from its whole book, every page's orders merged before
+ * the reduction. A book still read across two cache cycles after the one
+ * refetch goes unpriced: its stored price stands, and the type stays due.
+ */
+function finishBook(book: Book): TypeRead {
+  if (book.settled !== undefined) return book.settled;
+  if (!isOneCycle(book.pages)) return { kind: 'unchanged' };
+  const wanted = new Set([book.typeId]);
   const buckets = new Map<number, OrderBucket>();
-  absorbOrders(answer.value, new Set([typeId]), buckets);
-  return { kind: 'priced', price: bucketsToRawPrices([typeId], buckets)[0]!, meta: answer.meta };
+  for (const page of book.pages) absorbOrders(page.value.orders, wanted, buckets);
+  return { kind: 'priced', price: bucketsToRawPrices([book.typeId], buckets)[0]!, meta: bookMeta(book.pages) };
+}
+
+/**
+ * Every type's whole Forge book: page 1 of each in one batch, every later
+ * page of the longer books in a second, and in a third each page served from
+ * an older cache cycle than its book's newest, once more. No page takes a
+ * lock, as no store read does.
+ */
+async function readBooks(typeIds: readonly number[]): Promise<TypeRead[]> {
+  const books = new Map(typeIds.map((typeId): [number, Book] => [typeId, { typeId, pages: [] }]));
+  await fillBooks(books, typeIds.map((typeId) => ({ typeId, page: 1 })), FIRST_PAGES);
+  await fillBooks(books, laterPages(books.values()), WHOLE_PAGES);
+  await fillBooks(books, olderPages(books.values()), WHOLE_PAGES);
+  return typeIds.map((typeId) => finishBook(books.get(typeId)!));
 }
 
 /**
@@ -257,20 +392,20 @@ async function bestEffortFallbackPrices(typeIds: number[]): Promise<FallbackRows
 }
 
 /**
- * Every type through its own order-book call: one store read for all of
- * them, PER_TYPE_CONCURRENCY calls in flight, one write for the 304s. The
- * types ESI could not price go to `fallback` in one batch.
+ * Every type through its own order book, every page of it: one store read
+ * a batch, PER_TYPE_CONCURRENCY calls in flight, one write for the 304s.
+ * The types ESI could not price go to `fallback` in one batch.
  */
 async function pricePerType(typeIds: number[], fallback: FallbackPricer): Promise<SourcePrices> {
   const unique = dedupe(typeIds);
-  const answers = await fetchStoredMany(unique.map(priceKey), { concurrency: PER_TYPE_CONCURRENCY, parse: parseEsiOrders });
+  const reads = await readBooks(unique);
   const results: RawMarketPrice[] = [];
   const metaByType = new Map<number, EsiResponseMeta>();
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
 
   for (const [i, typeId] of unique.entries()) {
-    const read = readOneType(typeId, answers[i]!);
+    const read = reads[i]!;
     if (read.kind === 'priced') {
       results.push(read.price);
       metaByType.set(typeId, read.meta);

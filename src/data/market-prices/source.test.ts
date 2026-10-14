@@ -18,12 +18,14 @@ vi.mock('@/platform/esi', async () => {
 
 /**
  * The store reduced to its transport: every key is due, and what ESI
- * answers comes back parsed, with a meta under that key. The batched read
+ * answers comes back parsed, with a meta under that key that takes the
+ * answer's Expires and Last-Modified when it sent them. The batched read
  * keeps a thrown call (or a body its parser refused) to its key, as the
  * real one does, and records its concurrency.
  */
 vi.mock('@/data/esi-store', async () => {
   const { resolvePath } = await vi.importActual<typeof import('@/data/esi-store/key')>('@/data/esi-store/key');
+  const { httpDateMs } = await vi.importActual<typeof import('@/platform/esi/headers')>('@/platform/esi/headers');
   type Init = { conditional?: boolean; parse: (body: unknown, headers: Headers) => unknown };
   const fetchStored = async (key: { route: string }, init: Init) => {
     const passed = init.conditional === undefined ? undefined : { conditional: init.conditional };
@@ -31,7 +33,14 @@ vi.mock('@/data/esi-store', async () => {
     if (res.status === 304) return { kind: 'unchanged', expiresAt: null };
     if (res.status !== 200) return { kind: 'error', status: res.status };
     const value = init.parse(await res.json(), res.headers);
-    return { kind: 'fresh', value, meta: { key, expiresAt: EXPIRES_MS, etags: [res.headers.get('ETag') ?? ''], lastModified: null, checkedAt: CHECKED_AT } };
+    const meta = {
+      key,
+      expiresAt: httpDateMs(res.headers.get('Expires')) ?? EXPIRES_MS,
+      etags: [res.headers.get('ETag') ?? ''],
+      lastModified: httpDateMs(res.headers.get('Last-Modified')),
+      checkedAt: CHECKED_AT,
+    };
+    return { kind: 'fresh', value, meta };
   };
   return {
     fetchStored,
@@ -51,6 +60,7 @@ vi.mock('./source-fallback', () => ({
 
 import { esiFetch } from '@/platform/esi';
 import { fetchPricesFromFuzzwork } from './source-fallback';
+import { priceKey } from './keys';
 
 const JITA_44 = 60003760;
 const JITA_SYSTEM = 30000142;
@@ -64,7 +74,7 @@ interface SyntheticOrder {
   system_id?: number;
 }
 
-function ordersResponse(orders: SyntheticOrder[], xPages: string | null = '1'): Response {
+function ordersResponse(orders: SyntheticOrder[], xPages: string | null = '1', headers: Record<string, string> = {}): Response {
   const filled = orders.map((o) => ({
     location_id: JITA_44,
     system_id: JITA_SYSTEM,
@@ -72,7 +82,7 @@ function ordersResponse(orders: SyntheticOrder[], xPages: string | null = '1'): 
   }));
   return new Response(JSON.stringify(filled), {
     status: 200,
-    headers: xPages === null ? {} : { 'X-Pages': xPages },
+    headers: { ...(xPages === null ? {} : { 'X-Pages': xPages }), ...headers },
   });
 }
 
@@ -643,6 +653,138 @@ describe('fetchPricesPerType — the page-view path', () => {
     vi.mocked(fetchPricesFromFuzzwork).mockRejectedValue(failure);
 
     await expect(fetchPricesFromSource([34, 35])).rejects.toBe(failure);
+  });
+});
+
+describe('fetchPricesPerType — a book that runs past one page', () => {
+  const MODIFIED = new Date('2026-10-12T11:58:00Z').toUTCString();
+  const EARLIER = new Date('2026-10-12T11:53:00Z').toUTCString();
+  const BOOK_URL = 'https://esi.evetech.net/markets/10000002/orders/?order_type=all&type_id=34';
+  const pageUrl = (page: number) => `https://esi.evetech.net/markets/10000002/orders/?order_type=all&page=${page}&type_id=34`;
+
+  /** Type 34's three pages: its best ask and its best bid both sit past page 1. */
+  const PAGES: Record<number, SyntheticOrder[]> = {
+    1: [
+      { type_id: 34, is_buy_order: false, price: 110, volume_remain: 5 },
+      { type_id: 34, is_buy_order: true, price: 90, volume_remain: 10 },
+    ],
+    2: [{ type_id: 34, is_buy_order: false, price: 100, volume_remain: 10 }],
+    3: [{ type_id: 34, is_buy_order: true, price: 95, volume_remain: 20 }],
+  };
+
+  const typeOf = (url: string) => Number(/type_id=(\d+)/.exec(url)![1]);
+  const pageOf = (url: string) => Number(/[?&]page=(\d+)/.exec(url)?.[1] ?? 1);
+  const fail = (error: Error): never => {
+    throw error;
+  };
+
+  /** One page of type 34's book, from the newer cache cycle unless `headers` say otherwise. */
+  function bookPage(page: number, headers: Record<string, string> = {}): Response {
+    return ordersResponse(PAGES[page] ?? [], '3', { 'Last-Modified': MODIFIED, ETag: `"p${page}"`, ...headers });
+  }
+
+  /** Type 34's book as `answer` serves each call to a page, counted from 1 per page; any other type is one page. */
+  function serveBook(answer: (page: number, call: number) => Response = (page) => bookPage(page)): void {
+    const calls = new Map<number, number>();
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const typeId = typeOf(url);
+      if (typeId !== 34) return ordersResponse([{ type_id: typeId, is_buy_order: false, price: 2, volume_remain: 1 }], '1', { ETag: `"t${typeId}"` });
+      const page = pageOf(url);
+      const call = (calls.get(page) ?? 0) + 1;
+      calls.set(page, call);
+      return answer(page, call);
+    });
+  }
+
+  const bookCalls = () => vi.mocked(esiFetch).mock.calls.filter(([url]) => typeOf(url) === 34);
+
+  it('reads every page and prices the merged book under the type\'s own key, with no ETag and its earliest page expiry', async () => {
+    const early = Date.parse('2026-10-12T12:03:00Z');
+    serveBook((page) => bookPage(page, page === 2 ? { Expires: new Date(early).toUTCString() } : {}));
+
+    const { prices, metaByType } = await fetchPricesPerType([34, 35]);
+
+    // Page 1 asks as before; the later pages ask unconditionally, each under a key of its own.
+    expect(bookCalls()).toEqual([
+      [BOOK_URL, undefined],
+      [pageUrl(2), { conditional: false }],
+      [pageUrl(3), { conditional: false }],
+    ]);
+    expect(vi.mocked(esiFetch)).toHaveBeenCalledTimes(4);
+    expect(h.batchConcurrency).toEqual([PER_TYPE_CONCURRENCY, PER_TYPE_CONCURRENCY]);
+    expect(prices.find((r) => r.typeId === 34)).toMatchObject({
+      bestSell: 100,
+      sellVolume: BigInt(15),
+      bestBuy: 95,
+      buyVolume: BigInt(30),
+      source: 'esi',
+    });
+    expect(metaByType.get(34)).toEqual({ key: priceKey(34), expiresAt: early, etags: [], lastModified: Date.parse(MODIFIED), checkedAt: CHECKED_AT });
+    // A one-page book keeps its own ETag and asks for no later page.
+    expect(metaByType.get(35)).toMatchObject({ key: priceKey(35), etags: ['"t35"'], expiresAt: EXPIRES_MS });
+  });
+
+  it('reads a page served from the cache cycle before once more, and prices the book from the newer cycle alone', async () => {
+    serveBook((page, call) => bookPage(page, page === 2 && call === 1 ? { 'Last-Modified': EARLIER } : {}));
+
+    const { prices, metaByType } = await fetchPricesFromSource([34]);
+
+    expect(bookCalls().map(([url]) => url)).toEqual([BOOK_URL, pageUrl(2), pageUrl(3), pageUrl(2)]);
+    expect(bookCalls()[3]?.[1]).toEqual({ conditional: false });
+    // The refetched page replaced the older one: its ask is counted once.
+    expect(prices).toMatchObject([{ typeId: 34, bestSell: 100, sellVolume: BigInt(15) }]);
+    expect(metaByType.get(34)).toMatchObject({ lastModified: Date.parse(MODIFIED) });
+  });
+
+  it('reads an older page 1 once more unconditionally, under the type\'s own key, and commits the newer answer', async () => {
+    serveBook((page, call) => bookPage(page, page === 1 && call === 1 ? { 'Last-Modified': EARLIER } : {}));
+
+    const { prices, metaByType } = await fetchPricesPerType([34]);
+
+    expect(bookCalls()).toEqual([
+      [BOOK_URL, undefined],
+      [pageUrl(2), { conditional: false }],
+      [pageUrl(3), { conditional: false }],
+      [BOOK_URL, { conditional: false }],
+    ]);
+    expect(prices).toMatchObject([{ typeId: 34, bestSell: 100, bestBuy: 95 }]);
+    expect(metaByType.get(34)).toMatchObject({ key: priceKey(34), etags: [], lastModified: Date.parse(MODIFIED) });
+  });
+
+  const STILL_BEHIND = (page: number) => bookPage(page, page === 2 ? { 'Last-Modified': EARLIER } : {});
+  const NOW_LONGER = (page: number, call: number) => {
+    if (page !== 1) return bookPage(page);
+    return bookPage(page, call === 1 ? { 'Last-Modified': EARLIER } : { 'X-Pages': '4' });
+  };
+
+  it.each([
+    ['a page is still a cycle behind after its refetch', STILL_BEHIND],
+    ['the refetched page 1 states another page count', NOW_LONGER],
+    ['a later page is gone, a 404 past a book that shrank', (page: number) => (page === 1 ? bookPage(page) : new Response(null, { status: 404 }))],
+    ['the store answers a later page without calling', (page: number) => (page === 1 ? bookPage(page) : new Response(null, { status: 304 }))],
+  ])('leaves the stored price standing and the type due when %s', async (_label, answer) => {
+    serveBook(answer);
+
+    const { prices, metaByType } = await fetchPricesPerType([34, 35]);
+
+    expect(prices.map((r) => r.typeId)).toEqual([35]);
+    expect([...metaByType.keys()]).toEqual([35]);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a later page fails with a 5xx', (page: number) => (page === 1 ? bookPage(page) : fail(new EsiServerError(503))), false],
+    ['the gate refuses a later page', (page: number) => (page === 1 ? bookPage(page) : fail(new EsiBudgetExhaustedError(5))), true],
+    ['page 1 itself is a 404', () => new Response(null, { status: 404 }), false],
+  ])('sends the type to Fuzzwork when %s', async (_label, answer, budgetExhausted) => {
+    serveBook(answer);
+    vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(34)]);
+
+    const result = await fetchPricesFromSource([34, 35]);
+
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith([34]);
+    expect(result.prices.map((r) => [r.typeId, r.source])).toEqual([[35, 'esi'], [34, 'fuzzwork-fallback']]);
+    expect(result.budgetExhausted).toBe(budgetExhausted);
   });
 });
 
