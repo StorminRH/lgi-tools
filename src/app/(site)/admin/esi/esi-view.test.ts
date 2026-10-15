@@ -48,7 +48,7 @@ describe('deriveBudgetCard', () => {
     const shared = deriveBudgetCard({ effectiveRemaining: 1_250, selfCount: 1_204, echo: 90, source: 'shared' });
     expect(shared.figures).toEqual([
       { label: 'Observed HTTP errors', value: '1,204', note: '4xx/5xx · last 2 min' },
-      { label: 'Lowest recent CCP allowance', value: '90', note: 'CCP response header' },
+      { label: 'Lowest recent ESI allowance', value: '90', note: 'ESI response header' },
       { label: 'Scoreboard source', value: 'shared', note: 'Upstash Redis' },
     ]);
     const local = deriveBudgetCard({ effectiveRemaining: 19, selfCount: 12, echo: null, source: 'process-local' });
