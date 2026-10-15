@@ -11,9 +11,9 @@ import {
   DialogHeader,
 } from '@/components/ui/dialog';
 import {
+  ACTIVE_AFK_STATE,
   AFK_TICK_MS,
   afkConfigFromOverrides,
-  initialAfkState,
   isAfkPaused,
   isAfkPromptOpen,
   onAfkDismiss,
@@ -36,14 +36,15 @@ export interface AfkGateState {
 }
 
 export function useAfkState(): AfkGateState {
-  const [state, setState] = useState(() =>
-    initialAfkState(typeof document === 'undefined' || document.visibilityState === 'visible', Date.now()),
-  );
+  // Render starts active without reading the clock; the effect then starts the
+  // hidden clock for a tab that mounted in the background.
+  const [state, setState] = useState(ACTIVE_AFK_STATE);
 
   useEffect(() => {
     const config = resolveAfkConfig();
     const onVisibility = () =>
       setState((s) => onAfkVisibilityChange(s, document.visibilityState === 'visible', Date.now()));
+    onVisibility();
     const timer = setInterval(() => setState((s) => onAfkTick(s, config, Date.now())), AFK_TICK_MS);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {

@@ -14,6 +14,13 @@ Landmines that lint, Fallow, and nearby tests do not catch.
   Do not add a nonce-based Content Security Policy.
 - Pages get a real static shell and put request data in the smallest
   `<Suspense>` hole. Do not wrap a fully dynamic screen in a fake shell.
+- Render code never reads the clock. A read while a page prerenders or
+  prefetches fails the render, and a per-link prefetch only fails in
+  `next dev`. A Server Component awaits `requestNow()` inside `<Suspense>`;
+  a Client Component shows the time once hydrated (`useHydrating`, then
+  `useNow`, as `PriceUpdateAge` does). `render-clock/no-read` catches direct
+  reads but not a helper that reads the clock for its caller, so helpers
+  take `now` as a parameter.
 - App-wide client state that changes after load (session, preferences)
   goes in a `createClientStore` read with `useClientStore`, never a
   context value. Next wraps each route segment in an Activity boundary that

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 
 /**
  * Wall-clock epoch milliseconds, refreshed every `intervalMs` while `active`.
- * The first render reads `Date.now()`. `active` is a flag or a predicate of
- * the current value, checked on every render. While it is off the clock keeps
- * its last value, and after it turns on again the next refresh comes a full
- * `intervalMs` later.
+ * The first render reads `Date.now()`, so a component that renders on the
+ * server calls this only once hydrated (see useHydrating). `active` is a flag
+ * or a predicate of the current value, checked on every render. While it is
+ * off the clock keeps its last value, and after it turns on again the next
+ * refresh comes a full `intervalMs` later.
  */
 export function useNow(intervalMs: number, active: boolean | ((now: number) => boolean) = true): number {
   const [now, setNow] = useState(() => Date.now());
