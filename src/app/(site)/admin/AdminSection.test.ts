@@ -1,7 +1,7 @@
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
-import { expect, test, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { AdminSection } from './AdminSection';
 
@@ -38,10 +38,12 @@ test('AdminSection names the card the same while loading, when loaded, and when 
   expect(loaded).not.toContain('role="status"');
 
   const error = silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
+  });
   const failed = await render(section(async () => {
     throw new Error('offline');
   }));
-  error.mockRestore();
   expect(failed).toContain('Registered users</h3>');
   expect(failed).toContain('Unable to load this section.');
   expect(failed).not.toContain('>count ');

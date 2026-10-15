@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { expect, test, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { AdminSignals } from './signals';
@@ -69,6 +69,9 @@ function page(): Promise<string> {
 function stubReads() {
   vi.clearAllMocks();
   vi.stubEnv('GSC_SITE_URL', '');
+  onTestFinished(() => {
+    vi.unstubAllEnvs();
+  });
   m.loadAdminSignals.mockResolvedValue(SIGNALS);
   m.getAccountTotals.mockResolvedValue({ users: 12, characters: 30 });
   m.getSystemStatics.mockResolvedValue({ version: '7' });
@@ -98,18 +101,18 @@ test('admin overview renders every titled card and fills each status card from t
   expect(html).toContain('>87 left</span>');
   expect(html).toContain('>Price cron</span>');
   expect(html).toContain('<span class="sr-only">Healthy</span>');
-  vi.unstubAllEnvs();
 });
 
 test('admin overview blanks only the card whose read failed', async () => {
   stubReads();
   const error = silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
+  });
   m.getAccountTotals.mockRejectedValue(new Error('offline'));
 
   const html = await page();
 
   expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
   expect(html).toContain('All clear');
-  error.mockRestore();
-  vi.unstubAllEnvs();
 });

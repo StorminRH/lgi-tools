@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { expect, test, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
@@ -103,11 +103,13 @@ test('admin ESI fills each titled card from its reads and says why empty blocks 
 test('admin ESI blanks only the card whose read failed', async () => {
   stubReads();
   const error = silenceConsolePrefixes('error', ['[admin] endpoints section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
+  });
   m.endpoints.mockRejectedValue(new Error('offline'));
 
   const html = await page();
 
   expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
   expect(html).toContain('>Item prices requested</span>');
-  error.mockRestore();
 });

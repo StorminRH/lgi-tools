@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { expect, test, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
@@ -49,6 +49,9 @@ function page(): Promise<string> {
 
 function stubReads() {
   vi.stubEnv('GSC_SITE_URL', '');
+  onTestFinished(() => {
+    vi.unstubAllEnvs();
+  });
   m.lastCronRuns.mockResolvedValue([
     { action: 'cron_prices', timestamp: hoursAgo(3), outcome: 'refreshed' },
     { action: 'cron_sde', timestamp: hoursAgo(5), outcome: 'remote-unreachable' },
@@ -110,12 +113,14 @@ test('admin health renders each titled card, scheduled tasks at #scheduled, with
   expect(html.match(emptyState('Search Console not connected\\.'))?.[1]).toBe('text-muted');
   expect(html.match(emptyState('No failures in this period\\.'))?.[1]).toBe('text-isk');
   expect(html.match(emptyState('No operations in this period\\.'))?.[1]).toBe('text-faint');
-  vi.unstubAllEnvs();
 });
 
 test('admin health marks only the failed detail of a service level unavailable', async () => {
   stubReads();
   const error = silenceConsolePrefixes('error', ['[admin] sli-details.esi-4xx section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
+  });
   m.clientErrors.mockRejectedValue(new Error('offline'));
 
   const html = await page();
@@ -123,19 +128,18 @@ test('admin health marks only the failed detail of a service level unavailable',
   expect(html).toMatch(/text-tone-orange"[^>]*>(?:(?!<\/svg>).)*<\/svg><div class="min-w-0">Details unavailable\.<\/div>/);
   expect(html.match(/Details unavailable\./g)).toHaveLength(1);
   expect(html).not.toContain('Unable to load this section.');
-  error.mockRestore();
-  vi.unstubAllEnvs();
 });
 
 test('admin health blanks only the card whose read failed', async () => {
   stubReads();
   const error = silenceConsolePrefixes('error', ['[admin] event-log section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
+  });
   m.events.mockRejectedValue(new Error('offline'));
 
   const html = await page();
 
   expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
   expect(html).toContain('>Price cron</span>');
-  error.mockRestore();
-  vi.unstubAllEnvs();
 });
