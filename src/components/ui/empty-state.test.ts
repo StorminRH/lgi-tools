@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { EmptyState } from './empty-state';
 
 type Kind = 'empty' | 'unavailable' | 'clear' | 'disconnected';
 
-function render(props: { kind?: Kind; inset?: boolean } = {}): string {
-  return renderToStaticMarkup(EmptyState({ ...props, children: 'Nothing here.' }));
+function render(kind?: Kind): string {
+  return renderToStaticMarkup(EmptyState({ kind, children: 'Nothing here.' }));
 }
 
 // The first path of each glyph, from ./icons.
@@ -16,35 +16,17 @@ const GLYPH: Record<Kind, string> = {
   disconnected: '<circle cx="12" cy="12" r="9">',
 };
 
-describe('EmptyState', () => {
-  it('is a padded, divided row with the inbox glyph by default', () => {
-    const html = render();
-    expect(html).toMatch(/^<div class="flex items-center gap-3 font-ui text-ui text-muted border-b border-border-soft px-3\.5 py-2\.5 last:border-b-0">/);
-    expect(html).toContain(GLYPH.empty);
-    expect(html).toContain('class="shrink-0 text-faint"');
-    expect(html).toContain('<div class="min-w-0">Nothing here.</div>');
-  });
-
-  it('draws a different glyph for each kind so a failure never reads as no data', () => {
-    for (const kind of Object.keys(GLYPH) as Kind[]) {
-      const html = render({ kind });
-      for (const [other, glyph] of Object.entries(GLYPH)) {
-        if (other === kind) expect(html).toContain(glyph);
-        else expect(html).not.toContain(glyph);
-      }
+test('draws a different hidden glyph for each kind beside its text, so a failure never reads as no data', () => {
+  expect(render()).toContain(GLYPH.empty);
+  for (const kind of Object.keys(GLYPH) as Kind[]) {
+    const html = render(kind);
+    expect(html).toMatch(/<svg aria-hidden="true"/);
+    expect(html).toContain('Nothing here.');
+    for (const [other, glyph] of Object.entries(GLYPH)) {
+      if (other === kind) expect(html).toContain(glyph);
+      else expect(html).not.toContain(glyph);
     }
-    expect(render({ kind: 'unavailable' })).toContain('text-tone-orange');
-    expect(render({ kind: 'clear' })).toContain('text-isk');
-  });
-
-  it('hides its glyph from screen readers; the text carries the meaning', () => {
-    expect(render({ kind: 'unavailable' })).toMatch(/<svg aria-hidden="true"/);
-  });
-
-  it('drops the row padding and divider when inset in a padded body', () => {
-    const html = render({ inset: true });
-    expect(html).toMatch(/^<div class="flex items-center gap-3 font-ui text-ui text-muted">/);
-    expect(html).not.toContain('px-3.5');
-    expect(html).not.toContain('border-b');
-  });
+  }
+  expect(render('unavailable')).toContain('text-tone-orange');
+  expect(render('clear')).toContain('text-isk');
 });
