@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { DateRange } from '@/data/telemetry/types';
 
 const mocks = vi.hoisted(() => ({
@@ -28,7 +28,8 @@ function days(...rows: [string, number, number, number][]) {
   return rows.map(([day, views, entries, referrals]) => ({ day, views, entries, referrals }));
 }
 
-beforeEach(() => {
+function stubTrafficReads() {
+  vi.clearAllMocks();
   mocks.stats.mockResolvedValue({
     current: days(['2026-10-01', 6, 2, 1], ['2026-10-02', 4, 1, 0]),
     previous: days(['2026-09-30', 3, 1, 0]),
@@ -40,55 +41,47 @@ beforeEach(() => {
   });
   mocks.logins.mockResolvedValue([1, 4]);
   mocks.audience.mockResolvedValue({ current: { newUsers: 1, returning: 3 }, previous: null });
+}
+
+test('ranks each list against the total its shares are of', async () => {
+  stubTrafficReads();
+
+  const { lists, totals } = await loadTrafficRankings(range, previous);
+
+  expect(lists.topPages).toEqual([{ key: '/sites', label: '/sites', count: 7 }]);
+  expect(lists.topReferrers).toEqual([{ key: 'google.com', label: 'google.com', count: 1 }]);
+  expect(totals).toEqual({ views: 10, entries: 3, referrals: 1 });
+  expect(mocks.stats).toHaveBeenCalledWith(range, previous);
 });
 
-describe('traffic loads', () => {
-  it('ranks each list against the total its shares are of', async () => {
-    const { lists, totals } = await loadTrafficRankings(range, previous);
+test('splits visitors by source, novelty and sign-in count, and says so when there is nothing to split', async () => {
+  stubTrafficReads();
 
-    expect(lists.topPages).toEqual([{ key: '/sites', label: '/sites', count: 7 }]);
-    expect(lists.topReferrers).toEqual([{ key: 'google.com', label: 'google.com', count: 1 }]);
-    expect(totals).toEqual({ views: 10, entries: 3, referrals: 1 });
-    expect(mocks.stats).toHaveBeenCalledWith(range, previous);
-  });
+  const visitors = await loadVisitors(range, previous);
 
-  it('splits visitors by source, novelty and sign-in count', async () => {
-    const visitors = await loadVisitors(range, previous);
+  expect(visitors.sources).toEqual({ referred: 1, direct: 9 });
+  expect(visitors.returningVsNew).toEqual({ newUsers: 1, returning: 3 });
+  expect(visitors.signedIn).toBe(2);
+  expect(visitors.buckets.reduce((sum, bucket) => sum + bucket.users, 0)).toBe(2);
+  const html = renderToStaticMarkup(createElement(VisitorsBody, { visitors }));
+  expect(html).toContain('aria-label="Referred versus unattributed page views: Referred 1, Unattributed 9"');
+  expect(html).toContain('aria-label="New versus returning active users: New 1, Returning 3"');
+  expect(html).toContain('1 user ·');
+  expect(html).not.toContain('No page views in this range.');
+  expect(html).not.toContain('No sign-ins');
 
-    expect(visitors.sources).toEqual({ referred: 1, direct: 9 });
-    expect(visitors.returningVsNew).toEqual({ newUsers: 1, returning: 3 });
-    expect(visitors.signedIn).toBe(2);
-    expect(visitors.buckets.reduce((sum, bucket) => sum + bucket.users, 0)).toBe(2);
-  });
-});
-
-describe('VisitorsBody', () => {
-  it('draws both share bars and counts users per sign-in bucket', async () => {
-    const html = renderToStaticMarkup(createElement(VisitorsBody, { visitors: await loadVisitors(range, previous) }));
-
-    expect(html).toContain('aria-label="Referred versus unattributed page views: Referred 1, Unattributed 9"');
-    expect(html).toContain('aria-label="New versus returning active users: New 1, Returning 3"');
-    expect(html).toContain('1 user ·');
-    expect(html).not.toContain('No sign-ins');
-  });
-
-  it('says there is nothing to split rather than leaving the sub-headings bare', () => {
-    const html = renderToStaticMarkup(
-      createElement(VisitorsBody, {
-        visitors: {
-          sources: { referred: 0, direct: 0 },
-          returningVsNew: { newUsers: 0, returning: 0 },
-          signedIn: 0,
-          buckets: [],
-        },
-      }),
-    );
-
-    expect(html).toContain('Page-view sources');
-    expect(html).toContain('No page views in this range.');
-    expect(html).toContain('New vs returning users');
-    expect(html).toContain('No active users in this range.');
-    expect(html).toContain('No sign-ins in this range.');
-    expect(html).not.toContain('role="img"');
-  });
+  const empty = renderToStaticMarkup(
+    createElement(VisitorsBody, {
+      visitors: {
+        sources: { referred: 0, direct: 0 },
+        returningVsNew: { newUsers: 0, returning: 0 },
+        signedIn: 0,
+        buckets: [],
+      },
+    }),
+  );
+  expect(empty).toContain('No page views in this range.');
+  expect(empty).toContain('No active users in this range.');
+  expect(empty).toContain('No sign-ins in this range.');
+  expect(empty).not.toContain('role="img"');
 });

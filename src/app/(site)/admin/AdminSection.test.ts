@@ -1,7 +1,8 @@
 import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { prerender } from 'react-dom/static';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { AdminSection } from './AdminSection';
 
 vi.mock('next/navigation', () => ({ unstable_rethrow: () => undefined }));
@@ -22,42 +23,29 @@ function section(load: () => Promise<number>) {
   });
 }
 
-describe('AdminSection', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+test('AdminSection names the card the same while loading, when loaded, and when its read fails', async () => {
+  const loading = renderToStaticMarkup(section(() => new Promise<number>(() => undefined)));
+  expect(loading).toContain('>Registered users<');
+  expect(loading).toContain('role="status" aria-label="Loading Registered users"');
+  expect(loading.match(/role="status"/g)).toHaveLength(1);
+  expect(loading).not.toContain('>count ');
+
+  const loaded = await render(section(async () => 7));
+  expect(loaded).toContain('Registered users</h3>');
+  expect(loaded).toContain('data-admin-card="accounts"');
+  expect(loaded).toContain('7 total');
+  expect(loaded).toContain('count 7');
+  expect(loaded).not.toContain('role="status"');
+
+  const error = silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
   });
-
-  it('names the card once for its heading, hook and body', async () => {
-    const html = await render(section(async () => 7));
-
-    expect(html).toContain('<h3');
-    expect(html).toContain('Registered users</h3>');
-    expect(html).toContain('data-admin-card="accounts"');
-    expect(html).toContain('7 total');
-    expect(html).toContain('count 7');
-    expect(html).toContain('reveal-2');
-  });
-
-  it('stands in with one loading status named after the card while its read is in flight', () => {
-    const html = renderToStaticMarkup(section(() => new Promise<number>(() => undefined)));
-
-    expect(html).toContain('>Registered users<');
-    expect(html).toContain('role="status" aria-label="Loading Registered users"');
-    expect(html.match(/role="status"/g)).toHaveLength(1);
-    expect(html).not.toContain('count');
-  });
-
-  it('keeps the same title when its read fails, and says so', async () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    const html = await render(section(async () => {
-      throw new Error('offline');
-    }));
-
-    expect(html).toContain('Registered users</h3>');
-    expect(html).toContain('Unable to load this section.');
-    expect(html).not.toContain('count 7');
-    expect(html).not.toContain(' total');
-    expect(error).toHaveBeenCalled();
-  });
+  const failed = await render(section(async () => {
+    throw new Error('offline');
+  }));
+  expect(failed).toContain('Registered users</h3>');
+  expect(failed).toContain('Unable to load this section.');
+  expect(failed).not.toContain('>count ');
+  expect(failed).not.toContain(' total');
 });

@@ -1,5 +1,4 @@
 import { Suspense } from 'react';
-import { connection } from 'next/server';
 import { BoardEmpty } from '@/components/composition/board/BoardEmpty';
 import { BoardFrame } from '@/components/composition/board/BoardFrame';
 import { HomeBoardView } from '@/components/composition/board/HomeBoardView';
@@ -13,6 +12,7 @@ import { buildDemoBoard, demoVariant } from '@/composition/board/demo-board';
 import { readEnv } from '@/lib/env';
 import { resolveNotice } from '@/lib/error-copy';
 import { buildPageMetadata } from '@/lib/page-metadata';
+import { requestNow } from '@/lib/request-now';
 import type { AuthErrorCode, BetterAuthLinkError, BetterAuthSignInError } from '@/platform/auth/api-contract';
 
 export const metadata = buildPageMetadata({
@@ -83,11 +83,6 @@ async function AuthErrorNotice({
       <Callout label="Auth">{message}</Callout>
     </div>
   );
-}
-
-async function requestNow(): Promise<number> {
-  await connection();
-  return Date.now();
 }
 
 async function BoardDemo({

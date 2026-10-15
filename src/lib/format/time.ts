@@ -82,13 +82,18 @@ export function formatElapsed(
   return `${Math.floor(days / 30)}mo`;
 }
 
+/**
+ * `5m ago` from `date` to `now` (epoch milliseconds), `just now` under a
+ * minute, or `—` for null. The caller passes `now`, because a render that
+ * reads the clock itself fails a Cache Components prerender.
+ */
 export function formatRelativeTime(
   date: Date | null,
-  now?: number,
+  now: number,
   largest: 'd' | 'mo' = 'mo',
 ): string {
   if (!date) return '—';
-  const diffMs = (now ?? Date.now()) - date.getTime();
+  const diffMs = now - date.getTime();
   if (diffMs < 60_000) return 'just now';
   return `${formatElapsed(diffMs, { largest })} ago`;
 }

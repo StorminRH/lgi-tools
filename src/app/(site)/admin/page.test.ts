@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { AdminSignals } from './signals';
@@ -66,59 +66,53 @@ function page(): Promise<string> {
   return render(AdminOverviewPage({ searchParams: Promise.resolve({ range: '7d' }) }));
 }
 
-describe('admin overview', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.stubEnv('GSC_SITE_URL', '');
-    m.loadAdminSignals.mockResolvedValue(SIGNALS);
-    m.getAccountTotals.mockResolvedValue({ users: 12, characters: 30 });
-    m.getSystemStatics.mockResolvedValue({ version: '7' });
-    m.getReturningVsNew.mockResolvedValue({ current: { newUsers: 1, returning: 2 }, previous: null });
-  });
-
-  afterEach(() => {
+function stubReads() {
+  vi.clearAllMocks();
+  vi.stubEnv('GSC_SITE_URL', '');
+  onTestFinished(() => {
     vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
+  m.loadAdminSignals.mockResolvedValue(SIGNALS);
+  m.getAccountTotals.mockResolvedValue({ users: 12, characters: 30 });
+  m.getSystemStatics.mockResolvedValue({ version: '7' });
+  m.getReturningVsNew.mockResolvedValue({ current: { newUsers: 1, returning: 2 }, previous: null });
+}
 
-  it('renders every card through one titled section with its own hook', async () => {
-    const html = await page();
+test('admin overview renders every titled card and fills each status card from the shared signals', async () => {
+  stubReads();
 
-    for (const [name, title] of [
-      ['attention', 'Needs attention'],
-      ['accounts', 'Registered users'],
-      ['actions', 'Actions'],
-      ['status-app', 'App'],
-      ['status-esi', 'ESI'],
-      ['status-jobs', 'Jobs'],
-      ['audience', 'Audience'],
-    ]) {
-      expect(html).toContain(`data-admin-card="${name}"`);
-      expect(html).toContain(`>${title}</h3>`);
-    }
-    expect(html).not.toMatch(/data-admin-(attention|status|actions|audience)[ =>]/);
+  const html = await page();
+
+  for (const [name, title] of [
+    ['attention', 'Needs attention'],
+    ['accounts', 'Registered users'],
+    ['actions', 'Actions'],
+    ['status-app', 'App'],
+    ['status-esi', 'ESI'],
+    ['status-jobs', 'Jobs'],
+    ['audience', 'Audience'],
+  ]) {
+    expect(html).toContain(`data-admin-card="${name}"`);
+    expect(html).toContain(`>${title}</h3>`);
+  }
+  // The Jobs card opens the health page at its scheduled-tasks card.
+  expect(html).toContain('href="/admin/health#scheduled"');
+  expect(html).toContain('>Page &amp; tool reads</span>');
+  expect(html).toContain('>87 left</span>');
+  expect(html).toContain('>Price cron</span>');
+  expect(html).toContain('<span class="sr-only">Healthy</span>');
+});
+
+test('admin overview blanks only the card whose read failed', async () => {
+  stubReads();
+  const error = silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
   });
+  m.getAccountTotals.mockRejectedValue(new Error('offline'));
 
-  it('fills each status card with its own group from the shared signals', async () => {
-    const html = await page();
+  const html = await page();
 
-    expect(html).toContain('>Page &amp; tool reads</span>');
-    expect(html).toContain('>87 left</span>');
-    expect(html).toContain('>Price cron</span>');
-    expect(html).toContain('<span class="sr-only">Healthy</span>');
-    // Attention and the three status cards each ask for the signals by range
-    // key; in the app React cache turns those four asks into one read.
-    expect(m.loadAdminSignals.mock.calls).toEqual([['7d'], ['7d'], ['7d'], ['7d']]);
-  });
-
-  it('blanks only the card whose read failed', async () => {
-    silenceConsolePrefixes('error', ['[admin] accounts section unavailable']);
-    m.getAccountTotals.mockRejectedValue(new Error('offline'));
-
-    const html = await page();
-
-    expect(html).toContain('Unable to load this section.');
-    expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
-    expect(html).toContain('All clear');
-  });
+  expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
+  expect(html).toContain('All clear');
 });

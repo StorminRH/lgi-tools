@@ -75,6 +75,7 @@ vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 vi.mock('next/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/server')>()),
   after: vi.fn(),
+  connection: () => Promise.resolve(),
 }));
 
 import { postForm } from '@/lib/__tests__/route-requests';

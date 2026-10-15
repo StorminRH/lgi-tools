@@ -28,7 +28,6 @@
     "@edge-runtime/vm",
     "playwright",
     "@playwright/test",
-    "@next/playwright",
     "tailwindcss"
   ],
 

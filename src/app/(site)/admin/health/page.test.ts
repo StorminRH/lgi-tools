@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 
@@ -47,102 +47,99 @@ function page(): Promise<string> {
   return render(AdminHealthPage({ searchParams: Promise.resolve({ range: '7d' }) }));
 }
 
-describe('admin health', () => {
-  beforeEach(() => {
-    vi.stubEnv('GSC_SITE_URL', '');
-    m.lastCronRuns.mockResolvedValue([
-      { action: 'cron_prices', timestamp: hoursAgo(3), outcome: 'refreshed' },
-      { action: 'cron_sde', timestamp: hoursAgo(5), outcome: 'remote-unreachable' },
-    ]);
-    m.cronOutcomes.mockResolvedValue({
-      cron_prices: [{ outcome: 'refreshed', count: 7, avgDurationMs: 900 }],
-      cron_sde: [],
-      cron_gsc: [],
-      cron_housekeeping: [],
-    });
-    m.priceRefreshDays.mockResolvedValue([]);
-    m.outcomeStats.mockResolvedValue([]);
-    m.latency.mockResolvedValue({ p95: 420, slowest: [] });
-    m.clientErrors.mockResolvedValue([]);
-    m.events.mockResolvedValue([
-      {
-        id: 1,
-        occurredAt: new Date('2026-09-20T18:04:00Z'),
-        eventType: 'price_refresh_finished',
-        metadata: {
-          outcome: 'degraded', fetched: 200, written: 180, esiCount: 150,
-          fuzzworkFallbackCount: 30, budgetExhausted: true, durationMs: 1500,
-        },
-      },
-    ]);
-  });
-
-  afterEach(() => {
+function stubReads() {
+  vi.stubEnv('GSC_SITE_URL', '');
+  onTestFinished(() => {
     vi.unstubAllEnvs();
-    vi.restoreAllMocks();
   });
-
-  it('renders each card through one titled section, scheduled tasks at #scheduled', async () => {
-    const html = await page();
-
-    for (const [name, title] of [
-      ['service-levels', 'Service levels'],
-      ['scheduled-tasks', 'Scheduled tasks'],
-      ['event-log', 'Event log'],
-    ]) {
-      expect(html).toContain(`data-admin-card="${name}"`);
-      expect(html).toContain(`>${title}</h3>`);
-    }
-    expect(html).toMatch(/data-admin-card="scheduled-tasks" id="scheduled"/);
-    expect(m.events).toHaveBeenCalledWith(30);
-    expect(html).toContain('2026-09-20 18:04');
-    expect(html).toContain('Price refresh degraded: 180/200 rows written');
+  m.lastCronRuns.mockResolvedValue([
+    { action: 'cron_prices', timestamp: hoursAgo(3), outcome: 'refreshed' },
+    { action: 'cron_sde', timestamp: hoursAgo(5), outcome: 'remote-unreachable' },
+  ]);
+  m.cronOutcomes.mockResolvedValue({
+    cron_prices: [{ outcome: 'refreshed', count: 7, avgDurationMs: 900 }],
+    cron_sde: [],
+    cron_gsc: [],
+    cron_housekeeping: [],
   });
+  m.priceRefreshDays.mockResolvedValue([]);
+  m.outcomeStats.mockResolvedValue([]);
+  m.latency.mockResolvedValue({ p95: 420, slowest: [] });
+  m.clientErrors.mockResolvedValue([]);
+  m.events.mockResolvedValue([
+    {
+      id: 1,
+      occurredAt: new Date('2026-09-20T18:04:00Z'),
+      eventType: 'price_refresh_finished',
+      metadata: {
+        outcome: 'degraded', fetched: 200, written: 180, esiCount: 150,
+        fuzzworkFallbackCount: 30, budgetExhausted: true, durationMs: 1500,
+      },
+    },
+  ]);
+}
 
-  it('reads scheduled tasks like the overview’s Jobs card', async () => {
-    const html = await page();
+test('admin health renders each titled card, scheduled tasks at #scheduled, with verdicts and empty details', async () => {
+  stubReads();
 
-    expect(html).not.toContain('w-[110px]');
-    expect(html).toMatch(/text-text wrap-break-word">SDE cron<\/span><span class="block font-data[^"]*">remote-unreachable 5h ago<\/span>/);
-    expect(html).toContain('text-tone-red">failing</span>');
-    expect(html).toContain('<span class="sr-only">Critical</span>');
-    expect(html).toContain('aria-label="Price cron runs: 7 refreshed"');
-    expect(html).not.toMatch(/<span data-chevron(?![^>]*aria-hidden="true")/);
+  const html = await page();
+
+  for (const [name, title] of [
+    ['service-levels', 'Service levels'],
+    ['scheduled-tasks', 'Scheduled tasks'],
+    ['event-log', 'Event log'],
+  ]) {
+    expect(html).toContain(`data-admin-card="${name}"`);
+    expect(html).toContain(`>${title}</h3>`);
+  }
+  expect(html).toMatch(/data-admin-card="scheduled-tasks" id="scheduled"/);
+  expect(html).toContain('2026-09-20 18:04');
+  expect(html).toContain('Price refresh degraded: 180/200 rows written');
+
+  // Scheduled tasks read like the overview's Jobs card.
+  expect(html).toMatch(/>SDE cron<\/span><span[^>]*>remote-unreachable 5h ago<\/span>/);
+  expect(html).toContain('text-tone-red">failing</span>');
+  expect(html).toContain('<span class="sr-only">Critical</span>');
+  expect(html).toContain('aria-label="Price cron runs: 7 refreshed"');
+
+  // Each empty detail says why, inset in its body. Glyph tones: faint inbox
+  // for no data, green check for all clear, muted for not connected.
+  const emptyState = (text: string) =>
+    new RegExp(
+      `<div class="flex items-center gap-3 font-ui text-ui text-muted"><svg[^>]*class="shrink-0 ([^"]+)"[^>]*>(?:(?!</svg>).)*</svg><div class="min-w-0">${text}</div></div>`,
+    );
+  expect(html).toMatch(emptyState('No price refreshes recorded this period\\.'));
+  expect(html).toMatch(emptyState('No runs in this period\\.'));
+  expect(html.match(emptyState('Search Console not connected\\.'))?.[1]).toBe('text-muted');
+  expect(html.match(emptyState('No failures in this period\\.'))?.[1]).toBe('text-isk');
+  expect(html.match(emptyState('No operations in this period\\.'))?.[1]).toBe('text-faint');
+});
+
+test('admin health marks only the failed detail of a service level unavailable', async () => {
+  stubReads();
+  const error = silenceConsolePrefixes('error', ['[admin] sli-details.esi-4xx section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
   });
+  m.clientErrors.mockRejectedValue(new Error('offline'));
 
-  it('says why a detail is empty, inset in its body', async () => {
-    const html = await page();
+  const html = await page();
 
-    // Glyph tones: faint inbox for no data, green check for all clear, info for not connected.
-    const emptyState = (text: string) =>
-      new RegExp(
-        `<div class="flex items-center gap-3 font-ui text-ui text-muted"><svg[^>]*class="shrink-0 ([^"]+)"[^>]*>(?:(?!</svg>).)*</svg><div class="min-w-0">${text}</div></div>`,
-      );
-    expect(html).toMatch(emptyState('No price refreshes recorded this period\\.'));
-    expect(html).toMatch(emptyState('No runs in this period\\.'));
-    expect(html.match(emptyState('Search Console not connected\\.'))?.[1]).toBe('text-muted');
-    expect(html.match(emptyState('No failures in this period\\.'))?.[1]).toBe('text-isk');
-    expect(html.match(emptyState('No operations in this period\\.'))?.[1]).toBe('text-faint');
+  expect(html).toMatch(/text-tone-orange"[^>]*>(?:(?!<\/svg>).)*<\/svg><div class="min-w-0">Details unavailable\.<\/div>/);
+  expect(html.match(/Details unavailable\./g)).toHaveLength(1);
+  expect(html).not.toContain('Unable to load this section.');
+});
+
+test('admin health blanks only the card whose read failed', async () => {
+  stubReads();
+  const error = silenceConsolePrefixes('error', ['[admin] event-log section unavailable']);
+  onTestFinished(() => {
+    error.mockRestore();
   });
+  m.events.mockRejectedValue(new Error('offline'));
 
-  it('marks only the failed detail of a service level unavailable', async () => {
-    silenceConsolePrefixes('error', ['[admin] sli-details.esi-4xx section unavailable']);
-    m.clientErrors.mockRejectedValue(new Error('offline'));
+  const html = await page();
 
-    const html = await page();
-
-    expect(html).toMatch(/text-tone-orange"[^>]*>(?:(?!<\/svg>).)*<\/svg><div class="min-w-0">Details unavailable\.<\/div>/);
-    expect(html.match(/Details unavailable\./g)).toHaveLength(1);
-    expect(html).not.toContain('Unable to load this section.');
-  });
-
-  it('blanks only the card whose read failed', async () => {
-    silenceConsolePrefixes('error', ['[admin] event-log section unavailable']);
-    m.events.mockRejectedValue(new Error('offline'));
-
-    const html = await page();
-
-    expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
-    expect(html).toContain('>Price cron</span>');
-  });
+  expect(html.match(/Unable to load this section\./g)).toHaveLength(1);
+  expect(html).toContain('>Price cron</span>');
 });

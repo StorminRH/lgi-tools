@@ -6,6 +6,7 @@ import type { GscSitemapStatus } from '@/data/gsc/types';
 import type { DateRange } from '@/data/telemetry/types';
 import { formatQuantity } from '@/lib/format/number';
 import { formatIsoDay } from '@/lib/format/time';
+import { requestNow } from '@/lib/request-now';
 import type { RangeKey } from '../period';
 import { AdminCard } from '../AdminSection';
 import { AdminTrendChart } from '../charts';
@@ -24,7 +25,7 @@ const TERM_READS = { queries: getTopQueries, pages: getTopGscPages };
 // own load, so a failure blanks only the cards that need it.
 async function periodsFor(rangeKey: RangeKey) {
   const latestDay = await getLatestReportDateShared();
-  return searchPeriods(rangeKey, latestDay ?? formatIsoDay(new Date()));
+  return searchPeriods(rangeKey, latestDay ?? formatIsoDay(await requestNow()));
 }
 
 // Performance and the term cards share one daily read covering both periods.
