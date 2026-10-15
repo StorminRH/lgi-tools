@@ -617,6 +617,13 @@
       "when": 1791836913848,
       "tag": "0087_relax_stale_after",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791931993856,
+      "tag": "0088_user_cap_indexes",
+      "breakpoints": true
     }
   ]
 }

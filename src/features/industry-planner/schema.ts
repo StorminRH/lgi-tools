@@ -1,4 +1,5 @@
-import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { isNull } from 'drizzle-orm';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/db/auth-schema';
 import { ownedRowIdentityColumns } from '@/lib/db-columns';
 import type { PlanSnapshotWire } from './template-snapshot';
@@ -11,7 +12,7 @@ export const savedPlans = pgTable('saved_plans', {
   productName: text('product_name').notNull(),
   snapshot: jsonb('snapshot').$type<PlanSnapshotWire>().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [index('saved_plans_user_idx').on(t.userId)]);
 
 /**
  * Production profiles. `revision` bumps on every edit so a template can tell
@@ -26,4 +27,7 @@ export const industryProfiles = pgTable('industry_profiles', {
   document: jsonb('document').$type<unknown>().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (t) => [
+  // Only live profiles count toward the cap and appear in the list, so only they are indexed.
+  index('industry_profiles_user_live_idx').on(t.userId).where(isNull(t.deletedAt)),
+]);
