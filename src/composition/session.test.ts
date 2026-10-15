@@ -5,7 +5,11 @@ import type { BetterAuthSession } from '@/composition/route-guards';
 const getSessionApiMock = vi.fn<() => Promise<BetterAuthSession | null>>();
 const afterMock = vi.fn();
 const checkAuthorizationsMock = vi.fn();
-vi.mock('next/server', () => ({ after: (...args: unknown[]) => afterMock(...args) }));
+const connectionMock = vi.fn(() => Promise.resolve());
+vi.mock('next/server', () => ({
+  after: (...args: unknown[]) => afterMock(...args),
+  connection: () => connectionMock(),
+}));
 vi.mock('@/composition/character-authorization', () => ({
   checkUserCharacterAuthorizations: (...args: unknown[]) => checkAuthorizationsMock(...args),
 }));
@@ -27,6 +31,15 @@ afterEach(() => {
   getSessionApiMock.mockReset();
   afterMock.mockReset();
   checkAuthorizationsMock.mockReset();
+});
+
+test('a prerender never reads the session: the lookup waits for a real request', async () => {
+  connectionMock.mockReturnValueOnce(new Promise(() => {}));
+  getSessionApiMock.mockResolvedValue(ENRICHED);
+  void getFullSession();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(getSessionApiMock).not.toHaveBeenCalled();
+  expect(afterMock).not.toHaveBeenCalled();
 });
 
 test('getSession and getSessionCharacterId reshape enrichment, and both null out when logged out', async () => {
