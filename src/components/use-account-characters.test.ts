@@ -35,21 +35,7 @@ beforeEach(async () => {
   hooks = await import('./use-account-characters');
 });
 
-test('a return draws the remembered roster while refreshing and retains it on a refused refresh', async () => {
-  h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  expect(characters()).toBeNull();
-  await settle();
-  expect(characters()).toEqual(roster);
-
-  rt.unmount();
-  h.apiFetch.mockResolvedValueOnce(failed);
-  expect(characters()).toEqual(roster);
-  await settle();
-  expect(characters()).toEqual(roster);
-  expect(h.apiFetch).toHaveBeenCalledTimes(2);
-});
-
-test('a first failed read settles empty, and a later successful refresh replaces it', async () => {
+test('a first failed read settles empty, a later refresh replaces it, and a refused refresh retains the remembered roster', async () => {
   h.apiFetch.mockResolvedValueOnce(failed);
   expect(characters()).toBeNull();
   await settle();
@@ -57,17 +43,21 @@ test('a first failed read settles empty, and a later successful refresh replaces
 
   rt.unmount();
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  characters();
+  expect(characters()).toEqual([]);
   await settle();
   expect(characters()).toEqual(roster);
+
+  // A return draws the remembered roster while refreshing.
+  rt.unmount();
+  h.apiFetch.mockResolvedValueOnce(failed);
+  expect(characters()).toEqual(roster);
+  await settle();
+  expect(characters()).toEqual(roster);
+  expect(h.apiFetch).toHaveBeenCalledTimes(3);
 });
 
-test('an unreachable refresh keeps the remembered pilots, but a different pilot never receives that roster', async () => {
+test('a different pilot never receives the remembered roster, and an unreachable first read settles empty', async () => {
   h.apiFetch.mockResolvedValueOnce({ ok: true, data: { characters: roster } });
-  characters();
-  await settle();
-  rt.unmount();
-  h.apiFetch.mockResolvedValueOnce(offline);
   characters();
   await settle();
   expect(characters()).toEqual(roster);
@@ -83,7 +73,7 @@ test('an unreachable refresh keeps the remembered pilots, but a different pilot 
   identities.publishReadIdentity(null);
   expect(characters()).toEqual([]);
   expect(hooks.useActiveCharacterId()).toBeNull();
-  expect(h.apiFetch).toHaveBeenCalledTimes(3);
+  expect(h.apiFetch).toHaveBeenCalledTimes(2);
 });
 
 test.each(['success', 'abort'] as const)('unmount aborts the request and ignores a late %s', async (completion) => {
