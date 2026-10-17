@@ -125,21 +125,21 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     expect(fallback.staleAfter).toEqual(fetchedAt);
   });
 
-  it('chunks a large batch into ≤1,000-row inserts', async () => {
-    const db = fakeDb();
-    const rows = Array.from({ length: 2500 }, (_, i) => row(i + 1, 'esi'));
-    const summary = await persistPrices(db as never, rows);
-    expect(db.insert).toHaveBeenCalledTimes(3);
-    expect(summary.written).toBe(2500);
-  });
-
-  it('writes a ≤1,000-row batch in a single insert', async () => {
-    const db = fakeDb();
-    const summary = await persistPrices(
-      db as never,
+  it('writes up to 1,000 rows in one insert and chunks a larger batch into ≤1,000-row inserts', async () => {
+    const single = fakeDb();
+    const atLimit = await persistPrices(
+      single as never,
       Array.from({ length: 1000 }, (_, i) => row(i + 1, 'esi')),
     );
-    expect(db.insert).toHaveBeenCalledTimes(1);
-    expect(summary.written).toBe(1000);
+    expect(single.insert).toHaveBeenCalledTimes(1);
+    expect(atLimit.written).toBe(1000);
+
+    const chunked = fakeDb();
+    const large = await persistPrices(
+      chunked as never,
+      Array.from({ length: 2500 }, (_, i) => row(i + 1, 'esi')),
+    );
+    expect(chunked.insert).toHaveBeenCalledTimes(3);
+    expect(large.written).toBe(2500);
   });
 });

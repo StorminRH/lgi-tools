@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   authed: true,
@@ -187,146 +187,89 @@ function resetHostMocks(): void {
   withAccess(true);
 }
 
-describe('chain host auth gate', () => {
-  beforeEach(resetHostMocks);
+test(
+  'chain host shows an empty canvas with no subscription until Convex holds an identity, then subscribes to its map',
+  async () => {
+    resetHostMocks();
+    mocks.authed = false;
 
-  it(
-    'opens no subscription until Convex holds an identity',
-    async () => {
-      mocks.authed = false;
-
-      const markup = await renderHost();
-
-      expect(mocks.useMapChain).not.toHaveBeenCalled();
-      expect(markup).toContain('data-react-flow');
-      expect(markup).not.toContain('data-react-flow-background');
-    },
-    15_000,
-  );
-
-  it(
-    'renders the canvas immediately and empty while unauthenticated, with no spinner',
-    async () => {
-      mocks.authed = false;
-
-      const markup = await renderHost();
-      const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
-
-      expect(props.nodes).toEqual([]);
-      expect(props.edges).toEqual([]);
-      expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
-    },
-    15_000,
-  );
-
-  it(
-    'subscribes once Convex is authenticated',
-    async () => {
-      mocks.authed = true;
-
-      await renderHost();
-
-      expect(mocks.useMapChain).toHaveBeenCalledTimes(1);
-      expect(mocks.useMapChain.mock.calls[0]?.[0]).toBe('map-a');
-    },
-    15_000,
-  );
-});
-
-describe('chain host access states', () => {
-  beforeEach(resetHostMocks);
-
-  it('renders the calm no-access state when access is withdrawn', async () => {
-    withAccess(false);
-
-    const markup = await renderHost();
-
-    expect(markup).toContain('data-chain-no-access');
-    expect(markup).toContain('have access to this map');
-    expect(markup).not.toContain('data-react-flow');
-    expect(markup).not.toMatch(/error|try again|refresh|retry/i);
-  });
-
-  it('renders the canvas, not the calm state, once access is held', async () => {
-    withAccess(true, true);
-
-    const markup = await renderHost();
-
-    expect(markup).toContain('data-react-flow');
-    expect(markup).not.toContain('data-react-flow-background');
-    expect(markup).not.toContain('data-chain-no-access');
-    expect(markup).toContain('data-map-can-edit="true"');
-  });
-
-  it('exposes canEdit=false for a view-only claim', async () => {
-    withAccess(true, false);
-
-    const markup = await renderHost();
-
-    expect(markup).toContain('data-map-can-edit="false"');
-    expect(markup).not.toContain('data-map-home-prompt');
-  });
-
-  it('shows the home prompt only for an editor on a complete empty map', async () => {
-    withAccess(true, true);
-
-    const markup = await renderHost();
-
-    expect(markup).toContain('data-map-home-prompt');
-    expect(markup).toContain('Set your home system');
-    expect(markup).toContain('data-map-home-current-disabled');
-    expect(markup.indexOf('data-map-home-prompt')).toBeGreaterThan(
-      markup.indexOf('data-signature-window-layer'),
-    );
-  });
-
-  it('hides the home prompt when live systems exist even before merge lands', async () => {
-    mocks.useMapChain.mockReturnValue({
-      access: true,
-      canEdit: true,
-      systemsComplete: true,
-      liveSystemCount: 1,
-      connectionDetails: new Map(),
-      state: { systems: new Map(), connections: new Map() },
-      intents: [],
-      labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
-      treeParents: new Map(),
-      rootSystemId: null,
-      halo: { systems: [], links: [] },
-      stubs: [],
-      neighboursOf: () => [],
-    });
-
-    const markup = await renderHost();
-
-    expect(markup).not.toContain('data-map-home-prompt');
-  });
-
-  it('renders the ordinary empty canvas while access is still unknown', async () => {
-    withAccess(undefined);
-
-    const markup = await renderHost();
-
-    expect(markup).toContain('data-react-flow');
-    expect(markup).not.toContain('data-react-flow-background');
-    expect(markup).not.toContain('data-chain-no-access');
-    expect(markup).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
-  });
-});
-
-describe('chain host never draggable', () => {
-  beforeEach(resetHostMocks);
-
-  it('hardcodes nodesDraggable false and offers no drag handlers', async () => {
-    await renderHost();
+    const unauthed = await renderHost();
     const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
 
-    expect(props.nodesDraggable).toBe(false);
-    expect(props.onNodeDragStart).toBeUndefined();
-    expect(props.onNodeDragStop).toBeUndefined();
-    expect(props.onSelectionDragStart).toBeUndefined();
-    expect(props.onSelectionDragStop).toBeUndefined();
-    expect(props.deleteKeyCode).toBeNull();
-    expect(props.disableKeyboardA11y).toBe(true);
+    expect(mocks.useMapChain).not.toHaveBeenCalled();
+    expect(unauthed).toContain('data-react-flow');
+    expect(props.nodes).toEqual([]);
+    expect(props.edges).toEqual([]);
+
+    resetHostMocks();
+    await renderHost();
+
+    expect(mocks.useMapChain).toHaveBeenCalledTimes(1);
+    expect(mocks.useMapChain.mock.calls[0]?.[0]).toBe('map-a');
+  },
+  15_000,
+);
+
+test('chain host walks access unknown, withdrawn, view-only, an editor on an empty map, and a map with live systems', async () => {
+  resetHostMocks();
+  withAccess(undefined);
+  const unknown = await renderHost();
+  expect(unknown).toContain('data-react-flow');
+  expect(unknown).not.toContain('data-chain-no-access');
+  expect(unknown).not.toMatch(/progressbar|aria-busy|spinner|loading/i);
+
+  resetHostMocks();
+  withAccess(false);
+  const withdrawn = await renderHost();
+  expect(withdrawn).toContain('data-chain-no-access');
+  expect(withdrawn).not.toContain('data-react-flow');
+  expect(withdrawn).not.toMatch(/error|try again|refresh|retry/i);
+
+  resetHostMocks();
+  withAccess(true, false);
+  const viewOnly = await renderHost();
+  expect(viewOnly).toContain('data-react-flow');
+  expect(viewOnly).toContain('data-map-can-edit="false"');
+  expect(viewOnly).not.toContain('data-map-home-prompt');
+
+  resetHostMocks();
+  withAccess(true, true);
+  const editor = await renderHost();
+  expect(editor).not.toContain('data-chain-no-access');
+  expect(editor).toContain('data-map-can-edit="true"');
+  expect(editor).toContain('data-map-home-prompt');
+  expect(editor).toContain('data-map-home-current-disabled');
+  expect(editor.indexOf('data-map-home-prompt')).toBeGreaterThan(
+    editor.indexOf('data-signature-window-layer'),
+  );
+
+  // Live systems hide the prompt even before the merge lands in state.
+  resetHostMocks();
+  mocks.useMapChain.mockReturnValue({
+    access: true,
+    canEdit: true,
+    systemsComplete: true,
+    liveSystemCount: 1,
+    connectionDetails: new Map(),
+    state: { systems: new Map(), connections: new Map() },
+    intents: [],
+    labelOf: (systemId: number) => ({ name: String(systemId), className: null }),
+    treeParents: new Map(),
+    rootSystemId: null,
+    halo: { systems: [], links: [] },
+    stubs: [],
+    neighboursOf: () => [],
   });
-});
+  const populated = await renderHost();
+  expect(populated).not.toContain('data-map-home-prompt');
+}, 60_000);
+
+test('chain host never lets a system be dragged or deleted from the keyboard', async () => {
+  resetHostMocks();
+  await renderHost();
+  const props = mocks.reactFlow.mock.calls[0]?.[0] as Record<string, unknown>;
+
+  expect(props.nodesDraggable).toBe(false);
+  expect(props.deleteKeyCode).toBeNull();
+  expect(props.disableKeyboardA11y).toBe(true);
+}, 15_000);

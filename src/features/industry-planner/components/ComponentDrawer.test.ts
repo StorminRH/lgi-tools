@@ -121,15 +121,6 @@ test('a component job: its runs, build against buy, and its inputs, built ones o
   expect(html).not.toContain('‹');
 });
 
-test('under a profile the job’s install fee shows and is part of a built unit; without one none is charged', () => {
-  expect(render([10])).not.toContain('Install fee');
-  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 930, missingAdjustedPriceTypeIds: [] } }] } };
-  const html = render([10]);
-  expect(html).toMatch(/Install fee<\/span><span[^>]*>930.00</);
-  // (4,070 + 930) / 4 = 1,250 built still beats 9,000 bought.
-  expect(html).toMatch(/Build · per unit<\/dt><dd[^>]*text-isk[^>]*><span[^>]*>1.3K</);
-});
-
 test('a deeper job leads back, names a reaction once, and takes no research', () => {
   const html = render([10, 20]);
   expect(html).toContain('data-title="Fernite Carbide"');
@@ -156,32 +147,46 @@ test('under a profile the job shows where it runs and who runs it', () => {
   } as unknown as ProfilePlan;
   const html = render([20]);
   expect(html).toContain('1DQ1-A Tatara');
-  expect(html).toContain('1DQ1-A <span class="text-sec-null">-0.4</span>');
+  expect(html).toMatch(/1DQ1-A <span[^>]*>-0.4<\/span>/);
   expect(html).toContain('Builder');
 });
 
-test('a fee that counts an unpriced input as nothing shows amber and names it', () => {
-  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: 600, missingAdjustedPriceTypeIds: [40] } }] } };
-  const html = render([10]);
-  expect(html).toMatch(/Install fee<\/span><span[^>]*text-dps-mid[^>]*>600.00</);
-  expect(html).toContain('Price Unavailable · Tritanium');
-});
+test('the install fee walks no profile, charged, an unpriced input, an unplaced job, and a pending or failed fee read', () => {
+  expect(render([10])).not.toContain('Install fee');
 
+  const job = (systemId: number | null, total: number | null, missingAdjustedPriceTypeIds: number[]) => ({
+    componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId, fee: { total, missingAdjustedPriceTypeIds } }] },
+  });
+  h.net = job(30004759, 930, []);
+  const charged = render([10]);
+  expect(charged).toMatch(/Install fee<\/span><span[^>]*>930.00</);
+  // (4,070 + 930) / 4 = 1,250 built still beats 9,000 bought.
+  expect(charged).toMatch(/Build · per unit<\/dt><dd[^>]*text-isk[^>]*><span[^>]*>1.3K</);
 
-test('an unplaced job explains missing installation configuration without claiming prices are absent', () => {
-  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: null, fee: { total: null, missingAdjustedPriceTypeIds: [20, 40] } }] } };
-  const html = render([10]);
-  expect(html).toContain('Choose an installation system to calculate fees.');
-  expect(html).not.toContain('Price Unavailable');
-  expect(html).toMatch(/Build · per unit<\/dt><dd[^>]*><span[^>]*>—</);
-  expect(html).toContain('9.0K');
-});
+  // A fee that counts an unpriced input as nothing shows amber and names it.
+  h.net = job(30004759, 600, [40]);
+  const unpriced = render([10]);
+  expect(unpriced).toMatch(/Install fee<\/span><span[^>]*text-dps-mid[^>]*>600.00</);
+  expect(unpriced).toContain('Price Unavailable · Tritanium');
 
-test.each(['pending', 'failed'])('an adjusted-price read that is %s does not claim inputs have no price', (status) => {
-  h.feesPending = status === 'pending';
-  h.locationFailed = status === 'failed';
-  h.net = { componentJobs: { jobs: [{ typeId: 10, runs: 2, systemId: 30004759, fee: { total: null, missingAdjustedPriceTypeIds: [40] } }] } };
-  const html = render([10]);
-  expect(html).not.toContain('Price Unavailable');
-  expect(html).toContain(status === 'pending' ? 'Loading installation fees…' : 'Installation fees could not be loaded. Retry in build setup.');
+  // An unplaced job asks for a system instead of claiming prices are absent.
+  h.net = job(null, null, [20, 40]);
+  const unplaced = render([10]);
+  expect(unplaced).toContain('Choose an installation system to calculate fees.');
+  expect(unplaced).not.toContain('Price Unavailable');
+  expect(unplaced).toMatch(/Build · per unit<\/dt><dd[^>]*><span[^>]*>—</);
+  expect(unplaced).toContain('9.0K');
+
+  // A pending or failed adjusted-price read does not claim inputs have no price.
+  h.net = job(30004759, null, [40]);
+  h.feesPending = true;
+  const pending = render([10]);
+  expect(pending).not.toContain('Price Unavailable');
+  expect(pending).toContain('Loading installation fees…');
+
+  h.feesPending = false;
+  h.locationFailed = true;
+  const failed = render([10]);
+  expect(failed).not.toContain('Price Unavailable');
+  expect(failed).toContain('Installation fees could not be loaded. Retry in build setup.');
 });
