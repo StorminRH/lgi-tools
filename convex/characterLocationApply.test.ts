@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { internal } from './_generated/api';
 import schema from './schema';
 
@@ -116,561 +116,476 @@ async function apply(
   });
 }
 
-describe('characterLocationApply.finishSync (apply)', () => {
-  it('no-ops on a generation mismatch', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    const state = await readSyncState(t);
-    await apply(t, {
-      generation: GEN + 1,
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_142,
-          stationId: null,
-          structureId: null,
-          shipTypeId: 670,
-          systemChanged: true,
-          etagLocation: 'n',
-          etagShip: 's',
-          expiresAt: WINDOW,
-          error: null,
-          online: true,
-          etagOnline: 'on',
-          onlineExpiresAt: WINDOW,
-        },
-      ],
-    });
-    expect(await readDoc(t)).toBeNull();
-    expect(await readSyncState(t)).toEqual(state);
-    const touched = await t.run(async (ctx) => ({
-      online: await ctx.db.query('characterLocationOnline').collect(),
-      covered: await ctx.db.query('characterLocationCovered').collect(),
-    }));
-    expect(touched).toEqual({ online: [], covered: [] });
+test('no-ops on a generation mismatch', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  const state = await readSyncState(t);
+  await apply(t, {
+    generation: GEN + 1,
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 670,
+        systemChanged: true,
+        etagLocation: 'n',
+        etagShip: 's',
+        expiresAt: WINDOW,
+        error: null,
+        online: true,
+        etagOnline: 'on',
+        onlineExpiresAt: WINDOW,
+      },
+    ],
+  });
+  expect(await readDoc(t)).toBeNull();
+  expect(await readSyncState(t)).toEqual(state);
+  const touched = await t.run(async (ctx) => ({
+    online: await ctx.db.query('characterLocationOnline').collect(),
+    covered: await ctx.db.query('characterLocationCovered').collect(),
+  }));
+  expect(touched).toEqual({ online: [], covered: [] });
+});
+
+test('writes nothing for a 304 unchanged result (stationary zero-write)', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+  });
+  const before = await readDoc(t);
+
+  await apply(t, {
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: null,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+        expiresAt: WINDOW,
+        error: null,
+        online: true,
+      },
+    ],
   });
 
-  it('writes nothing for a 304 unchanged result (stationary zero-write)', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
+  expect(await readDoc(t)).toEqual(before);
+});
+
+test('advances observedAt for a dock update without advancing the system-transition epoch', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+  });
+
+  await apply(t, {
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        stationId: 60_003_760,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: 'loc-docked',
+        etagShip: null,
+        expiresAt: WINDOW,
+        error: null,
+      },
+    ],
+  });
+
+  expect(await readDoc(t)).toMatchObject({
+    stationId: 60_003_760,
+    transitionObservedAt: 1_699_999_999_000,
+    etagLocation: 'loc-docked',
+  });
+  expect((await readDoc(t))?.observedAt).toBe(NOW);
+});
+
+test.each(['current', 'legacy'] as const)('preserves jump continuity from a recent %s run', async (source) => {
+  const t = convexTest(schema, modules);
+  const freshness = {
+    lastFinishedAt: Date.now() - 17_000,
+    syncedCharacterIds: [CHAR_A],
+    coveredCharacterIds: [CHAR_A],
+  };
+  if (source === 'current') {
+    await seedSyncState(t, freshness);
+  } else {
     await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-    });
-    const before = await readDoc(t);
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-          expiresAt: WINDOW,
-          error: null,
-          online: true,
-        },
-      ],
-    });
-
-    const after = await readDoc(t);
-    expect(after).toEqual(before);
-    expect(after).toMatchObject({
-      solarSystemId: 30_000_142,
-      shipTypeId: 670,
-      etagLocation: 'loc',
-      etagShip: 'ship',
-    });
-  });
-
-  it('advances observedAt for a dock update without advancing the system-transition epoch', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-    });
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_142,
-          stationId: 60_003_760,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: 'loc-docked',
-          etagShip: null,
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    expect(await readDoc(t)).toMatchObject({
-      stationId: 60_003_760,
-      transitionObservedAt: 1_699_999_999_000,
-      etagLocation: 'loc-docked',
-    });
-    expect((await readDoc(t))?.observedAt).toBe(NOW);
-  });
-
-  it.each(['current', 'legacy'] as const)('preserves jump continuity from a recent %s run', async (source) => {
-    const t = convexTest(schema, modules);
-    const freshness = {
-      lastFinishedAt: Date.now() - 17_000,
-      syncedCharacterIds: [CHAR_A],
-      coveredCharacterIds: [CHAR_A],
-    };
-    if (source === 'current') {
-      await seedSyncState(t, freshness);
-    } else {
-      await t.run(async (ctx) => {
-        await ctx.db.insert('syncSubjects', {
-          dataset: 'characterLocation', userId: USER, status: 'idle',
-          lastRequestedAt: GEN - 18_000, workId: null, nextDueAt: GEN,
-          minExpiresAt: GEN, lastError: null, rlGroup: null,
-          rlLimit: null, rlRemaining: null, rlUsed: null, ...freshness,
-        });
-        await ctx.db.insert('syncPresence', {
-          dataset: 'characterLocation', userId: USER, lastSeenAt: GEN, lastVisibleAt: GEN,
-        });
+      await ctx.db.insert('syncSubjects', {
+        dataset: 'characterLocation', userId: USER, status: 'idle',
+        lastRequestedAt: GEN - 18_000, workId: null, nextDueAt: GEN,
+        minExpiresAt: GEN, lastError: null, rlGroup: null,
+        rlLimit: null, rlRemaining: null, rlUsed: null, ...freshness,
       });
-      await t.mutation(internal.engineComplete.chainDispatch, { dataset: 'characterLocation', userId: USER });
+      await ctx.db.insert('syncPresence', {
+        dataset: 'characterLocation', userId: USER, lastSeenAt: GEN, lastVisibleAt: GEN,
+      });
+    });
+    await t.mutation(internal.engineComplete.chainDispatch, { dataset: 'characterLocation', userId: USER });
+  }
+  await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+
+  await apply(t, {
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_144,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 11_985,
+        systemChanged: true,
+        etagLocation: 'loc2',
+        etagShip: 'ship2',
+        expiresAt: WINDOW,
+        error: null,
+      },
+    ],
+  });
+
+  expect(await readDoc(t)).toMatchObject({
+    solarSystemId: 30_000_144,
+    prevSolarSystemId: 30_000_142,
+    prevFresh: true,
+  });
+});
+
+test('stamps prevFresh false when the previous run is stale or did not cover the character', async () => {
+  const moved: ApplyResult = {
+    characterId: CHAR_A,
+    solarSystemId: 30_000_144,
+    stationId: null,
+    structureId: null,
+    shipTypeId: 11_985,
+    systemChanged: true,
+    etagLocation: 'loc2',
+    etagShip: 'ship2',
+    expiresAt: WINDOW,
+    error: null,
+  };
+
+  const stale = convexTest(schema, modules);
+  await seedSyncState(stale, {
+    lastFinishedAt: Date.now() - 60_000,
+    syncedCharacterIds: [CHAR_A],
+    coveredCharacterIds: [CHAR_A],
+  });
+  await stale.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+  await apply(stale, { results: [{ ...moved }] });
+  expect(await readDoc(stale)).toMatchObject({
+    solarSystemId: 30_000_144,
+    prevSolarSystemId: 30_000_142,
+    prevFresh: false,
+    shipTypeId: 11_985,
+  });
+
+  const uncovered = convexTest(schema, modules);
+  await seedSyncState(uncovered, {
+    lastFinishedAt: Date.now() - 1_000,
+    syncedCharacterIds: [CHAR_A],
+    coveredCharacterIds: [],
+  });
+  await uncovered.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+  await apply(uncovered, { results: [{ ...moved }] });
+  expect(await readDoc(uncovered)).toMatchObject({
+    solarSystemId: 30_000_144,
+    prevSolarSystemId: 30_000_142,
+    prevFresh: false,
+  });
+});
+
+// A racing run can report a system change into the system already stored.
+// It still writes a new transition epoch, which jump processing keys on.
+test('advances the transition epoch for a system change into the stored system', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+
+  await apply(t, {
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: true,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+        expiresAt: WINDOW,
+        error: null,
+      },
+    ],
+  });
+
+  expect(await readDoc(t)).toMatchObject({
+    solarSystemId: 30_000_142,
+    shipTypeId: 670,
+    prevSolarSystemId: 30_000_142,
+    prevFresh: false,
+    transitionObservedAt: NOW,
+    observedAt: NOW,
+    etagLocation: 'loc',
+    etagShip: 'ship',
+  });
+});
+
+test('stamps this run\'s covered set from clean results only (304 included)', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
+  });
+
+  await apply(t, {
+    trackedCharacterIds: [CHAR_A, CHAR_B],
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: null,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+        expiresAt: WINDOW,
+        error: null,
+        online: true,
+      },
+      {
+        characterId: CHAR_B,
+        solarSystemId: null,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: null,
+        etagShip: null,
+        expiresAt: null,
+        error: 'reauth_required',
+      },
+    ],
+  });
+
+  const subject = await readSyncState(t);
+  expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
+  expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
+  expect(subject?.lastFinishedAt).toBe(NOW);
+  const covered = await t.run((ctx) =>
+    ctx.db
+      .query('characterLocationCovered')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER))
+      .collect(),
+  );
+  expect(covered.map((doc) => doc.characterId)).toEqual([CHAR_A]);
+});
+
+test('keeps the location and online rows of a character this run never synced', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run(async (ctx) => {
+    for (const characterId of [CHAR_A, CHAR_B]) {
+      await ctx.db.insert('characterLocation', locationDoc(USER, characterId));
+      await ctx.db.insert('characterLocationOnline', {
+        userId: USER,
+        characterId,
+        online: true,
+        etagOnline: null,
+        onlineExpiresAt: WINDOW,
+      });
     }
-    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_144,
-          stationId: null,
-          structureId: null,
-          shipTypeId: 11_985,
-          systemChanged: true,
-          etagLocation: 'loc2',
-          etagShip: 'ship2',
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    expect(await readDoc(t)).toMatchObject({
-      solarSystemId: 30_000_144,
-      prevSolarSystemId: 30_000_142,
-      prevFresh: true,
-    });
   });
 
-  it('stamps prevFresh false when the previous run is outside JUMP_CONTINUITY_MS', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t, {
-      lastFinishedAt: Date.now() - 60_000,
-      syncedCharacterIds: [CHAR_A],
-      coveredCharacterIds: [CHAR_A],
-    });
-    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_144,
-          stationId: null,
-          structureId: null,
-          shipTypeId: 11_985,
-          systemChanged: true,
-          etagLocation: 'loc2',
-          etagShip: 'ship2',
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    expect(await readDoc(t)).toMatchObject({
-      solarSystemId: 30_000_144,
-      prevSolarSystemId: 30_000_142,
-      prevFresh: false,
-      shipTypeId: 11_985,
-    });
+  await apply(t, {
+    trackedCharacterIds: [CHAR_A],
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: null,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+        expiresAt: WINDOW,
+        error: null,
+      },
+    ],
   });
 
-  it('stamps prevFresh false when the previous run did not cover the character', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t, {
-      lastFinishedAt: Date.now() - 1_000,
-      syncedCharacterIds: [CHAR_A],
-      coveredCharacterIds: [],
-    });
-    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
+  const remaining = await t.run(async (ctx) => ({
+    location: await ctx.db.query('characterLocation').withIndex('by_user_character', (q) => q.eq('userId', USER)).collect(),
+    online: await ctx.db.query('characterLocationOnline').withIndex('by_user_character', (q) => q.eq('userId', USER)).collect(),
+  }));
+  expect(remaining.location.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
+  expect(remaining.online.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
+});
 
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_144,
-          stationId: null,
-          structureId: null,
-          shipTypeId: 11_985,
-          systemChanged: true,
-          etagLocation: 'loc2',
-          etagShip: 'ship2',
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    expect(await readDoc(t)).toMatchObject({
-      solarSystemId: 30_000_144,
-      prevSolarSystemId: 30_000_142,
-      prevFresh: false,
-    });
+test('keeps the held location of a logged-off pilot and leaves it out of the covered set', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
   });
 
-  // A racing run can report a system change into the system already stored.
-  // It still writes a new transition epoch, which jump processing keys on.
-  it('advances the transition epoch for a system change into the stored system', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run((ctx) => ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A)));
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_142,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: true,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    expect(await readDoc(t)).toMatchObject({
-      solarSystemId: 30_000_142,
-      shipTypeId: 670,
-      prevSolarSystemId: 30_000_142,
-      prevFresh: false,
-      transitionObservedAt: NOW,
-      observedAt: NOW,
-      etagLocation: 'loc',
-      etagShip: 'ship',
-    });
+  await apply(t, {
+    results: [
+      {
+        characterId: CHAR_A,
+        solarSystemId: 30_000_142,
+        stationId: null,
+        structureId: null,
+        shipTypeId: 670,
+        systemChanged: true,
+        etagLocation: 'loc',
+        etagShip: 'ship',
+        expiresAt: WINDOW,
+        error: null,
+        online: true,
+      },
+      {
+        characterId: CHAR_B,
+        solarSystemId: null,
+        stationId: null,
+        structureId: null,
+        shipTypeId: null,
+        systemChanged: false,
+        etagLocation: null,
+        etagShip: null,
+        expiresAt: WINDOW + 55_000,
+        error: null,
+        online: false,
+        etagOnline: 'on1',
+        onlineExpiresAt: WINDOW + 55_000,
+      },
+    ],
   });
 
-  it('stamps this run\'s covered set from clean results only (304 included)', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-    });
+  expect((await readSyncState(t))?.coveredCharacterIds).toEqual([CHAR_A]);
+  expect(await readDoc(t, CHAR_B)).toMatchObject({
+    characterId: CHAR_B,
+    solarSystemId: locationDoc(USER, CHAR_B).solarSystemId,
+    etagLocation: 'loc',
+  });
+});
 
-    await apply(t, {
-      trackedCharacterIds: [CHAR_A, CHAR_B],
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-          expiresAt: WINDOW,
-          error: null,
-          online: true,
-        },
-        {
-          characterId: CHAR_B,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: null,
-          etagShip: null,
-          expiresAt: null,
-          error: 'reauth_required',
-        },
-      ],
-    });
+test('upserts the held online-probe row only on a fresh probe read', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t);
+  const offlineResult = {
+    characterId: CHAR_A,
+    solarSystemId: null as number | null,
+    stationId: null,
+    structureId: null,
+    shipTypeId: null,
+    systemChanged: false,
+    etagLocation: null,
+    etagShip: null,
+    expiresAt: WINDOW + 55_000,
+    error: null,
+  };
 
-    const subject = await readSyncState(t);
-    expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
-    expect(subject?.syncedCharacterIds).toEqual([CHAR_A, CHAR_B]);
-    expect(subject?.lastFinishedAt).toBe(NOW);
-    const covered = await t.run((ctx) =>
+  await apply(t, {
+    results: [{ ...offlineResult, online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 }],
+  });
+  const coveredAfterOffline = await t.run((ctx) =>
+    ctx.db
+      .query('characterLocationCovered')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', USER).eq('characterId', CHAR_A),
+      )
+      .unique(),
+  );
+  expect(coveredAfterOffline).toBeNull();
+  const readRow = () =>
+    t.run((ctx) =>
       ctx.db
-        .query('characterLocationCovered')
-        .withIndex('by_user_character', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(covered.map((doc) => doc.characterId)).toEqual([CHAR_A]);
-  });
-
-  it('keeps last-known location for a character missing from this run\'s tracked set', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_A));
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
-    });
-
-    await apply(t, {
-      trackedCharacterIds: [CHAR_A],
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-          expiresAt: WINDOW,
-          error: null,
-        },
-      ],
-    });
-
-    const remaining = await t.run((ctx) =>
-      ctx.db.query('characterLocation').withIndex('by_user_character', (q) => q.eq('userId', USER)).collect(),
-    );
-    expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
-  });
-
-  it('excludes an offline probe result from the covered set (no fabricated continuity)', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_A,
-          solarSystemId: 30_000_142,
-          stationId: null,
-          structureId: null,
-          shipTypeId: 670,
-          systemChanged: true,
-          etagLocation: 'loc',
-          etagShip: 'ship',
-          expiresAt: WINDOW,
-          error: null,
-          online: true,
-        },
-        {
-          characterId: CHAR_B,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: null,
-          etagShip: null,
-          expiresAt: WINDOW + 55_000,
-          error: null,
-          online: false,
-          etagOnline: 'on1',
-          onlineExpiresAt: WINDOW + 55_000,
-        },
-      ],
-    });
-
-    const subject = await readSyncState(t);
-    expect(subject?.coveredCharacterIds).toEqual([CHAR_A]);
-  });
-
-  it('keeps held location when the pilot is logged off', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', locationDoc(USER, CHAR_B));
-    });
-
-    await apply(t, {
-      results: [
-        {
-          characterId: CHAR_B,
-          solarSystemId: null,
-          stationId: null,
-          structureId: null,
-          shipTypeId: null,
-          systemChanged: false,
-          etagLocation: null,
-          etagShip: null,
-          expiresAt: WINDOW + 55_000,
-          error: null,
-          online: false,
-          etagOnline: 'on1',
-          onlineExpiresAt: WINDOW + 55_000,
-        },
-      ],
-    });
-
-    const remaining = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', USER).eq('characterId', CHAR_B),
-        )
+        .query('characterLocationOnline')
+        .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
         .unique(),
     );
-    expect(remaining).toMatchObject({
-      characterId: CHAR_B,
-      solarSystemId: locationDoc(USER, CHAR_B).solarSystemId,
-    });
+  const inserted = await readRow();
+  expect(inserted).toMatchObject({ online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 });
+
+  await apply(t, { results: [{ ...offlineResult }] });
+  expect((await readRow())?.onlineExpiresAt).toBe(WINDOW + 55_000);
+
+  await apply(t, {
+    results: [{ ...offlineResult, online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 }],
   });
+  const patched = await readRow();
+  expect(patched?._id).toBe(inserted?._id);
+  expect(patched).toMatchObject({ online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 });
+});
 
-  it('upserts the held online-probe row only on a fresh probe read', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    const offlineResult = {
-      characterId: CHAR_A,
-      solarSystemId: null as number | null,
-      stationId: null,
-      structureId: null,
-      shipTypeId: null,
-      systemChanged: false,
-      etagLocation: null,
-      etagShip: null,
-      expiresAt: WINDOW + 55_000,
-      error: null,
-    };
-
-    await apply(t, {
-      results: [{ ...offlineResult, online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 }],
-    });
-    const coveredAfterOffline = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationCovered')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', USER).eq('characterId', CHAR_A),
-        )
-        .unique(),
-    );
-    expect(coveredAfterOffline).toBeNull();
-    const readRow = () =>
-      t.run((ctx) =>
-        ctx.db
-          .query('characterLocationOnline')
-          .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', CHAR_A))
-          .unique(),
-      );
-    const inserted = await readRow();
-    expect(inserted).toMatchObject({ online: false, etagOnline: 'on1', onlineExpiresAt: WINDOW + 55_000 });
-
-    await apply(t, { results: [{ ...offlineResult }] });
-    expect((await readRow())?.onlineExpiresAt).toBe(WINDOW + 55_000);
-
-    await apply(t, {
-      results: [{ ...offlineResult, online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 }],
-    });
-    const patched = await readRow();
-    expect(patched?._id).toBe(inserted?._id);
-    expect(patched).toMatchObject({ online: true, etagOnline: 'on2', onlineExpiresAt: WINDOW + 115_000 });
-  });
-
-  it('drops the cached rows of a character that left the tracked set since the last run', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
-    await t.run(async (ctx) => {
-      for (const userId of [USER, OTHER]) {
-        for (const characterId of [CHAR_A, CHAR_B]) {
-          await ctx.db.insert('characterLocation', locationDoc(userId, characterId));
-          await ctx.db.insert('characterLocationAccess', accessLease(userId, characterId));
-          await ctx.db.insert('characterLocationOnline', {
-            userId,
-            characterId,
-            online: true,
-            etagOnline: null,
-            onlineExpiresAt: WINDOW,
-          });
-        }
-      }
-    });
-
-    await apply(t, { trackedCharacterIds: [CHAR_A], results: [] });
-
-    const held = await t.run(async (ctx) => ({
-      location: await ctx.db.query('characterLocation').collect(),
-      online: await ctx.db.query('characterLocationOnline').collect(),
-      access: await ctx.db.query('characterLocationAccess').collect(),
-    }));
-    const keys = (rows: { userId: string; characterId: number }[]) =>
-      rows.map((row) => `${row.userId}:${row.characterId}`).sort();
-    const expected = [`${OTHER}:${CHAR_A}`, `${OTHER}:${CHAR_B}`, `${USER}:${CHAR_A}`].sort();
-    expect(keys(held.location)).toEqual(expected);
-    expect(keys(held.online)).toEqual(expected);
-    expect(keys(held.access)).toEqual(expected);
-    expect((await readSyncState(t))?.syncedCharacterIds).toEqual([CHAR_A]);
-  });
-
-  it('removes rows an in-flight run wrote back after a purge on the next run', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
-    const located = (characterId: number): ApplyResult => ({
-      characterId,
-      solarSystemId: 30_000_142,
-      stationId: null,
-      structureId: null,
-      shipTypeId: 670,
-      systemChanged: true,
-      etagLocation: 'n',
-      etagShip: 's',
-      expiresAt: WINDOW,
-      error: null,
-    });
-
-    // A run that read its tracked list before the purge finishes afterwards.
-    await t.mutation(internal.characterLocationPurge.purgeForUser, { userId: USER, characterId: CHAR_B });
-    await apply(t, { trackedCharacterIds: [CHAR_A, CHAR_B], results: [located(CHAR_A), located(CHAR_B)] });
-    expect(await readDoc(t, CHAR_B)).not.toBeNull();
-
-    await apply(t, { trackedCharacterIds: [CHAR_A], results: [located(CHAR_A)] });
-    expect(await readDoc(t, CHAR_B)).toBeNull();
-    expect(await readDoc(t, CHAR_A)).not.toBeNull();
-  });
-
-  it('keeps held online-probe rows for a character missing from this run\'s tracked set', async () => {
-    const t = convexTest(schema, modules);
-    await seedSyncState(t);
-    await t.run(async (ctx) => {
+test('drops the cached rows of a character that left the tracked set since the last run', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
+  await t.run(async (ctx) => {
+    for (const userId of [USER, OTHER]) {
       for (const characterId of [CHAR_A, CHAR_B]) {
+        await ctx.db.insert('characterLocation', locationDoc(userId, characterId));
+        await ctx.db.insert('characterLocationAccess', accessLease(userId, characterId));
         await ctx.db.insert('characterLocationOnline', {
-          userId: USER,
+          userId,
           characterId,
           online: true,
           etagOnline: null,
           onlineExpiresAt: WINDOW,
         });
       }
-    });
-
-    await apply(t, {
-      trackedCharacterIds: [CHAR_A],
-      results: [],
-    });
-
-    const remaining = await t.run((ctx) =>
-      ctx.db
-        .query('characterLocationOnline')
-        .withIndex('by_user_character', (q) => q.eq('userId', USER))
-        .collect(),
-    );
-    expect(remaining.map((d) => d.characterId).sort()).toEqual([CHAR_A, CHAR_B]);
+    }
   });
+
+  await apply(t, { trackedCharacterIds: [CHAR_A], results: [] });
+
+  const held = await t.run(async (ctx) => ({
+    location: await ctx.db.query('characterLocation').collect(),
+    online: await ctx.db.query('characterLocationOnline').collect(),
+    access: await ctx.db.query('characterLocationAccess').collect(),
+  }));
+  const keys = (rows: { userId: string; characterId: number }[]) =>
+    rows.map((row) => `${row.userId}:${row.characterId}`).sort();
+  const expected = [`${OTHER}:${CHAR_A}`, `${OTHER}:${CHAR_B}`, `${USER}:${CHAR_A}`].sort();
+  expect(keys(held.location)).toEqual(expected);
+  expect(keys(held.online)).toEqual(expected);
+  expect(keys(held.access)).toEqual(expected);
+  expect((await readSyncState(t))?.syncedCharacterIds).toEqual([CHAR_A]);
+});
+
+test('removes rows an in-flight run wrote back after a purge on the next run', async () => {
+  const t = convexTest(schema, modules);
+  await seedSyncState(t, { syncedCharacterIds: [CHAR_A, CHAR_B] });
+  const located = (characterId: number): ApplyResult => ({
+    characterId,
+    solarSystemId: 30_000_142,
+    stationId: null,
+    structureId: null,
+    shipTypeId: 670,
+    systemChanged: true,
+    etagLocation: 'n',
+    etagShip: 's',
+    expiresAt: WINDOW,
+    error: null,
+  });
+
+  // A run that read its tracked list before the purge finishes afterwards.
+  await t.mutation(internal.characterLocationPurge.purgeForUser, { userId: USER, characterId: CHAR_B });
+  await apply(t, { trackedCharacterIds: [CHAR_A, CHAR_B], results: [located(CHAR_A), located(CHAR_B)] });
+  expect(await readDoc(t, CHAR_B)).not.toBeNull();
+
+  await apply(t, { trackedCharacterIds: [CHAR_A], results: [located(CHAR_A)] });
+  expect(await readDoc(t, CHAR_B)).toBeNull();
+  expect(await readDoc(t, CHAR_A)).not.toBeNull();
 });

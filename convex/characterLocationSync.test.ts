@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { getFunctionName, type FunctionReference } from 'convex/server';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { conflictFailure } from '@/lib/failure';
 import { problemBody, serializeProblem } from '@/lib/problem';
@@ -233,640 +233,569 @@ async function replaceRunLease(t: TestConvex<typeof schema>) {
   });
 }
 
-describe('characterLocationSync.syncUser', () => {
-  it('completes as failed when the deployment env is unset', async () => {
-    vi.unstubAllEnvs();
-    silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await run(t);
-    expect(calls.map((call) => call.name)).toEqual(['characterLocationApply:finishSync']);
-    expect(finishArgs()).toEqual({
-      userId: USER,
-      generation: GEN,
-      outcome: { kind: 'failed', error: expect.stringMatching(/SITE_URL/) },
-      leases: [],
-      clearedLeaseCharacterIds: [],
-    });
-    expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null, jobId: null });
+test('completes as failed when the deployment env is unset', async () => {
+  vi.unstubAllEnvs();
+  silenceConsolePrefixes('error', ['{"scope":"location:sync",']);
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await run(t);
+  expect(calls.map((call) => call.name)).toEqual(['characterLocationApply:finishSync']);
+  expect(finishArgs()).toEqual({
+    userId: USER,
+    generation: GEN,
+    outcome: { kind: 'failed', error: expect.stringMatching(/SITE_URL/) },
+    leases: [],
+    clearedLeaseCharacterIds: [],
+  });
+  expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null, jobId: null });
+});
+
+test('writes a fresh 200 location + ship for a tracked character', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  stubFetch({
+    esi: (url) => {
+      if (url.includes('/location')) {
+        return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+      }
+      if (url.includes('/ship')) {
+        return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it('writes a fresh 200 location + ship for a tracked character', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
 
-    await run(t);
+  const doc = await readDoc(t);
+  expect(doc).toMatchObject({
+    solarSystemId: SYSTEM_A,
+    stationId: null,
+    structureId: null,
+    shipTypeId: SHIP_A,
+    prevSolarSystemId: null,
+    prevFresh: false,
+    etagLocation: 'loc1',
+    etagShip: 'ship1',
+  });
+  const lease = await readLease(t);
+  expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+  expect(await readSyncState(t)).toMatchObject({
+    syncedCharacterIds: [101],
+    coveredCharacterIds: [101],
+    minExpiresAt: expect.any(Number),
+    lastFinishedAt: expect.any(Number),
+  });
+});
 
-    const doc = await readDoc(t);
-    expect(doc).toMatchObject({
+test('keeps the held document byte-identical on a 304', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  const before = await t.run(async (ctx) =>
+    ctx.db.insert('characterLocation', {
+      userId: USER,
+      characterId: 101,
       solarSystemId: SYSTEM_A,
       stationId: null,
       structureId: null,
       shipTypeId: SHIP_A,
       prevSolarSystemId: null,
       prevFresh: false,
-      etagLocation: 'loc1',
-      etagShip: 'ship1',
-    });
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(true);
-    const lease = await readLease(t);
-    expect(lease).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect(await readSyncState(t)).toMatchObject({
-      syncedCharacterIds: [101],
-      coveredCharacterIds: [101],
-      minExpiresAt: expect.any(Number),
-      lastFinishedAt: expect.any(Number),
-    });
-  });
-
-  it('keeps the held document byte-identical on a 304', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    const before = await t.run(async (ctx) =>
-      ctx.db.insert('characterLocation', {
-        userId: USER,
-        characterId: 101,
-        solarSystemId: SYSTEM_A,
-        stationId: null,
-        structureId: null,
-        shipTypeId: SHIP_A,
-        prevSolarSystemId: null,
-        prevFresh: false,
-        observedAt: GEN - 1_000,
-        etagLocation: 'loc0',
-        etagShip: 'ship0',
-      }),
-    );
-    const createdAt = (await t.run((ctx) => ctx.db.get(before)))?._creationTime;
-    stubFetch({
-      esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }),
-    });
-
-    await run(t);
-
-    const doc = await readDoc(t);
-    expect(doc?._id).toBe(before);
-    expect(doc?._creationTime).toBe(createdAt);
-    expect(doc).toMatchObject({
-      solarSystemId: SYSTEM_A,
-      shipTypeId: SHIP_A,
+      observedAt: GEN - 1_000,
       etagLocation: 'loc0',
       etagShip: 'ship0',
-    });
+    }),
+  );
+  const createdAt = (await t.run((ctx) => ctx.db.get(before)))?._creationTime;
+  stubFetch({
+    esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }),
   });
 
-  it('fetches ship and stamps prev on a system change', async () => {
-    const t = await testConvex();
-    const recentFinish = Date.now() - 5_000;
-    await seedSyncState(t, {
-      lastFinishedAt: recentFinish,
-      syncedCharacterIds: [101],
-      coveredCharacterIds: [101],
-    });
-    await seedTracking(t);
-    await seedOnline(t);
-    await t.run((ctx) =>
-      ctx.db.insert('characterLocation', {
-        userId: USER,
-        characterId: 101,
-        solarSystemId: SYSTEM_A,
-        stationId: null,
-        structureId: null,
-        shipTypeId: SHIP_A,
-        prevSolarSystemId: null,
-        prevFresh: false,
-        observedAt: recentFinish,
-        etagLocation: 'loc0',
-        etagShip: 'ship0',
-      }),
-    );
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_B }, { headers: { ...RL, ETag: 'loc2' } });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_B }, { headers: { ...RL, ETag: 'ship2' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
 
-    await run(t);
-
-    const doc = await readDoc(t);
-    expect(doc).toMatchObject({
-      solarSystemId: SYSTEM_B,
-      shipTypeId: SHIP_B,
-      prevSolarSystemId: SYSTEM_A,
-      prevFresh: true,
-      etagLocation: 'loc2',
-      etagShip: 'ship2',
-    });
-    expect(fetchFn.mock.calls.filter(([u]) => String(u).includes('/ship'))).toHaveLength(1);
+  const doc = await readDoc(t);
+  expect(doc?._id).toBe(before);
+  expect(doc?._creationTime).toBe(createdAt);
+  expect(doc).toMatchObject({
+    solarSystemId: SYSTEM_A,
+    shipTypeId: SHIP_A,
+    etagLocation: 'loc0',
+    etagShip: 'ship0',
   });
+});
 
-  it('does not fetch ship on a same-system dock change', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await t.run((ctx) =>
-      ctx.db.insert('characterLocation', {
-        userId: USER,
-        characterId: 101,
-        solarSystemId: SYSTEM_A,
-        stationId: null,
-        structureId: null,
-        shipTypeId: SHIP_A,
-        prevSolarSystemId: 30_000_001,
-        prevFresh: true,
-        observedAt: GEN - 5_000,
-        etagLocation: 'loc0',
-        etagShip: 'ship0',
-      }),
-    );
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return Response.json(
-            { solar_system_id: SYSTEM_A, station_id: 60_003_760 },
-            { headers: { ...RL, ETag: 'loc3' } },
-          );
-        }
-        throw new Error(`unexpected ship fetch ${url}`);
-      },
-    });
-
-    await run(t);
-
-    const doc = await readDoc(t);
-    expect(doc).toMatchObject({
+test('fetches ship and stamps prev on a system change', async () => {
+  const t = await testConvex();
+  const recentFinish = Date.now() - 5_000;
+  await seedSyncState(t, {
+    lastFinishedAt: recentFinish,
+    syncedCharacterIds: [101],
+    coveredCharacterIds: [101],
+  });
+  await seedTracking(t);
+  await seedOnline(t);
+  await t.run((ctx) =>
+    ctx.db.insert('characterLocation', {
+      userId: USER,
+      characterId: 101,
       solarSystemId: SYSTEM_A,
-      stationId: 60_003_760,
+      stationId: null,
+      structureId: null,
+      shipTypeId: SHIP_A,
+      prevSolarSystemId: null,
+      prevFresh: false,
+      observedAt: recentFinish,
+      etagLocation: 'loc0',
+      etagShip: 'ship0',
+    }),
+  );
+  const fetchFn = stubFetch({
+    esi: (url) => {
+      if (url.includes('/location')) {
+        return Response.json({ solar_system_id: SYSTEM_B }, { headers: { ...RL, ETag: 'loc2' } });
+      }
+      if (url.includes('/ship')) {
+        return Response.json({ ship_type_id: SHIP_B }, { headers: { ...RL, ETag: 'ship2' } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
+  });
+
+  await run(t);
+
+  const doc = await readDoc(t);
+  expect(doc).toMatchObject({
+    solarSystemId: SYSTEM_B,
+    shipTypeId: SHIP_B,
+    prevSolarSystemId: SYSTEM_A,
+    prevFresh: true,
+    etagLocation: 'loc2',
+    etagShip: 'ship2',
+  });
+  expect(fetchFn.mock.calls.filter(([u]) => String(u).includes('/ship'))).toHaveLength(1);
+});
+
+test('does not fetch ship on a same-system dock change', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  await t.run((ctx) =>
+    ctx.db.insert('characterLocation', {
+      userId: USER,
+      characterId: 101,
+      solarSystemId: SYSTEM_A,
+      stationId: null,
+      structureId: null,
       shipTypeId: SHIP_A,
       prevSolarSystemId: 30_000_001,
       prevFresh: true,
-      etagLocation: 'loc3',
+      observedAt: GEN - 5_000,
+      etagLocation: 'loc0',
       etagShip: 'ship0',
-    });
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
+    }),
+  );
+  const fetchFn = stubFetch({
+    esi: (url) => {
+      if (url.includes('/location')) {
+        return Response.json(
+          { solar_system_id: SYSTEM_A, station_id: 60_003_760 },
+          { headers: { ...RL, ETag: 'loc3' } },
+        );
+      }
+      throw new Error(`unexpected ship fetch ${url}`);
+    },
   });
 
-  it('skips untracked characters entirely (no token vend)', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    const fetchFn = stubFetch({
-      esi: () => {
-        throw new Error('should not call ESI');
-      },
-    });
+  await run(t);
 
-    await run(t);
+  const doc = await readDoc(t);
+  expect(doc).toMatchObject({
+    solarSystemId: SYSTEM_A,
+    stationId: 60_003_760,
+    shipTypeId: SHIP_A,
+    prevSolarSystemId: 30_000_001,
+    prevFresh: true,
+    etagLocation: 'loc3',
+    etagShip: 'ship0',
+  });
+  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
+});
 
-    expect(await readDoc(t)).toBeNull();
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    expect(finishArgs().outcome).toMatchObject({ kind: 'success', trackedCharacterIds: [], results: [] });
-    expect(await readSyncState(t)).toMatchObject({ syncedCharacterIds: [], jobId: null });
+test('skips untracked characters entirely (no token vend)', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  const fetchFn = stubFetch({
+    esi: () => {
+      throw new Error('should not call ESI');
+    },
   });
 
-  it('records reauth_required when vend returns 409', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    const fetchFn = stubFetch({
-      token: () =>
-        serializeProblem(problemBody(conflictFailure('reauth_required'), 'correlation-id')),
-    });
+  await run(t);
 
-    await run(t);
+  expect(await readDoc(t)).toBeNull();
+  expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+  expect(finishArgs().outcome).toMatchObject({ kind: 'success', trackedCharacterIds: [], results: [] });
+  expect(await readSyncState(t)).toMatchObject({ syncedCharacterIds: [], jobId: null });
+});
 
-    expect(await readDoc(t)).toBeNull();
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
-    expect(await readLease(t)).toBeNull();
-    const subject = await readSyncState(t);
-    expect(subject?.minExpiresAt).toBeNull();
-    expect(subject?.syncedCharacterIds).toEqual([101]);
+test('records reauth_required when vend returns 409', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  const fetchFn = stubFetch({
+    token: () =>
+      serializeProblem(problemBody(conflictFailure('reauth_required'), 'correlation-id')),
   });
 
-  it('clears a freshly vended lease when ESI returns 403', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await t.run((ctx) =>
-      ctx.db.insert('characterLocation', {
-        userId: USER,
-        characterId: 101,
-        solarSystemId: SYSTEM_A,
-        stationId: null,
-        structureId: null,
-        shipTypeId: SHIP_A,
-        prevSolarSystemId: null,
-        prevFresh: false,
-        observedAt: GEN - 1_000,
-        etagLocation: 'loc0',
-        etagShip: 'ship0',
-      }),
-    );
-    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+  await run(t);
 
-    await run(t);
+  expect(await readDoc(t)).toBeNull();
+  expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+  expect(await readLease(t)).toBeNull();
+  const subject = await readSyncState(t);
+  expect(subject?.minExpiresAt).toBeNull();
+  expect(subject?.syncedCharacterIds).toEqual([101]);
+});
 
-    const doc = await readDoc(t);
-    expect(doc?.solarSystemId).toBe(SYSTEM_A);
-    expect(doc?.etagLocation).toBe('loc0');
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
-    expect(await readLease(t)).toBeNull();
-    expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
-  });
-
-  it('keeps the last-known doc on ESI 403, drops a held lease, and does not vend', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await seedLease(t);
-    await t.run((ctx) =>
-      ctx.db.insert('characterLocation', {
-        userId: USER,
-        characterId: 101,
-        solarSystemId: SYSTEM_A,
-        stationId: null,
-        structureId: null,
-        shipTypeId: SHIP_A,
-        prevSolarSystemId: null,
-        prevFresh: false,
-        observedAt: GEN - 1_000,
-        etagLocation: 'loc0',
-        etagShip: 'ship0',
-      }),
-    );
-    const fetchFn = stubFetch({ esi: () => new Response(null, { status: 403 }) });
-
-    await run(t);
-
-    const doc = await readDoc(t);
-    expect(doc?.solarSystemId).toBe(SYSTEM_A);
-    expect(doc?.etagLocation).toBe('loc0');
-    expect(fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    expect(await readLease(t)).toBeNull();
-    expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
-  });
-
-  it('reuses a held online answer inside its window — no /online read', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return new Response(null, { status: 304, headers: { Expires: EXP } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/online'))).toBe(false);
-    expect((await readOnlineRow(t))?.etagOnline).toBe('on0');
-  });
-
-  it('re-reads /online past the window; a 304 keeps the flag and refreshes the window', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    const lapsed = Date.now() - 1;
-    await seedOnline(t, { onlineExpiresAt: lapsed });
-    const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/online')) {
-          return new Response(null, { status: 304, headers: { Expires: onlineExpires } });
-        }
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    const onlineCall = fetchFn.mock.calls.find(([u]) => String(u).includes('/online'));
-    expect(onlineCall).toBeDefined();
-    const row = await readOnlineRow(t);
-    expect(row?.online).toBe(true);
-    expect(row?.onlineExpiresAt).toBeGreaterThan(lapsed);
-    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
-  });
-
-  it('skips location and ship for an offline pilot and paces at the online window', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/online')) {
-          return Response.json({ online: false }, { headers: { ETag: 'on1', Expires: onlineExpires } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(false);
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
-    expect(await readDoc(t)).toBeNull();
-    const row = await readOnlineRow(t);
-    expect(row?.online).toBe(false);
-    expect(row?.etagOnline).toBe('on1');
-    const subject = await readSyncState(t);
-    expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
-    expect(subject?.coveredCharacterIds).toEqual([]);
-  });
-
-  it('resumes the location loop when the probe sees a login', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t, { online: false, onlineExpiresAt: Date.now() - 1 });
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        if (url.includes('/online')) {
-          return Response.json({ online: true }, { headers: { ETag: 'on2', Expires: EXP } });
-        }
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    expect((await readOnlineRow(t))?.online).toBe(true);
-    expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
-    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(true);
-  });
-
-  it('reuses a still-valid access lease and re-vends once Neon expiresAt lapses', async () => {
-    const locationShip = {
-      esi: (url: string) => {
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    };
-
-    const held = await testConvex();
-    await seedSyncState(held);
-    await seedTracking(held);
-    await seedOnline(held);
-    await seedLease(held);
-    const heldFetch = stubFetch(locationShip);
-    await run(held);
-    expect(heldFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
-    expect((await readDoc(held))?.solarSystemId).toBe(SYSTEM_A);
-    expect((await readLease(held))?.accessToken).toBe('leased-tok');
-
-    const stale = await testConvex();
-    await seedSyncState(stale);
-    await seedTracking(stale);
-    await seedOnline(stale);
-    await seedLease(stale, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
-    const staleFetch = stubFetch(locationShip);
-    await run(stale);
-    expect(staleFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
-    expect(await readLease(stale)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect((await readDoc(stale))?.solarSystemId).toBe(SYSTEM_A);
-  });
-
-  it('persists vended leases via finishSync when a later character throws', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t, 101);
-    await seedTracking(t, 102);
-    await seedOnline(t, {}, 101);
-    await seedOnline(t, {}, 102);
-    stubFetch({
-      esi: (url) => {
-        if (url.includes('/characters/102/')) throw new Error('esi_down');
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
-
-    await run(t);
-
-    expect(finishArgs()).toEqual({
+test('keeps the last-known doc on ESI 403 and clears a vended or held lease', async () => {
+  const seedDoc = (t: TestConvex<typeof schema>) => t.run((ctx) =>
+    ctx.db.insert('characterLocation', {
       userId: USER,
-      generation: GEN,
-      outcome: { kind: 'failed', error: expect.stringMatching(/esi_down/) },
-      leases: [
-        { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
-        { characterId: 102, accessToken: 'tok', expiresAt: TOKEN_EXP },
-      ],
-      clearedLeaseCharacterIds: [],
-    });
-    expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    // A failed run applies no results, so the first character's read is discarded.
-    expect(await readDoc(t, 101)).toBeNull();
-    expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null });
-    expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/esi_down/));
+      characterId: 101,
+      solarSystemId: SYSTEM_A,
+      stationId: null,
+      structureId: null,
+      shipTypeId: SHIP_A,
+      prevSolarSystemId: null,
+      prevFresh: false,
+      observedAt: GEN - 1_000,
+      etagLocation: 'loc0',
+      etagShip: 'ship0',
+    }),
+  );
+
+  const vended = await testConvex();
+  await seedSyncState(vended);
+  await seedTracking(vended);
+  await seedOnline(vended);
+  await seedDoc(vended);
+  const vendedFetch = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+  await run(vended);
+  expect(await readDoc(vended)).toMatchObject({ solarSystemId: SYSTEM_A, etagLocation: 'loc0' });
+  expect(vendedFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+  expect(await readLease(vended)).toBeNull();
+  expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
+
+  calls.length = 0;
+  const held = await testConvex();
+  await seedSyncState(held);
+  await seedTracking(held);
+  await seedOnline(held);
+  await seedLease(held);
+  await seedDoc(held);
+  const heldFetch = stubFetch({ esi: () => new Response(null, { status: 403 }) });
+  await run(held);
+  expect(await readDoc(held)).toMatchObject({ solarSystemId: SYSTEM_A, etagLocation: 'loc0' });
+  expect(heldFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+  expect(await readLease(held)).toBeNull();
+  expect(finishArgs()).toMatchObject({ leases: [], clearedLeaseCharacterIds: [101] });
+});
+
+test('reuses a held online answer inside its window, then re-reads /online once it lapses and a 304 refreshes the window', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
+  const fetchFn = stubFetch({
+    esi: (url) => {
+      if (url.includes('/online')) {
+        return new Response(null, { status: 304, headers: { Expires: onlineExpires } });
+      }
+      if (url.includes('/location')) {
+        return new Response(null, { status: 304, headers: { Expires: EXP } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it('stops at budget exhaustion and hands the partial run to finishSync', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    __setScoreboardForTests({
-      ...permissiveScoreboard,
-      async preDispatch() {
-        return { effectiveRemaining: 1000, blockedRetryAfter: 30, etag: null };
-      },
-    });
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t, 101);
-    await seedTracking(t, 102);
-    await seedOnline(t, {}, 101);
-    await seedOnline(t, {}, 102);
-    const fetchFn = stubFetch({
-      esi: (url) => {
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
+  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/online'))).toBe(false);
+  expect((await readOnlineRow(t))?.etagOnline).toBe('on0');
 
-    await run(t);
+  const lapsed = Date.now() - 1;
+  await t.run(async (ctx) => {
+    const row = await ctx.db.query('characterLocationOnline').unique();
+    if (row === null) throw new Error('missing online row');
+    await ctx.db.patch(row._id, { onlineExpiresAt: lapsed });
+  });
+  fetchFn.mockClear();
+  await run(t);
+  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/online'))).toBe(true);
+  const row = await readOnlineRow(t);
+  expect(row?.online).toBe(true);
+  expect(row?.onlineExpiresAt).toBeGreaterThan(lapsed);
+});
 
-    const tokenCalls = fetchFn.mock.calls.filter(([u]) => String(u).endsWith('/eve-token'));
-    expect(tokenCalls).toHaveLength(1);
-    expect(finishArgs().outcome).toMatchObject({
-      kind: 'success',
-      trackedCharacterIds: [101, 102],
-      results: [expect.objectContaining({ characterId: 101, error: 'budget_exhausted' })],
-      runError: 'budget_exhausted:rate_limited',
-    });
-    expect(await readDoc(t, 101)).toBeNull();
-    expect(await readSyncState(t)).toMatchObject({
-      minExpiresAt: null,
-      syncedCharacterIds: [101, 102],
-      coveredCharacterIds: [],
-    });
-    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/budget_exhausted/));
+test('skips location and ship for an offline pilot and paces at the online window', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
+  const fetchFn = stubFetch({
+    esi: (url) => {
+      if (url.includes('/online')) {
+        return Response.json({ online: false }, { headers: { ETag: 'on1', Expires: onlineExpires } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it('issues exactly one syncInputs query and one finishSync mutation per run', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    for (let characterId = 101; characterId <= 133; characterId += 1) {
-      await t.run((ctx) => ctx.db.insert('mapTracking', {
-        mapId: characterId === 133 ? 'map-b' : 'map-a', userId: USER, characterId,
-      }));
-      await seedOnline(t, {}, characterId);
-    }
-    let tokenRequests = 0;
-    stubFetch({
-      token: () => {
-        tokenRequests += 1;
-        return Response.json({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-      },
-      esi: (url) => {
-        if (url.includes('/location')) return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        if (url.includes('/ship')) return Response.json({ ship_type_id: SHIP_A }, { headers: RL });
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
 
-    await run(t);
+  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(false);
+  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
+  expect(await readDoc(t)).toBeNull();
+  const row = await readOnlineRow(t);
+  expect(row?.online).toBe(false);
+  expect(row?.etagOnline).toBe('on1');
+  const subject = await readSyncState(t);
+  expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
+  expect(subject?.coveredCharacterIds).toEqual([]);
+});
 
-    expect(tokenRequests).toBe(33);
-    expect(calls.map((call) => call.name)).toEqual([
-      'characterLocationReads:syncInputs',
-      'characterLocationApply:finishSync',
-    ]);
-    expect(calls[0]?.args).toEqual({ userId: USER });
-    const finish = finishArgs();
-    expect(finish.generation).toBe(GEN);
-    expect(finish.leases).toHaveLength(33);
-    const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
-    expect(leases).toHaveLength(33);
-    expect((await readDoc(t, 133))?.solarSystemId).toBe(SYSTEM_A);
-    const state = await readSyncState(t);
-    expect(state?.syncedCharacterIds).toHaveLength(33);
-    expect(state?.coveredCharacterIds).toHaveLength(33);
+test('resumes the location loop when the probe sees a login', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t, { online: false, onlineExpiresAt: Date.now() - 1 });
+  stubFetch({
+    esi: (url) => {
+      if (url.includes('/online')) {
+        return Response.json({ online: true }, { headers: { ETag: 'on2', Expires: EXP } });
+      }
+      if (url.includes('/location')) {
+        return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+      }
+      if (url.includes('/ship')) {
+        return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it.each([false, true])('drops an old action\'s token after a newer run stores then clears: %s', async (clear) => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    stubFetch({
-      esi: async (url) => {
-        if (url.includes('/location')) {
-          await replaceRunLease(t);
-          if (clear) await t.run((ctx) => clearAccessLeases(ctx, USER, [101]));
-          return new Response(null, { status: 304, headers: RL });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
 
-    await run(t);
+  expect((await readOnlineRow(t))?.online).toBe(true);
+  expect((await readDoc(t))?.solarSystemId).toBe(SYSTEM_A);
+});
 
-    expect(finishArgs().leases).toEqual([
+test('reuses a still-valid access lease and re-vends once Neon expiresAt lapses', async () => {
+  const locationShip = {
+    esi: (url: string) => {
+      if (url.includes('/location')) {
+        return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+      }
+      if (url.includes('/ship')) {
+        return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
+  };
+
+  const held = await testConvex();
+  await seedSyncState(held);
+  await seedTracking(held);
+  await seedOnline(held);
+  await seedLease(held);
+  const heldFetch = stubFetch(locationShip);
+  await run(held);
+  expect(heldFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+  expect((await readDoc(held))?.solarSystemId).toBe(SYSTEM_A);
+  expect((await readLease(held))?.accessToken).toBe('leased-tok');
+
+  const stale = await testConvex();
+  await seedSyncState(stale);
+  await seedTracking(stale);
+  await seedOnline(stale);
+  await seedLease(stale, { expiresAt: Date.now() - 1, accessToken: 'stale-tok' });
+  const staleFetch = stubFetch(locationShip);
+  await run(stale);
+  expect(staleFetch.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(true);
+  expect(await readLease(stale)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+  expect((await readDoc(stale))?.solarSystemId).toBe(SYSTEM_A);
+});
+
+test('persists vended leases via finishSync when a later character throws', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t, 101);
+  await seedTracking(t, 102);
+  await seedOnline(t, {}, 101);
+  await seedOnline(t, {}, 102);
+  stubFetch({
+    esi: (url) => {
+      if (url.includes('/characters/102/')) throw new Error('esi_down');
+      if (url.includes('/location')) {
+        return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+      }
+      if (url.includes('/ship')) {
+        return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
+  });
+
+  await run(t);
+
+  expect(finishArgs()).toEqual({
+    userId: USER,
+    generation: GEN,
+    outcome: { kind: 'failed', error: expect.stringMatching(/esi_down/) },
+    leases: [
       { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
-    ]);
-    if (clear) expect(await readLease(t)).toBeNull();
-    else expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
-    expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null, syncedCharacterIds: [] });
-    expect(await readDoc(t)).toBeNull();
+      { characterId: 102, accessToken: 'tok', expiresAt: TOKEN_EXP },
+    ],
+    clearedLeaseCharacterIds: [],
+  });
+  expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+  expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+  // A failed run applies no results, so the first character's read is discarded.
+  expect(await readDoc(t, 101)).toBeNull();
+  expect(await readSyncState(t)).toMatchObject({ minExpiresAt: null, lastFinishedAt: null });
+  expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/esi_down/));
+});
+
+test('stops at budget exhaustion and hands the partial run to finishSync', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  __setScoreboardForTests({
+    ...permissiveScoreboard,
+    async preDispatch() {
+      return { effectiveRemaining: 1000, blockedRetryAfter: 30, etag: null };
+    },
+  });
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t, 101);
+  await seedTracking(t, 102);
+  await seedOnline(t, {}, 101);
+  await seedOnline(t, {}, 102);
+  const fetchFn = stubFetch({
+    esi: (url) => {
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it.each([401, 403])('preserves a newer run token when an old action receives ESI %s', async (status) => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t);
-    await seedOnline(t);
-    await seedLease(t);
-    stubFetch({
-      esi: async () => {
+  await run(t);
+
+  const tokenCalls = fetchFn.mock.calls.filter(([u]) => String(u).endsWith('/eve-token'));
+  expect(tokenCalls).toHaveLength(1);
+  expect(finishArgs().outcome).toMatchObject({
+    kind: 'success',
+    trackedCharacterIds: [101, 102],
+    results: [expect.objectContaining({ characterId: 101, error: 'budget_exhausted' })],
+    runError: 'budget_exhausted:rate_limited',
+  });
+  expect(await readDoc(t, 101)).toBeNull();
+  expect(await readSyncState(t)).toMatchObject({
+    minExpiresAt: null,
+    syncedCharacterIds: [101, 102],
+    coveredCharacterIds: [],
+  });
+  expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/budget_exhausted/));
+});
+
+test('issues exactly one syncInputs query and one finishSync mutation per run', async () => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  for (let characterId = 101; characterId <= 133; characterId += 1) {
+    await t.run((ctx) => ctx.db.insert('mapTracking', {
+      mapId: characterId === 133 ? 'map-b' : 'map-a', userId: USER, characterId,
+    }));
+    await seedOnline(t, {}, characterId);
+  }
+  let tokenRequests = 0;
+  stubFetch({
+    token: () => {
+      tokenRequests += 1;
+      return Response.json({ accessToken: 'tok', expiresAt: TOKEN_EXP });
+    },
+    esi: (url) => {
+      if (url.includes('/location')) return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
+      if (url.includes('/ship')) return Response.json({ ship_type_id: SHIP_A }, { headers: RL });
+      throw new Error(`unexpected esi ${url}`);
+    },
+  });
+
+  await run(t);
+
+  expect(tokenRequests).toBe(33);
+  expect(calls.map((call) => call.name)).toEqual([
+    'characterLocationReads:syncInputs',
+    'characterLocationApply:finishSync',
+  ]);
+  expect(calls[0]?.args).toEqual({ userId: USER });
+  const finish = finishArgs();
+  expect(finish.generation).toBe(GEN);
+  expect(finish.leases).toHaveLength(33);
+  const leases = await t.run((ctx) => ctx.db.query('characterLocationAccess').collect());
+  expect(leases).toHaveLength(33);
+  expect((await readDoc(t, 133))?.solarSystemId).toBe(SYSTEM_A);
+  const state = await readSyncState(t);
+  expect(state?.syncedCharacterIds).toHaveLength(33);
+  expect(state?.coveredCharacterIds).toHaveLength(33);
+});
+
+test.each([false, true])('drops an old action\'s token after a newer run stores then clears: %s', async (clear) => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  stubFetch({
+    esi: async (url) => {
+      if (url.includes('/location')) {
         await replaceRunLease(t);
-        return new Response(null, { status });
-      },
-    });
-
-    await run(t);
-
-    expect(finishArgs().clearedLeaseCharacterIds).toEqual([101]);
-    expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
-    expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null });
+        if (clear) await t.run((ctx) => clearAccessLeases(ctx, USER, [101]));
+        return new Response(null, { status: 304, headers: RL });
+      }
+      throw new Error(`unexpected esi ${url}`);
+    },
   });
 
-  it('re-vends two expired leases in one batch and keeps both', async () => {
-    const t = await testConvex();
-    await seedSyncState(t);
-    await seedTracking(t, 101);
-    await seedTracking(t, 102);
-    await seedOnline(t, {}, 101);
-    await seedOnline(t, {}, 102);
-    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-a' }, 101);
-    await seedLease(t, { expiresAt: Date.now() - 1, accessToken: 'stale-b' }, 102);
-    stubFetch({
-      esi: (url) => {
-        if (url.includes('/location')) {
-          return Response.json({ solar_system_id: SYSTEM_A }, { headers: RL });
-        }
-        if (url.includes('/ship')) {
-          return Response.json({ ship_type_id: SHIP_A }, { headers: { ...RL, ETag: 'ship1' } });
-        }
-        throw new Error(`unexpected esi ${url}`);
-      },
-    });
+  await run(t);
 
-    await run(t);
+  expect(finishArgs().leases).toEqual([
+    { characterId: 101, accessToken: 'tok', expiresAt: TOKEN_EXP },
+  ]);
+  if (clear) expect(await readLease(t)).toBeNull();
+  else expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
+  expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null, syncedCharacterIds: [] });
+  expect(await readDoc(t)).toBeNull();
+});
 
-    expect(await readLease(t, 101)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect(await readLease(t, 102)).toMatchObject({ accessToken: 'tok', expiresAt: TOKEN_EXP });
-    expect((await readDoc(t, 101))?.solarSystemId).toBe(SYSTEM_A);
-    expect((await readDoc(t, 102))?.solarSystemId).toBe(SYSTEM_A);
+test.each([401, 403])('preserves a newer run token when an old action receives ESI %s', async (status) => {
+  const t = await testConvex();
+  await seedSyncState(t);
+  await seedTracking(t);
+  await seedOnline(t);
+  await seedLease(t);
+  stubFetch({
+    esi: async () => {
+      await replaceRunLease(t);
+      return new Response(null, { status });
+    },
   });
+
+  await run(t);
+
+  expect(finishArgs().clearedLeaseCharacterIds).toEqual([101]);
+  expect(await readLease(t)).toMatchObject({ accessToken: 'new-run-token' });
+  expect(await readSyncState(t)).toMatchObject({ runId: GEN + 1, lastFinishedAt: null });
 });
