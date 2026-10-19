@@ -38,7 +38,7 @@ const MAP_SCANNER_EDITOR_CLASS =
 const MAP_SCANNER_SITE_VIEWER_CLASS =
   `${MAP_SCANNER_ANCHORED_GEOMETRY} lg:w-max`;
 
-interface MapWindowProps {
+export interface MapWindowProps {
   readonly windowId: string;
   readonly title: string;
   readonly titleAccessory?: ReactNode;
