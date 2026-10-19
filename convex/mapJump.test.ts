@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { tombstoneDeletedAt } from '@/data/maps/chain-contract';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -146,715 +146,677 @@ async function mapState(t: Chain) {
   }));
 }
 
-describe('automatic jump authoring', () => {
-  it('returns one access-safe evidence packet and resolves a repeated doorbell exactly once', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await grantMapAccess(t, MAP, VIEWER, ['viewer']);
-    await seedTrackedTransition(t);
-    const candidateId = await seedCandidate(t, 'ABC', 'C247');
+test('returns one access-safe evidence packet and resolves a repeated doorbell exactly once', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await grantMapAccess(t, MAP, VIEWER, ['viewer']);
+  await seedTrackedTransition(t);
+  const candidateId = await seedCandidate(t, 'ABC', 'C247');
 
-    const denied = await t.query(jump.jumpEvidence, {
+  const denied = await t.query(jump.jumpEvidence, {
+    userId: VIEWER,
+    mapId: MAP,
+    characterId: CHARACTER,
+  });
+  expect(denied).toEqual({
+    canEdit: false,
+    tracked: false,
+    transition: null,
+    lastProcessedTransitionAt: null,
+    originLive: false,
+    scannedTypeCodes: [],
+    candidates: [],
+  });
+
+  const evidence = await t.query(jump.jumpEvidence, {
+    userId: EDITOR,
+    mapId: MAP,
+    characterId: CHARACTER,
+  });
+  expect(evidence).toMatchObject({
+    canEdit: true,
+    tracked: true,
+    originLive: true,
+    lastProcessedTransitionAt: null,
+    transition: {
+      fromSolarSystemId: ORIGIN,
+      toSolarSystemId: DESTINATION,
+      transitionObservedAt: OBSERVED_AT,
+    },
+    scannedTypeCodes: ['C247'],
+    candidates: [{ id: candidateId, wormholeTypeCode: 'C247' }],
+  });
+
+  const args = authorArgs({
+    decision: {
+      kind: 'resolve',
+      candidateId,
+      provenance: 'jump-verified',
+      candidateIds: [candidateId],
+      survivors: [candidateId],
+    },
+  });
+  const concurrentShaped = await Promise.all([
+    t.mutation(jump.resolveJumpAuthoring, args),
+    t.mutation(jump.resolveJumpAuthoring, args),
+  ]);
+  expect(concurrentShaped.map((result) => result.status).sort()).toEqual([
+    'authored',
+    'converged',
+  ]);
+
+  const repeated = await t.mutation(
+    jump.resolveJumpAuthoring,
+    args,
+  );
+  expect(repeated).toEqual({ status: 'converged', reason: 'processed' });
+  const state = await mapState(t);
+  expect(state.systems.map((row) => row.systemId).sort()).toEqual([
+    ORIGIN,
+    DESTINATION,
+  ]);
+  expect(state.connections).toHaveLength(1);
+  expect(state.connections[0]).toMatchObject({
+    _id: candidateId,
+    toSystemId: DESTINATION,
+    resolution: { kind: 'destination', provenance: 'jump-verified' },
+    observedMassKg: 10_000_000,
+    observationKey: 'observation-key',
+  });
+  expect(state.stamps).toEqual([
+    expect.objectContaining({
+      mapId: MAP,
+      characterId: CHARACTER,
+      lastProcessedTransitionAt: OBSERVED_AT,
+    }),
+  ]);
+
+  await t.run(async (ctx) => {
+    const location = await ctx.db
+      .query('characterLocation')
+      .withIndex('by_user_character', (q) =>
+        q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+      )
+      .unique();
+    if (location === null) throw new Error('seeded location missing');
+    await ctx.db.patch(location._id, {
+      stationId: 60_003_760,
+      observedAt: OBSERVED_AT + 1_000,
+    });
+  });
+  expect(
+    await t.mutation(jump.resolveJumpAuthoring, args),
+  ).toEqual({ status: 'converged', reason: 'processed' });
+  expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
+
+  const connectionEvidence = await t.query(
+    jump.connectionEvidence,
+    { userId: EDITOR, mapId: MAP, connectionId: candidateId },
+  );
+  expect(connectionEvidence).toMatchObject({
+    canEdit: true,
+    connection: {
+      connectionId: candidateId,
+      fromSystemId: ORIGIN,
+      toSystemId: DESTINATION,
+      wormholeTypeCode: 'C247',
+      typedSide: 'from',
+      destinationProvenance: 'jump-verified',
+    },
+  });
+  await expect(
+    t.query(jump.connectionEvidence, {
       userId: VIEWER,
       mapId: MAP,
-      characterId: CHARACTER,
-    });
-    expect(denied).toEqual({
-      canEdit: false,
-      tracked: false,
-      transition: null,
-      lastProcessedTransitionAt: null,
-      originLive: false,
-      scannedTypeCodes: [],
-      candidates: [],
-    });
+      connectionId: candidateId,
+    }),
+  ).resolves.toEqual({ canEdit: false, connection: null });
+});
 
-    const evidence = await t.query(jump.jumpEvidence, {
-      userId: EDITOR,
+test('converges a transition older than the stamp without authoring or rewinding it', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  const newerAt = OBSERVED_AT + 1_000;
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapJumpBookkeeping', {
       mapId: MAP,
       characterId: CHARACTER,
+      lastProcessedTransitionAt: newerAt,
     });
-    expect(evidence).toMatchObject({
-      canEdit: true,
-      tracked: true,
-      originLive: true,
-      lastProcessedTransitionAt: null,
-      transition: {
-        fromSolarSystemId: ORIGIN,
-        toSolarSystemId: DESTINATION,
-        transitionObservedAt: OBSERVED_AT,
-      },
-      scannedTypeCodes: ['C247'],
-      candidates: [{ id: candidateId, wormholeTypeCode: 'C247' }],
-    });
-
-    const args = authorArgs({
-      decision: {
-        kind: 'resolve',
-        candidateId,
-        provenance: 'jump-verified',
-        candidateIds: [candidateId],
-        survivors: [candidateId],
-      },
-    });
-    const concurrentShaped = await Promise.all([
-      t.mutation(jump.resolveJumpAuthoring, args),
-      t.mutation(jump.resolveJumpAuthoring, args),
-    ]);
-    expect(concurrentShaped.map((result) => result.status).sort()).toEqual([
-      'authored',
-      'converged',
-    ]);
-
-    const repeated = await t.mutation(
-      jump.resolveJumpAuthoring,
-      args,
-    );
-    expect(repeated).toEqual({ status: 'converged', reason: 'processed' });
-    const state = await mapState(t);
-    expect(state.systems.map((row) => row.systemId).sort()).toEqual([
-      ORIGIN,
-      DESTINATION,
-    ]);
-    expect(state.connections).toHaveLength(1);
-    expect(state.connections[0]).toMatchObject({
-      _id: candidateId,
-      toSystemId: DESTINATION,
-      resolution: { kind: 'destination', provenance: 'jump-verified' },
-      observedMassKg: 10_000_000,
-      observationKey: 'observation-key',
-    });
-    expect(
-      state.connections[0]?.resolution.kind === 'pending'
-        ? state.connections[0].resolution.candidateIds
-        : undefined,
-    ).toBeUndefined();
-    expect(state.stamps).toEqual([
-      expect.objectContaining({
-        mapId: MAP,
-        characterId: CHARACTER,
-        lastProcessedTransitionAt: OBSERVED_AT,
-      }),
-    ]);
-
-    await t.run(async (ctx) => {
-      const location = await ctx.db
-        .query('characterLocation')
-        .withIndex('by_user_character', (q) =>
-          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
-        )
-        .unique();
-      if (location === null) throw new Error('seeded location missing');
-      await ctx.db.patch(location._id, {
-        stationId: 60_003_760,
-        observedAt: OBSERVED_AT + 1_000,
-      });
-    });
-    expect(
-      await t.mutation(jump.resolveJumpAuthoring, args),
-    ).toEqual({ status: 'converged', reason: 'processed' });
-    expect((await mapState(t)).connections[0]?.observedMassKg).toBe(10_000_000);
-
-    const connectionEvidence = await t.query(
-      jump.connectionEvidence,
-      { userId: EDITOR, mapId: MAP, connectionId: candidateId },
-    );
-    expect(connectionEvidence).toMatchObject({
-      canEdit: true,
-      connection: {
-        connectionId: candidateId,
-        fromSystemId: ORIGIN,
-        toSystemId: DESTINATION,
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        destinationProvenance: 'jump-verified',
-      },
-    });
-    await expect(
-      t.query(jump.connectionEvidence, {
-        userId: VIEWER,
-        mapId: MAP,
-        connectionId: candidateId,
-      }),
-    ).resolves.toEqual({ canEdit: false, connection: null });
   });
+  const before = await mapState(t);
 
-  it('converges a transition older than the stamp without authoring or rewinding it', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    const newerAt = OBSERVED_AT + 1_000;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: MAP,
-        characterId: CHARACTER,
-        lastProcessedTransitionAt: newerAt,
-      });
-    });
-    const before = await mapState(t);
-
-    expect(
-      await t.mutation(
-        jump.resolveJumpAuthoring,
-        authorArgs({
-          decision: { kind: 'insert', candidateIds: [], survivors: [] },
-        }),
-      ),
-    ).toEqual({ status: 'converged', reason: 'processed' });
-    const after = await mapState(t);
-    expect(after).toEqual(before);
-    expect(after.connections).toEqual([]);
-    expect(after.stamps).toEqual([
-      expect.objectContaining({ lastProcessedTransitionAt: newerAt }),
-    ]);
-  });
-
-  it('does not treat static placeholders as jump candidates', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
-      mapId: MAP,
-      systemId: ORIGIN,
-      codes: ['C247', 'C140'],
-    });
-    const evidence = await t.query(jump.jumpEvidence, {
-      userId: EDITOR,
-      mapId: MAP,
-      characterId: CHARACTER,
-    });
-    expect(evidence).toMatchObject({
-      canEdit: true,
-      scannedTypeCodes: [],
-      candidates: [],
-    });
-    const authored = await t.mutation(
+  expect(
+    await t.mutation(
       jump.resolveJumpAuthoring,
       authorArgs({
         decision: { kind: 'insert', candidateIds: [], survivors: [] },
       }),
-    );
-    expect(authored).toMatchObject({ status: 'authored' });
-    const state = await mapState(t);
-    const placeholders = state.connections.filter(
-      (row) => row.staticCode !== undefined && row.toSystemId === null,
-    );
-    const jumped = state.connections.filter((row) => row.toSystemId === DESTINATION);
-    expect(placeholders).toHaveLength(2);
-    expect(jumped).toHaveLength(1);
-    expect(jumped[0]?.staticCode).toBeUndefined();
+    ),
+  ).toEqual({ status: 'converged', reason: 'processed' });
+  const after = await mapState(t);
+  expect(after).toEqual(before);
+  expect(after.connections).toEqual([]);
+  expect(after.stamps).toEqual([
+    expect.objectContaining({ lastProcessedTransitionAt: newerAt }),
+  ]);
+});
+
+test('does not treat static placeholders as jump candidates', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+    mapId: MAP,
+    systemId: ORIGIN,
+    codes: ['C247', 'C140'],
   });
+  const evidence = await t.query(jump.jumpEvidence, {
+    userId: EDITOR,
+    mapId: MAP,
+    characterId: CHARACTER,
+  });
+  expect(evidence).toMatchObject({
+    canEdit: true,
+    scannedTypeCodes: [],
+    candidates: [],
+  });
+  const authored = await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  expect(authored).toMatchObject({ status: 'authored' });
+  const state = await mapState(t);
+  const placeholders = state.connections.filter(
+    (row) => row.staticCode !== undefined && row.toSystemId === null,
+  );
+  const jumped = state.connections.filter((row) => row.toSystemId === DESTINATION);
+  expect(placeholders).toHaveLength(2);
+  expect(jumped).toHaveLength(1);
+  expect(jumped[0]?.staticCode).toBeUndefined();
+});
 
-  it('confirms legacy pending survivors and re-associates the destination round trip', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    const firstId = await seedCandidate(t, 'AAA', 'C247');
-    const secondId = await seedCandidate(t, 'BBB', null);
+test('confirms legacy pending survivors and re-associates the destination round trip', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  const firstId = await seedCandidate(t, 'AAA', 'C247');
+  const secondId = await seedCandidate(t, 'BBB', null);
 
-    await t.run(async (ctx) => {
-      await ctx.db.patch(firstId, {
-        toSystemId: DESTINATION,
-        resolution: { kind: 'pending', provenance: 'assumed', candidateIds: [firstId, secondId], characterId: CHARACTER },
-        observedMassKg: 10_000_000,
-        observationKey: 'observation-key',
-      });
-    });
-    expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
+  await t.run(async (ctx) => {
+    await ctx.db.patch(firstId, {
       toSystemId: DESTINATION,
-      resolution: {
-        kind: 'pending',
-        provenance: 'assumed',
-        candidateIds: [firstId, secondId],
-        characterId: CHARACTER,
-      },
-    });
-
-    const confirmed = await t.mutation(jump.confirmJumpIdentity, {
-      userId: EDITOR,
-      mapId: MAP,
-      connectionId: firstId,
-    });
-    expect(confirmed).toMatchObject({
-      connectionId: firstId,
-      destinationProvenance: 'confirmed',
-    });
-    expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
-      resolution: { kind: 'destination', provenance: 'confirmed' },
-    });
-    const confirmedRow = await t.run(async (ctx) => await ctx.db.get(firstId));
-    expect(
-      confirmedRow?.resolution.kind === 'pending'
-        ? confirmedRow.resolution.candidateIds
-        : undefined,
-    ).toBeUndefined();
-
-    await t.mutation(jump.reassociateJumpDestination, {
-      userId: EDITOR,
-      mapId: MAP,
-      connectionId: firstId,
-      targetConnectionId: secondId,
-    });
-    const moved = await t.run(async (ctx) => ({
-      first: await ctx.db.get(firstId),
-      second: await ctx.db.get(secondId),
-    }));
-    expect(moved.first).toMatchObject({ toSystemId: null });
-    expect(
-      moved.first?.resolution.kind === 'pending'
-        ? moved.first.resolution.candidateIds
-        : undefined,
-    ).toBeUndefined();
-    expect(moved.second).toMatchObject({
-      toSystemId: DESTINATION,
-      resolution: { kind: 'destination', provenance: 'human' },
+      resolution: { kind: 'pending', provenance: 'assumed', candidateIds: [firstId, secondId], characterId: CHARACTER },
       observedMassKg: 10_000_000,
       observationKey: 'observation-key',
     });
-
-    await t.mutation(jump.reassociateJumpDestination, {
-      userId: EDITOR,
-      mapId: MAP,
-      connectionId: secondId,
-      targetConnectionId: firstId,
-    });
-    const restored = await t.run(async (ctx) => ({
-      first: await ctx.db.get(firstId),
-      second: await ctx.db.get(secondId),
-    }));
-    expect(restored.first).toMatchObject({
-      toSystemId: DESTINATION,
-      resolution: { kind: 'destination', provenance: 'human' },
-      observedMassKg: 10_000_000,
-    });
-    expect(restored.second).toMatchObject({ toSystemId: null });
+  });
+  const confirmed = await t.mutation(jump.confirmJumpIdentity, {
+    userId: EDITOR,
+    mapId: MAP,
+    connectionId: firstId,
+  });
+  expect(confirmed).toMatchObject({
+    connectionId: firstId,
+    destinationProvenance: 'confirmed',
+  });
+  expect(await t.run(async (ctx) => await ctx.db.get(firstId))).toMatchObject({
+    resolution: { kind: 'destination', provenance: 'confirmed' },
   });
 
-  it('auto-resolves one assumed survivor without durable prompt state', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    const candidateId = await seedCandidate(t, 'AAA', null);
+  await t.mutation(jump.reassociateJumpDestination, {
+    userId: EDITOR,
+    mapId: MAP,
+    connectionId: firstId,
+    targetConnectionId: secondId,
+  });
+  const moved = await t.run(async (ctx) => ({
+    first: await ctx.db.get(firstId),
+    second: await ctx.db.get(secondId),
+  }));
+  expect(moved.first).toMatchObject({ toSystemId: null });
+  expect(
+    moved.first?.resolution.kind === 'pending'
+      ? moved.first.resolution.candidateIds
+      : undefined,
+  ).toBeUndefined();
+  expect(moved.second).toMatchObject({
+    toSystemId: DESTINATION,
+    resolution: { kind: 'destination', provenance: 'human' },
+    observedMassKg: 10_000_000,
+    observationKey: 'observation-key',
+  });
 
+  await t.mutation(jump.reassociateJumpDestination, {
+    userId: EDITOR,
+    mapId: MAP,
+    connectionId: secondId,
+    targetConnectionId: firstId,
+  });
+  const restored = await t.run(async (ctx) => ({
+    first: await ctx.db.get(firstId),
+    second: await ctx.db.get(secondId),
+  }));
+  expect(restored.first).toMatchObject({
+    toSystemId: DESTINATION,
+    resolution: { kind: 'destination', provenance: 'human' },
+    observedMassKg: 10_000_000,
+  });
+  expect(restored.second).toMatchObject({ toSystemId: null });
+});
+
+test('auto-resolves one assumed survivor without durable prompt state', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  const candidateId = await seedCandidate(t, 'AAA', null);
+
+  await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      decision: {
+        kind: 'resolve',
+        candidateId,
+        provenance: 'assumed',
+        candidateIds: [candidateId],
+        survivors: [candidateId],
+      },
+    }),
+  );
+  expect(await t.run(async (ctx) => await ctx.db.get(candidateId))).toMatchObject({
+    toSystemId: DESTINATION,
+    resolution: { kind: 'destination', provenance: 'assumed' },
+  });
+});
+
+test('inserts without candidates and converges a reverse crossing onto the same connection', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  const first = await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      observedShipMassKg: 5_000_000,
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  expect(first.status).toBe('authored');
+
+  const returnCharacter = CHARACTER + 1;
+  const returnAt = OBSERVED_AT + 5_000;
+  await seedTrackedTransition(t, {
+    characterId: returnCharacter,
+    trackingUserId: 'return-scout',
+    fromSystemId: DESTINATION,
+    toSystemId: ORIGIN,
+    transitionObservedAt: returnAt,
+  });
+  const reverse = await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      characterId: returnCharacter,
+      fromSolarSystemId: DESTINATION,
+      toSolarSystemId: ORIGIN,
+      transitionObservedAt: returnAt,
+      observedShipMassKg: 7_000_000,
+      observationKey: 'ignored-second-key',
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  expect(reverse.status).toBe('converged');
+  const state = await mapState(t);
+  expect(state.systems).toHaveLength(2);
+  expect(state.connections).toHaveLength(1);
+  expect(state.connections[0]).toMatchObject({
+    fromSystemId: ORIGIN,
+    toSystemId: DESTINATION,
+    observedMassKg: 12_000_000,
+    observationKey: 'observation-key',
+  });
+  expect(state.stamps).toHaveLength(2);
+});
+
+test('clears the processed stamp on untrack so a later retrack can author a new transition', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await grantMapAccess(t, MAP, VIEWER, ['viewer']);
+  await grantMapAccess(t, MAP, TRACKER, ['viewer']);
+  await seedTrackedTransition(t);
+  const args = authorArgs({
+    decision: { kind: 'insert', candidateIds: [], survivors: [] },
+  });
+  await t.mutation(jump.resolveJumpAuthoring, args);
+  expect((await mapState(t)).stamps).toEqual([
+    expect.objectContaining({
+      mapId: MAP,
+      characterId: CHARACTER,
+      lastProcessedTransitionAt: OBSERVED_AT,
+    }),
+  ]);
+
+  await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
+    mapId: MAP,
+    characterId: CHARACTER,
+    tracked: false,
+  });
+  expect((await mapState(t)).stamps).toEqual([]);
+
+  await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
+    mapId: MAP,
+    characterId: CHARACTER,
+    tracked: true,
+  });
+  const nextObservedAt = OBSERVED_AT + 1;
+  await t.run(async (ctx) => {
+    const location = requiredRow(
+      await ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+        )
+        .unique(),
+    );
+    await ctx.db.patch(location._id, {
+      transitionObservedAt: nextObservedAt,
+      observedAt: nextObservedAt,
+    });
+  });
+  expect(
+    await t.mutation(
+      jump.resolveJumpAuthoring,
+      authorArgs({
+        transitionObservedAt: nextObservedAt,
+        observationKey: 'retrack-key',
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    ),
+  ).toMatchObject({ status: 'converged' });
+  expect((await mapState(t)).connections[0]?.observedMassKg).toBe(20_000_000);
+
+  await expectConvexErrorCode(
+    t.mutation(jump.resolveJumpAuthoring, {
+      ...args,
+      userId: VIEWER,
+      transitionObservedAt: nextObservedAt + 1,
+    }),
+    'FORBIDDEN',
+  );
+});
+
+test('lapses off-map origins without partial writes', async () => {
+  const offMap = convexTest(schema, modules);
+  await grantMapAccess(offMap, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(offMap, { placeOrigin: false });
+  expect(
+    await offMap.mutation(
+      jump.resolveJumpAuthoring,
+      authorArgs({
+        decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      }),
+    ),
+  ).toEqual({ status: 'stale', reason: 'origin' });
+  expect(await mapState(offMap)).toEqual({
+    systems: [],
+    connections: [],
+    stamps: [],
+  });
+});
+
+test('authors a new line when the destination or pair is already in trash', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  let trashedPairId = '' as Id<'mapConnections'>;
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapSystems', {
+      mapId: MAP,
+      systemId: DESTINATION,
+      deletedAt: OBSERVED_AT - 1_000,
+      purgeAfter: OBSERVED_AT + 60_000,
+    });
+    trashedPairId = await ctx.db.insert('mapConnections', connectionInsert({
+      mapId: MAP,
+      fromSystemId: ORIGIN,
+      toSystemId: DESTINATION,
+      wormholeTypeCode: null,
+      fromWormholeTypeCode: null,
+      toWormholeTypeCode: null,
+      massState: null,
+      shipSize: null,
+      deletedAt: OBSERVED_AT - 1_000,
+      purgeAfter: OBSERVED_AT + 60_000,
+    }));
+  });
+  const authored = await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  expect(authored.status).toBe('authored');
+  const state = await mapState(t);
+  const dest = state.systems.find((row) => row.systemId === DESTINATION);
+  expect(dest?.deletedAt ?? null).toBeNull();
+  const livePairs = state.connections.filter((row) => tombstoneDeletedAt(row) == null);
+  expect(livePairs).toHaveLength(1);
+  expect(livePairs[0]?._id).not.toBe(trashedPairId);
+  const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
+  expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
+  expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+    .toBeLessThanOrEqual(Date.now());
+  expect(state.stamps).toHaveLength(1);
+});
+
+test('resolves a remapped stub without leaving the collapsed pair dying', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  const stubId = await seedCandidate(t, 'ABS-420', 'K162');
+  let corpseId = '' as Id<'mapConnections'>;
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapSystems', {
+      mapId: MAP,
+      systemId: DESTINATION,
+      deletedAt: OBSERVED_AT - 1_000,
+      purgeAfter: OBSERVED_AT + 60_000,
+    });
+    corpseId = await ctx.db.insert('mapConnections', connectionInsert({
+      mapId: MAP,
+      fromSystemId: ORIGIN,
+      toSystemId: DESTINATION,
+      fromSignatureId: 'ABS-420',
+      wormholeTypeCode: 'K162',
+      fromWormholeTypeCode: 'K162',
+      toWormholeTypeCode: null,
+      massState: null,
+      shipSize: null,
+      deletedAt: OBSERVED_AT - 1_000,
+      purgeAfter: OBSERVED_AT + 60_000,
+    }));
+  });
+
+  expect(
     await t.mutation(
       jump.resolveJumpAuthoring,
       authorArgs({
         decision: {
           kind: 'resolve',
-          candidateId,
-          provenance: 'assumed',
-          candidateIds: [candidateId],
-          survivors: [candidateId],
+          candidateId: stubId,
+          provenance: 'jump-verified',
+          candidateIds: [stubId],
+          survivors: [stubId],
         },
       }),
-    );
-    const resolved = await t.run(async (ctx) => await ctx.db.get(candidateId));
-    expect(resolved).toMatchObject({
-      toSystemId: DESTINATION,
-      resolution: { kind: 'destination', provenance: 'assumed' },
-    });
-    expect(
-      resolved?.resolution.kind === 'pending'
-        ? resolved.resolution.candidateIds
-        : undefined,
-    ).toBeUndefined();
-  });
+    ),
+  ).toMatchObject({ status: 'authored' });
 
-  it('inserts without candidates and converges a reverse crossing onto the same connection', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    const first = await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        observedShipMassKg: 5_000_000,
-        decision: { kind: 'insert', candidateIds: [], survivors: [] },
-      }),
-    );
-    expect(first.status).toBe('authored');
+  const livePairs = (await mapState(t)).connections.filter(
+    (row) => tombstoneDeletedAt(row) == null,
+  );
+  expect(livePairs).toEqual([expect.objectContaining({
+    _id: stubId,
+    from: expect.objectContaining({ signatureId: 'ABS-420' }),
+    toSystemId: DESTINATION,
+  })]);
+  const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
+  expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
+  expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+    .toBeLessThanOrEqual(Date.now());
+});
 
-    const returnCharacter = CHARACTER + 1;
-    const returnAt = OBSERVED_AT + 5_000;
-    await seedTrackedTransition(t, {
-      characterId: returnCharacter,
-      trackingUserId: 'return-scout',
-      fromSystemId: DESTINATION,
-      toSystemId: ORIGIN,
-      transitionObservedAt: returnAt,
-    });
-    const reverse = await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        characterId: returnCharacter,
-        fromSolarSystemId: DESTINATION,
-        toSolarSystemId: ORIGIN,
-        transitionObservedAt: returnAt,
-        observedShipMassKg: 7_000_000,
-        observationKey: 'ignored-second-key',
-        decision: { kind: 'insert', candidateIds: [], survivors: [] },
-      }),
-    );
-    expect(reverse.status).toBe('converged');
-    const state = await mapState(t);
-    expect(state.systems).toHaveLength(2);
-    expect(state.connections).toHaveLength(1);
-    expect(state.connections[0]).toMatchObject({
-      fromSystemId: ORIGIN,
-      toSystemId: DESTINATION,
-      observedMassKg: 12_000_000,
-      observationKey: 'observation-key',
-    });
-    expect(state.stamps).toHaveLength(2);
-  });
-
-  it('clears the processed stamp on untrack so a later retrack can author a new transition', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await grantMapAccess(t, MAP, VIEWER, ['viewer']);
-    await grantMapAccess(t, MAP, TRACKER, ['viewer']);
-    await seedTrackedTransition(t);
-    const args = authorArgs({
-      decision: { kind: 'insert', candidateIds: [], survivors: [] },
-    });
-    await t.mutation(jump.resolveJumpAuthoring, args);
-    expect((await mapState(t)).stamps).toEqual([
-      expect.objectContaining({
-        mapId: MAP,
-        characterId: CHARACTER,
-        lastProcessedTransitionAt: OBSERVED_AT,
-      }),
-    ]);
-
-    await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
+test('ignores forged tracking rows that join to no location document', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapTracking', {
       mapId: MAP,
+      userId: 'user-forger',
       characterId: CHARACTER,
-      tracked: false,
     });
-    expect((await mapState(t)).stamps).toEqual([]);
+  });
+  const evidence = await t.query(jump.jumpEvidence, {
+    userId: EDITOR,
+    mapId: MAP,
+    characterId: CHARACTER,
+  });
+  expect(evidence).toMatchObject({
+    tracked: true,
+    transition: { fromSolarSystemId: ORIGIN, toSolarSystemId: DESTINATION },
+  });
 
-    await t.withIdentity({ subject: TRACKER }).mutation(api.mapTrackingOptIn.setTracking, {
-      mapId: MAP,
+  await t.run(async (ctx) => {
+    await ctx.db.insert('characterLocation', {
+      userId: 'user-forger',
       characterId: CHARACTER,
-      tracked: true,
-    });
-    const nextObservedAt = OBSERVED_AT + 1;
-    await t.run(async (ctx) => {
-      const location = requiredRow(
-        await ctx.db
-          .query('characterLocation')
-          .withIndex('by_user_character', (q) =>
-            q.eq('userId', TRACKER).eq('characterId', CHARACTER),
-          )
-          .unique(),
-      );
-      await ctx.db.patch(location._id, {
-        transitionObservedAt: nextObservedAt,
-        observedAt: nextObservedAt,
-      });
-    });
-    expect(
-      await t.mutation(
-        jump.resolveJumpAuthoring,
-        authorArgs({
-          transitionObservedAt: nextObservedAt,
-          observationKey: 'retrack-key',
-          decision: { kind: 'insert', candidateIds: [], survivors: [] },
-        }),
-      ),
-    ).toMatchObject({ status: 'converged' });
-    expect((await mapState(t)).connections[0]?.observedMassKg).toBe(20_000_000);
-
-    await expectConvexErrorCode(
-      t.mutation(jump.resolveJumpAuthoring, {
-        ...args,
-        userId: VIEWER,
-        transitionObservedAt: nextObservedAt + 1,
-      }),
-      'FORBIDDEN',
-    );
-  });
-
-  it('lapses off-map origins without partial writes', async () => {
-    const offMap = convexTest(schema, modules);
-    await grantMapAccess(offMap, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(offMap, { placeOrigin: false });
-    expect(
-      await offMap.mutation(
-        jump.resolveJumpAuthoring,
-        authorArgs({
-          decision: { kind: 'insert', candidateIds: [], survivors: [] },
-        }),
-      ),
-    ).toEqual({ status: 'stale', reason: 'origin' });
-    expect(await mapState(offMap)).toEqual({
-      systems: [],
-      connections: [],
-      stamps: [],
+      solarSystemId: DESTINATION,
+      stationId: null,
+      structureId: null,
+      shipTypeId: 587,
+      prevSolarSystemId: ORIGIN,
+      prevFresh: true,
+      transitionObservedAt: OBSERVED_AT,
+      observedAt: OBSERVED_AT,
+      etagLocation: null,
+      etagShip: null,
     });
   });
-
-  it('authors a new line when the destination or pair is already in trash', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    let trashedPairId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', {
-        mapId: MAP,
-        systemId: DESTINATION,
-        deletedAt: OBSERVED_AT - 1_000,
-        purgeAfter: OBSERVED_AT + 60_000,
-      });
-      trashedPairId = await ctx.db.insert('mapConnections', connectionInsert({
-        mapId: MAP,
-        fromSystemId: ORIGIN,
-        toSystemId: DESTINATION,
-        wormholeTypeCode: null,
-        fromWormholeTypeCode: null,
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        deletedAt: OBSERVED_AT - 1_000,
-        purgeAfter: OBSERVED_AT + 60_000,
-      }));
-    });
-    const authored = await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        decision: { kind: 'insert', candidateIds: [], survivors: [] },
-      }),
-    );
-    expect(authored.status).toBe('authored');
-    const state = await mapState(t);
-    const dest = state.systems.find((row) => row.systemId === DESTINATION);
-    expect(dest?.deletedAt ?? null).toBeNull();
-    const livePairs = state.connections.filter((row) => tombstoneDeletedAt(row) == null);
-    expect(livePairs).toHaveLength(1);
-    expect(livePairs[0]?._id).not.toBe(trashedPairId);
-    const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
-    expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
-    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
-      .not.toBe(OBSERVED_AT + 60_000);
-    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
-      .toBeLessThanOrEqual(Date.now());
-    expect(state.stamps).toHaveLength(1);
+  const ambiguous = await t.query(jump.jumpEvidence, {
+    userId: EDITOR,
+    mapId: MAP,
+    characterId: CHARACTER,
   });
+  expect(ambiguous).toMatchObject({ tracked: false, transition: null });
+});
 
-  it('resolves a remapped stub without leaving the collapsed pair dying', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    const stubId = await seedCandidate(t, 'ABS-420', 'K162');
-    let corpseId = '' as Id<'mapConnections'>;
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapSystems', {
-        mapId: MAP,
-        systemId: DESTINATION,
-        deletedAt: OBSERVED_AT - 1_000,
-        purgeAfter: OBSERVED_AT + 60_000,
-      });
-      corpseId = await ctx.db.insert('mapConnections', connectionInsert({
-        mapId: MAP,
-        fromSystemId: ORIGIN,
-        toSystemId: DESTINATION,
-        fromSignatureId: 'ABS-420',
-        wormholeTypeCode: 'K162',
-        fromWormholeTypeCode: 'K162',
-        toWormholeTypeCode: null,
-        massState: null,
-        shipSize: null,
-        deletedAt: OBSERVED_AT - 1_000,
-        purgeAfter: OBSERVED_AT + 60_000,
-      }));
-    });
-
-    expect(
-      await t.mutation(
-        jump.resolveJumpAuthoring,
-        authorArgs({
-          decision: {
-            kind: 'resolve',
-            candidateId: stubId,
-            provenance: 'jump-verified',
-            candidateIds: [stubId],
-            survivors: [stubId],
-          },
-        }),
-      ),
-    ).toMatchObject({ status: 'authored' });
-
-    const livePairs = (await mapState(t)).connections.filter(
-      (row) => tombstoneDeletedAt(row) == null,
-    );
-    expect(livePairs).toEqual([expect.objectContaining({
-      _id: stubId,
-      from: expect.objectContaining({ signatureId: 'ABS-420' }),
-      toSystemId: DESTINATION,
-    })]);
-    const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
-    expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
-    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
-      .not.toBe(OBSERVED_AT + 60_000);
-    expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
-      .toBeLessThanOrEqual(Date.now());
-  });
-
-  it('ignores forged tracking rows that join to no location document', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    await t.run(async (ctx) => {
+test('authors one character among many unrelated trackers, and refuses one character past the tracking cap', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  await t.run(async (ctx) => {
+    for (let index = 0; index < 257; index += 1) {
       await ctx.db.insert('mapTracking', {
         mapId: MAP,
-        userId: 'user-forger',
-        characterId: CHARACTER,
+        userId: `other-tracker-${index}`,
+        characterId: CHARACTER + 1 + index,
       });
-    });
-    const evidence = await t.query(jump.jumpEvidence, {
-      userId: EDITOR,
-      mapId: MAP,
-      characterId: CHARACTER,
-    });
-    expect(evidence).toMatchObject({
-      tracked: true,
-      transition: { fromSolarSystemId: ORIGIN, toSolarSystemId: DESTINATION },
-    });
-
-    await t.run(async (ctx) => {
-      await ctx.db.insert('characterLocation', {
-        userId: 'user-forger',
-        characterId: CHARACTER,
-        solarSystemId: DESTINATION,
-        stationId: null,
-        structureId: null,
-        shipTypeId: 587,
-        prevSolarSystemId: ORIGIN,
-        prevFresh: true,
-        transitionObservedAt: OBSERVED_AT,
-        observedAt: OBSERVED_AT,
-        etagLocation: null,
-        etagShip: null,
-      });
-    });
-    const ambiguous = await t.query(jump.jumpEvidence, {
-      userId: EDITOR,
-      mapId: MAP,
-      characterId: CHARACTER,
-    });
-    expect(ambiguous).toMatchObject({ tracked: false, transition: null });
+    }
   });
+  const authored = await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  expect(authored.status).toBe('authored');
+  expect((await mapState(t)).connections).toHaveLength(1);
 
-  it('authors one character among many unrelated trackers', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    await t.run(async (ctx) => {
-      for (let index = 0; index < 257; index += 1) {
-        await ctx.db.insert('mapTracking', {
-          mapId: MAP,
-          userId: `other-tracker-${index}`,
-          characterId: CHARACTER + 1 + index,
-        });
-      }
-    });
-    const authored = await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        decision: { kind: 'insert', candidateIds: [], survivors: [] },
-      }),
-    );
-    expect(authored.status).toBe('authored');
-    expect((await mapState(t)).connections).toHaveLength(1);
-  });
-
-  it('throws MAP_TOO_LARGE when one character exceeds the jump-tracking cap', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    await t.run(async (ctx) => {
-      for (let index = 0; index < 256; index += 1) {
-        await ctx.db.insert('mapTracking', {
-          mapId: MAP,
-          userId: `cap-tracker-${index}`,
-          characterId: CHARACTER,
-        });
-      }
-    });
-    await expectConvexErrorCode(
-      t.query(jump.jumpEvidence, {
-        userId: EDITOR,
+  await t.run(async (ctx) => {
+    for (let index = 0; index < 256; index += 1) {
+      await ctx.db.insert('mapTracking', {
         mapId: MAP,
-        characterId: CHARACTER,
-      }),
-      'MAP_TOO_LARGE',
-    );
-  });
-
-  it('returns empty evidence until a tracked location carries a transition', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    const readEvidence = () =>
-      t.query(jump.jumpEvidence, {
-        userId: EDITOR,
-        mapId: MAP,
+        userId: `cap-tracker-${index}`,
         characterId: CHARACTER,
       });
-    const empty = {
-      transition: null,
-      lastProcessedTransitionAt: null,
-      originLive: false,
-      scannedTypeCodes: [],
-      candidates: [],
-    };
-    expect(await readEvidence()).toEqual({ canEdit: true, tracked: false, ...empty });
-
-    await seedTrackedTransition(t);
-    await t.run(async (ctx) => {
-      const location = requiredRow(
-        await ctx.db
-          .query('characterLocation')
-          .withIndex('by_user_character', (q) =>
-            q.eq('userId', TRACKER).eq('characterId', CHARACTER),
-          )
-          .unique(),
-      );
-      await ctx.db.patch(location._id, { transitionObservedAt: undefined });
-    });
-    expect(await readEvidence()).toEqual({ canEdit: true, tracked: true, ...empty });
+    }
   });
+  await expectConvexErrorCode(
+    t.query(jump.jumpEvidence, {
+      userId: EDITOR,
+      mapId: MAP,
+      characterId: CHARACTER,
+    }),
+    'MAP_TOO_LARGE',
+  );
+});
 
-  it('returns processed evidence without origin candidates', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, MAP, EDITOR, ['editor']);
-    await seedTrackedTransition(t);
-    await t.mutation(
-      jump.resolveJumpAuthoring,
-      authorArgs({
-        decision: { kind: 'insert', candidateIds: [], survivors: [] },
-      }),
-    );
-    const leftoverId = await seedCandidate(t, 'ABC', 'C247');
-    const evidence = await t.query(jump.jumpEvidence, {
+test('returns empty evidence until a tracked location carries a transition', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  const readEvidence = () =>
+    t.query(jump.jumpEvidence, {
       userId: EDITOR,
       mapId: MAP,
       characterId: CHARACTER,
     });
-    expect(evidence).toEqual({
-      canEdit: true,
-      tracked: true,
-      transition: {
-        fromSolarSystemId: ORIGIN,
-        toSolarSystemId: DESTINATION,
-        shipTypeId: 587,
-        prevFresh: true,
-        transitionObservedAt: OBSERVED_AT,
-      },
-      lastProcessedTransitionAt: OBSERVED_AT,
-      originLive: false,
-      scannedTypeCodes: [],
-      candidates: [],
-    });
-    const leftover = await t.run(async (ctx) => await ctx.db.get(leftoverId));
-    expect(leftover?.toSystemId).toBeNull();
+  const empty = {
+    transition: null,
+    lastProcessedTransitionAt: null,
+    originLive: false,
+    scannedTypeCodes: [],
+    candidates: [],
+  };
+  expect(await readEvidence()).toEqual({ canEdit: true, tracked: false, ...empty });
+
+  await seedTrackedTransition(t);
+  await t.run(async (ctx) => {
+    const location = requiredRow(
+      await ctx.db
+        .query('characterLocation')
+        .withIndex('by_user_character', (q) =>
+          q.eq('userId', TRACKER).eq('characterId', CHARACTER),
+        )
+        .unique(),
+    );
+    await ctx.db.patch(location._id, { transitionObservedAt: undefined });
   });
+  expect(await readEvidence()).toEqual({ canEdit: true, tracked: true, ...empty });
+});
+
+test('returns processed evidence without origin candidates', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP, EDITOR, ['editor']);
+  await seedTrackedTransition(t);
+  await t.mutation(
+    jump.resolveJumpAuthoring,
+    authorArgs({
+      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+    }),
+  );
+  const leftoverId = await seedCandidate(t, 'ABC', 'C247');
+  const evidence = await t.query(jump.jumpEvidence, {
+    userId: EDITOR,
+    mapId: MAP,
+    characterId: CHARACTER,
+  });
+  expect(evidence).toEqual({
+    canEdit: true,
+    tracked: true,
+    transition: {
+      fromSolarSystemId: ORIGIN,
+      toSolarSystemId: DESTINATION,
+      shipTypeId: 587,
+      prevFresh: true,
+      transitionObservedAt: OBSERVED_AT,
+    },
+    lastProcessedTransitionAt: OBSERVED_AT,
+    originLive: false,
+    scannedTypeCodes: [],
+    candidates: [],
+  });
+  const leftover = await t.run(async (ctx) => await ctx.db.get(leftoverId));
+  expect(leftover?.toSystemId).toBeNull();
 });

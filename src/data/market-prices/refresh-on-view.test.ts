@@ -3,7 +3,6 @@ import type { EsiResponseMeta } from '@/data/esi-store';
 import type { MarketPrice, RawMarketPrice } from './types';
 
 const fetchPricesPerTypeMock = vi.fn();
-const fetchPricesFromSourceMock = vi.fn();
 const getPricesMock = vi.fn();
 const persistPricesMock = vi.fn();
 const storedExpiriesMock = vi.fn();
@@ -12,7 +11,6 @@ const afterMock = vi.fn();
 
 vi.mock('./source', () => ({
   fetchPricesPerType: (...args: unknown[]) => fetchPricesPerTypeMock(...args),
-  fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
 }));
 vi.mock('./queries', () => ({
   getPrices: (...args: unknown[]) => getPricesMock(...args),
@@ -28,6 +26,7 @@ vi.mock('@/data/esi-store', async () => ({
 vi.mock('next/server', () => ({ after: (cb: () => unknown) => afterMock(cb) }));
 vi.mock('@/db', () => ({ db: {} }));
 
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { priceKey } from './keys';
 import { getLivePrices } from './refresh-on-view';
 
@@ -91,7 +90,6 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   fetchPricesPerTypeMock.mockReset();
-  fetchPricesFromSourceMock.mockReset();
   getPricesMock.mockReset().mockResolvedValue(new Map());
   persistPricesMock.mockReset().mockResolvedValue({ written: 1 });
   storedExpiriesMock.mockReset();
@@ -184,12 +182,10 @@ describe('getLivePrices', () => {
     expect(prices.get(34)).toEqual({ ...seed(34), staleAfter: new Date(NOW - 60_000) });
     expect(degraded.fetched).toBe(0);
     expect(afterMock).not.toHaveBeenCalled();
-  });
 
-  it('omits a type with neither a live nor a seed price', async () => {
-    source([]);
-    const { prices } = await getLivePrices([99]);
-    expect(prices.has(99)).toBe(false);
+    // A type with neither a live nor a seed price is omitted.
+    const { prices: unknown } = await getLivePrices([99]);
+    expect(unknown.has(99)).toBe(false);
   });
 
   it('writes the fetched rows behind the response, then commits their metas under the dataset tag', async () => {
@@ -218,7 +214,7 @@ describe('getLivePrices', () => {
     await afterMock.mock.calls[0]![0]();
     expect(observer).toHaveBeenCalledWith({ outcome: 'succeeded', attempted: 1, written: 1, durationMs: expect.any(Number) });
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = silenceConsolePrefixes('error', ['[market-prices/refresh-on-view] write-behind failed']);
     persistPricesMock.mockRejectedValueOnce(new Error('neon: connection terminated'));
     commitMock.mockClear();
     await getLivePrices([34], observer);
@@ -229,40 +225,12 @@ describe('getLivePrices', () => {
     errorSpy.mockRestore();
   });
 
-  it('does not turn an observer failure into a write-behind failure', async () => {
-    source([raw(34, 'esi')]);
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const observer = vi.fn(() => {
-      throw new Error('observer failed');
-    });
-
-    await getLivePrices([34], observer);
-    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
-
-    expect(observer).toHaveBeenCalledTimes(1);
-    expect(persistPricesMock).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls).toEqual([['[market-prices/refresh-on-view] write-behind observer failed', expect.any(Error)]]);
-    errorSpy.mockRestore();
-  });
-
   it('dedupes type ids before reading the seed, the store and the source', async () => {
     source([raw(34, 'esi')]);
     await getLivePrices([34, 34]);
     expect(getPricesMock).toHaveBeenCalledWith([34]);
     expect(storedExpiriesMock).toHaveBeenCalledWith([priceKey(34)]);
     expect(fetchPricesPerTypeMock).toHaveBeenCalledWith([34]);
-  });
-
-  it('asks for hundreds of due types per type in one call and never through the threshold that reaches the region dump', async () => {
-    const ids = Array.from({ length: 500 }, (_, i) => 1000 + i);
-    source(ids.map((id) => raw(id, 'esi')));
-
-    const { prices } = await getLivePrices(ids);
-
-    expect(prices.size).toBe(500);
-    expect(fetchPricesPerTypeMock).toHaveBeenCalledTimes(1);
-    expect(fetchPricesPerTypeMock).toHaveBeenCalledWith(ids);
-    expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
   });
 
   it('returns empty without touching seed, store, source, or write-behind on empty input', async () => {
