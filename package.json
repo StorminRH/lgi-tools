@@ -62,9 +62,9 @@
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
-    "@neondatabase/serverless": "^1.1.0",
-    "@upstash/ratelimit": "^2.0.8",
-    "@upstash/redis": "^1.38.3",
+    "@neondatabase/serverless": "^1.2.0",
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.39.0",
     "@vercel/speed-insights": "^2.0.0",
     "@visx/event": "^4.0.0",
     "@visx/scale": "^4.0.0",
@@ -76,9 +76,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.46.0",
-    "drizzle-orm": "^0.45.3",
+    "drizzle-orm": "^0.45.4",
     "fuzzysort": "4.0.2",
-    "google-auth-library": "^11.1.0",
+    "google-auth-library": "^11.2.0",
     "jose": "^6.2.12",
     "next": "16.4.0",
     "postgres": "^3.4.9",
@@ -88,7 +88,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "yauzl": "^3.4.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
@@ -100,9 +100,9 @@
     "@types/react-dom": "19.3.0",
     "@types/yauzl": "^3.4.0",
     "@vitest/coverage-istanbul": "5.0.3",
-    "concurrently": "^10.0.5",
+    "concurrently": "^10.0.6",
     "convex-test": "0.0.56",
-    "dotenv": "^18.0.5",
+    "dotenv": "^18.0.7",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.0",
@@ -110,8 +110,8 @@
     "fallow": "3.31.0",
     "playwright": "1.63.0",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.13",
-    "typescript": "^5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
     "vitest": "5.0.3"
   },
   "pnpm": {
