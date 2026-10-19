@@ -1,5 +1,5 @@
 import { BetterAuthError } from 'better-auth';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 
@@ -44,69 +44,53 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('industryCharacters', () => {
-  it('is null for a signed-out viewer, without touching the DB', async () => {
-    getSessionMock.mockResolvedValue(null);
-    expect(await industryCharacters()).toBeNull();
-    expect(listLinkedCharactersMock).not.toHaveBeenCalled();
-  });
-
-  it('is null when auth is not set up locally, and fails loudly when it is', async () => {
-    vi.stubEnv('BETTER_AUTH_SECRET', undefined);
-    vi.stubEnv('SESSION_SECRET', undefined);
-    getSessionMock.mockRejectedValue(new BetterAuthError('BETTER_AUTH_SECRET is missing'));
-    expect(await industryCharacters()).toBeNull();
-
-    vi.stubEnv('BETTER_AUTH_SECRET', 'a-real-prod-secret');
-    await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
-
-    vi.stubEnv('BETTER_AUTH_SECRET', '');
-    vi.stubEnv('SESSION_SECRET', 'a-real-session-secret');
-    await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
-  });
-
-  it('lists every pilot and which of them can sync personal and corporation jobs and skills', async () => {
-    getSessionMock.mockResolvedValue(sessionFixture());
-    listLinkedCharactersMock.mockResolvedValue([
-      linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
-      linked(200, `${JOB_SCOPE} ${SKILL_SCOPES}`, false),
-      linked(300, `${JOB_SCOPE} ${SKILL_SCOPES}`),
-      linked(400, 'esi-skills.read_skills.v1'),
-    ]);
-    const found = await industryCharacters();
-    expect(found?.characters.map((c) => [c.characterId, c.needsReconnect])).toEqual([
-      [100, false],
-      [200, true],
-      [300, false],
-      [400, true],
-    ]);
-    expect(found?.jobIds).toEqual([100, 300]);
-    expect(found?.corpIds).toEqual([100]);
-    expect(found?.skillIds).toEqual([300]);
-  });
+test('a signed-out viewer has no industry characters and no job ids, without touching the DB', async () => {
+  getSessionMock.mockResolvedValue(null);
+  expect(await industryCharacters()).toBeNull();
+  expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
+  expect(listLinkedCharactersMock).not.toHaveBeenCalled();
+  expect(errorSpy).not.toHaveBeenCalled();
 });
 
-describe('jobCharacterIds', () => {
-  it('gives none for a signed-out viewer', async () => {
-    getSessionMock.mockResolvedValue(null);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
-    expect(errorSpy).not.toHaveBeenCalled();
-  });
+test('industryCharacters is null when auth is not set up locally, and fails loudly when it is', async () => {
+  vi.stubEnv('BETTER_AUTH_SECRET', undefined);
+  vi.stubEnv('SESSION_SECRET', undefined);
+  getSessionMock.mockRejectedValue(new BetterAuthError('BETTER_AUTH_SECRET is missing'));
+  expect(await industryCharacters()).toBeNull();
 
-  it('logs a failed read and gives none instead of failing the section', async () => {
-    getSessionMock.mockResolvedValue(sessionFixture());
-    const err = new Error('neon: connection terminated');
-    listLinkedCharactersMock.mockRejectedValue(err);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
-    expect(errorSpy.mock.calls).toEqual([['[industry/industry-characters] failed to resolve linked characters', err]]);
-  });
+  vi.stubEnv('BETTER_AUTH_SECRET', 'a-real-prod-secret');
+  await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
 
-  it('passes the eligible ids through', async () => {
-    getSessionMock.mockResolvedValue(sessionFixture());
-    listLinkedCharactersMock.mockResolvedValue([
-      linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
-      linked(200, SKILL_SCOPES),
-    ]);
-    expect(await jobCharacterIds()).toEqual({ jobIds: [100], corpIds: [100], skillIds: [200] });
-  });
+  vi.stubEnv('BETTER_AUTH_SECRET', '');
+  vi.stubEnv('SESSION_SECRET', 'a-real-session-secret');
+  await expect(industryCharacters()).rejects.toThrow('BETTER_AUTH_SECRET is missing');
+});
+
+test('lists every pilot and which of them can sync personal and corporation jobs and skills, and the job feeds read those ids', async () => {
+  getSessionMock.mockResolvedValue(sessionFixture());
+  listLinkedCharactersMock.mockResolvedValue([
+    linked(100, `${JOB_SCOPE} ${CORP_SCOPES}`),
+    linked(200, `${JOB_SCOPE} ${SKILL_SCOPES}`, false),
+    linked(300, `${JOB_SCOPE} ${SKILL_SCOPES}`),
+    linked(400, 'esi-skills.read_skills.v1'),
+  ]);
+  const found = await industryCharacters();
+  expect(found?.characters.map((c) => [c.characterId, c.needsReconnect])).toEqual([
+    [100, false],
+    [200, true],
+    [300, false],
+    [400, true],
+  ]);
+  expect(found?.jobIds).toEqual([100, 300]);
+  expect(found?.corpIds).toEqual([100]);
+  expect(found?.skillIds).toEqual([300]);
+  expect(await jobCharacterIds()).toEqual({ jobIds: [100, 300], corpIds: [100], skillIds: [300] });
+});
+
+test('jobCharacterIds logs a failed read and gives none instead of failing the section', async () => {
+  getSessionMock.mockResolvedValue(sessionFixture());
+  const err = new Error('neon: connection terminated');
+  listLinkedCharactersMock.mockRejectedValue(err);
+  expect(await jobCharacterIds()).toEqual({ jobIds: [], corpIds: [], skillIds: [] });
+  expect(errorSpy.mock.calls).toEqual([['[industry/industry-characters] failed to resolve linked characters', err]]);
 });

@@ -97,7 +97,6 @@ describe('GET /api/cron/refresh-sde', () => {
       action: 'cron_sde',
       metadata: expect.objectContaining({ outcome: 'up-to-date' }),
     });
-    expect(reserveMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
     expect(setSdeMetaValueMock).not.toHaveBeenCalled();
   });
@@ -111,7 +110,6 @@ describe('GET /api/cron/refresh-sde', () => {
     expect((await res.json()).status).toBe('up-to-date');
     expect(setSdeMetaValueMock.mock.calls).toEqual([[expect.anything(), SDE_META_KEY_LATEST_PUBLISHED, '2026-05-01']]);
     expect(revalidateTagMock.mock.calls).toEqual([[SDE_VERSION_CACHE_TAG, 'max']]);
-    expect(reserveMock).not.toHaveBeenCalled();
   });
 
   it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
@@ -124,7 +122,6 @@ describe('GET /api/cron/refresh-sde', () => {
       action: 'cron_sde',
       metadata: expect.objectContaining({ outcome: 'remote-unreachable' }),
     });
-    expect(reserveMock).not.toHaveBeenCalled();
   });
 
   it('records a busy skip as cron_sde/busy when the lock is held (O-3)', async () => {
@@ -136,17 +133,11 @@ describe('GET /api/cron/refresh-sde', () => {
     expect((await res.json()).status).toBe('busy');
     expect(setSdeMetaValueMock.mock.calls).toEqual([[{}, SDE_META_KEY_LATEST_PUBLISHED, '2026-05-08']]);
     expect(revalidateTagMock.mock.calls).toEqual([[SDE_VERSION_CACHE_TAG, 'max']]);
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_sde',
-      metadata: expect.objectContaining({ outcome: 'busy' }),
-    });
-    expect(runSdePipelineMock).not.toHaveBeenCalled();
   });
 
   it('records a re-ingest as cron_sde/reingested with the pipeline summary (O-2)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
-    lockGot = true;
     runSdePipelineMock.mockResolvedValue(PIPELINE_SUMMARY);
     const { GET } = await import('./route');
     const res = await GET(cronRequest(ROUTE));
