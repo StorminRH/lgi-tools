@@ -107,7 +107,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.0",
     "eslint-plugin-tsdoc": "0.5.4",
-    "fallow": "3.33.1",
+    "fallow": "3.31.0",
     "playwright": "1.64.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
