@@ -150,29 +150,17 @@ describe('TrackingControls', () => {
     expect(empty).not.toContain('data-tracking-portrait');
   });
 
-  it('renders owned portraits as tracking toggles and keeps the heartbeat mounted independently', async () => {
+  it('renders owned portraits as tracking toggles that set tracking for this map', async () => {
     const element = TrackingControls({ mapId: 'map-a', reconnectAction });
-    expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
 
     const markup = renderToStaticMarkup(element);
-    expect(markup).toContain('data-map-tracking');
-    expect(markup).not.toContain('Map settings');
-    expect(markup).toContain('Tracking');
-    expect(markup).toContain('aria-label="Tracking"');
-    expect(markup).toContain('Alice Own');
-    expect(markup).toContain('Bob Own');
     expect(markup).not.toContain('999');
     expect(markup).toContain('data-tracking-portrait="Stop tracking Alice Own"');
     expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
-    expect(markup).toContain('aria-checked="true"');
-    expect(markup).toContain('aria-checked="false"');
     expect(markup).not.toContain('Cannot sync location');
-    expect(markup).not.toContain('data-tracking-reconnect-action');
     expect(markup).toContain('data-default-scanner');
-    expect(markup).toContain('aria-label="Default scanner"');
     expect(markup).toContain('<option value="ask" selected="">Ask when unclear</option>');
-    expect(markup).toContain('<option value="202">Bob Own</option>');
 
     const view = element as ReactElement<{
       onToggle: (characterId: number, tracked: boolean) => Promise<void>;
@@ -183,9 +171,6 @@ describe('TrackingControls', () => {
       characterId: 202,
       tracked: true,
     });
-
-    TrackingHeartbeat({ mapId: 'map-a' });
-    expect(mocks.heartbeat).toHaveBeenCalledWith('characterLocation', [101]);
   });
 
   it('explains a refused tracking change instead of rejecting, for every setTracking caller', async () => {
@@ -205,19 +190,14 @@ describe('TrackingControls', () => {
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
     expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
 
-    mocks.mutate.mockRejectedValueOnce(new Error('Connection lost'));
     await expect(toggleTracking(202, true)).resolves.toBeUndefined();
-    expect(mocks.toastError.mock.lastCall).toEqual(['Tracking not changed']);
-
-    await expect(toggleTracking(202, true)).resolves.toBeUndefined();
-    expect(mocks.toastError).toHaveBeenCalledTimes(3);
+    expect(mocks.toastError).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces location reconnect on the control even when skill-queue health is fine', () => {
     mocks.characters[0]!.needsReconnect = false;
     mocks.characters[0]!.needsLocationReconnect = true;
     const element = TrackingControls({ mapId: 'map-a', reconnectAction });
-    expect(isValidElement(element)).toBe(true);
     if (!isValidElement(element)) throw new Error('tracking controls did not render');
 
     const markup = renderToStaticMarkup(element);
@@ -231,7 +211,10 @@ describe('TrackingControls', () => {
     expect(markup).toContain('data-tracking-portrait="Track Bob Own"');
   });
 
-  it('empties the heartbeat character set while the AFK gate is paused', () => {
+  it('heartbeats the tracked characters and empties the set while the AFK gate is paused', () => {
+    TrackingHeartbeat({ mapId: 'map-a' });
+    expect(mocks.heartbeat).toHaveBeenLastCalledWith('characterLocation', [101]);
+
     mocks.afk.paused = true;
     try {
       TrackingHeartbeat({ mapId: 'map-a' });

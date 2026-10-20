@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import {
   isHostedVercel,
   readAuthSecret,
@@ -11,120 +11,85 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('readEnv', () => {
-  it('returns undefined for an unset variable', () => {
-    vi.stubEnv('CRON_SECRET', undefined);
-    expect(readEnv('CRON_SECRET')).toBeUndefined();
-  });
+test("readEnv maps unset and a required (truthiness) variable's '' to undefined, and passes '' through on a verbatim one", () => {
+  vi.stubEnv('CRON_SECRET', undefined);
+  expect(readEnv('CRON_SECRET')).toBeUndefined();
+  vi.stubEnv('CRON_SECRET', 's3cret');
+  expect(readEnv('CRON_SECRET')).toBe('s3cret');
 
-  it('returns the value for a set variable', () => {
-    vi.stubEnv('CRON_SECRET', 's3cret');
-    expect(readEnv('CRON_SECRET')).toBe('s3cret');
-  });
+  vi.stubEnv('DATABASE_URL', '');
+  expect(readEnv('DATABASE_URL')).toBeUndefined();
 
-  it("maps '' to undefined on a required (truthiness) variable", () => {
-    vi.stubEnv('DATABASE_URL', '');
-    expect(readEnv('DATABASE_URL')).toBeUndefined();
-  });
-
-  it('prefers a non-empty LGI_DATABASE_URL over DATABASE_URL', () => {
-    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
-    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
-    expect(readEnv('DATABASE_URL')).toBe('postgres://staging/db');
-  });
-
-  it('ignores an empty LGI_DATABASE_URL override', () => {
-    vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
-    vi.stubEnv('LGI_DATABASE_URL', '');
-    expect(readEnv('DATABASE_URL')).toBe('postgres://integration/db');
-  });
-
-  it('prefers a non-empty LGI_DATABASE_URL_UNPOOLED over DATABASE_URL_UNPOOLED', () => {
-    vi.stubEnv('DATABASE_URL_UNPOOLED', 'postgres://integration-direct/db');
-    vi.stubEnv('LGI_DATABASE_URL_UNPOOLED', 'postgres://staging-direct/db');
-    expect(readEnv('DATABASE_URL_UNPOOLED')).toBe('postgres://staging-direct/db');
-  });
-
-  it("passes '' through on a verbatim (nullish/comparison) variable", () => {
-    vi.stubEnv('BETTER_AUTH_SECRET', '');
-    expect(readEnv('BETTER_AUTH_SECRET')).toBe('');
-  });
+  vi.stubEnv('BETTER_AUTH_SECRET', '');
+  expect(readEnv('BETTER_AUTH_SECRET')).toBe('');
 });
 
-describe('readAuthSecret', () => {
-  it('prefers BETTER_AUTH_SECRET and falls back to SESSION_SECRET when it is unset or empty', () => {
-    vi.stubEnv('BETTER_AUTH_SECRET', 'primary');
-    vi.stubEnv('SESSION_SECRET', 'fallback');
-    expect(readAuthSecret()).toBe('primary');
+test('readEnv prefers a non-empty LGI_ override for both database URLs and ignores an empty one', () => {
+  vi.stubEnv('DATABASE_URL', 'postgres://integration/db');
+  vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+  expect(readEnv('DATABASE_URL')).toBe('postgres://staging/db');
 
-    vi.stubEnv('BETTER_AUTH_SECRET', '');
-    expect(readAuthSecret()).toBe('fallback');
+  vi.stubEnv('LGI_DATABASE_URL', '');
+  expect(readEnv('DATABASE_URL')).toBe('postgres://integration/db');
 
-    vi.stubEnv('BETTER_AUTH_SECRET', undefined);
-    expect(readAuthSecret()).toBe('fallback');
-
-    vi.stubEnv('SESSION_SECRET', '');
-    expect(readAuthSecret()).toBeUndefined();
-
-    vi.stubEnv('BETTER_AUTH_SECRET', '');
-    vi.stubEnv('SESSION_SECRET', undefined);
-    expect(readAuthSecret()).toBeUndefined();
-  });
+  vi.stubEnv('DATABASE_URL_UNPOOLED', 'postgres://integration-direct/db');
+  vi.stubEnv('LGI_DATABASE_URL_UNPOOLED', 'postgres://staging-direct/db');
+  expect(readEnv('DATABASE_URL_UNPOOLED')).toBe('postgres://staging-direct/db');
 });
 
-describe('requireEnv', () => {
-  it('returns the value when set', () => {
-    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
-    expect(requireEnv('EVE_CLIENT_ID')).toBe('client-id');
-  });
+test('readAuthSecret prefers BETTER_AUTH_SECRET and falls back to SESSION_SECRET when it is unset or empty', () => {
+  vi.stubEnv('BETTER_AUTH_SECRET', 'primary');
+  vi.stubEnv('SESSION_SECRET', 'fallback');
+  expect(readAuthSecret()).toBe('primary');
 
-  it('throws the exact legacy message when unset', () => {
-    vi.stubEnv('EVE_CLIENT_ID', undefined);
-    expect(() => requireEnv('EVE_CLIENT_ID')).toThrowError('EVE_CLIENT_ID is not set');
-  });
+  vi.stubEnv('BETTER_AUTH_SECRET', '');
+  expect(readAuthSecret()).toBe('fallback');
 
-  it('throws when set but empty', () => {
-    vi.stubEnv('DATABASE_URL', '');
-    expect(() => requireEnv('DATABASE_URL')).toThrowError('DATABASE_URL is not set');
-  });
+  vi.stubEnv('BETTER_AUTH_SECRET', undefined);
+  expect(readAuthSecret()).toBe('fallback');
 
-  it('returns LGI_DATABASE_URL when DATABASE_URL is empty', () => {
-    vi.stubEnv('DATABASE_URL', '');
-    vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
-    expect(requireEnv('DATABASE_URL')).toBe('postgres://staging/db');
-  });
+  vi.stubEnv('SESSION_SECRET', '');
+  expect(readAuthSecret()).toBeUndefined();
+
+  vi.stubEnv('BETTER_AUTH_SECRET', '');
+  vi.stubEnv('SESSION_SECRET', undefined);
+  expect(readAuthSecret()).toBeUndefined();
 });
 
-describe('isHostedVercel', () => {
-  it('is true only for Vercel production and preview', () => {
-    vi.stubEnv('VERCEL_ENV', 'production');
-    expect(isHostedVercel()).toBe(true);
-    vi.stubEnv('VERCEL_ENV', 'preview');
-    expect(isHostedVercel()).toBe(true);
-  });
+test('requireEnv returns a set value, the LGI_ override over an empty value, and throws the exact legacy message when unset or empty', () => {
+  vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+  expect(requireEnv('EVE_CLIENT_ID')).toBe('client-id');
+  vi.stubEnv('EVE_CLIENT_ID', undefined);
+  expect(() => requireEnv('EVE_CLIENT_ID')).toThrowError('EVE_CLIENT_ID is not set');
 
-  it('is false for local, CI, and vercel development', () => {
-    vi.stubEnv('VERCEL_ENV', undefined);
-    expect(isHostedVercel()).toBe(false);
-    vi.stubEnv('VERCEL_ENV', '');
-    expect(isHostedVercel()).toBe(false);
-    vi.stubEnv('VERCEL_ENV', 'development');
-    expect(isHostedVercel()).toBe(false);
-  });
+  vi.stubEnv('DATABASE_URL', '');
+  expect(() => requireEnv('DATABASE_URL')).toThrowError('DATABASE_URL is not set');
+  vi.stubEnv('LGI_DATABASE_URL', 'postgres://staging/db');
+  expect(requireEnv('DATABASE_URL')).toBe('postgres://staging/db');
 });
 
-describe('vercelProtectionBypassHeaders', () => {
-  it('returns the bypass header when the secret is set', () => {
-    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
-    expect(vercelProtectionBypassHeaders()).toEqual({
-      'x-vercel-protection-bypass': 'bypass-secret',
-    });
+test('isHostedVercel is true only for Vercel production and preview', () => {
+  vi.stubEnv('VERCEL_ENV', 'production');
+  expect(isHostedVercel()).toBe(true);
+  vi.stubEnv('VERCEL_ENV', 'preview');
+  expect(isHostedVercel()).toBe(true);
+
+  vi.stubEnv('VERCEL_ENV', undefined);
+  expect(isHostedVercel()).toBe(false);
+  vi.stubEnv('VERCEL_ENV', '');
+  expect(isHostedVercel()).toBe(false);
+  vi.stubEnv('VERCEL_ENV', 'development');
+  expect(isHostedVercel()).toBe(false);
+});
+
+test('vercelProtectionBypassHeaders sends the bypass header only when the secret is set', () => {
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
+  expect(vercelProtectionBypassHeaders()).toEqual({
+    'x-vercel-protection-bypass': 'bypass-secret',
   });
 
-  it('returns an empty record when the secret is unset or empty', () => {
-    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', undefined);
-    expect(vercelProtectionBypassHeaders()).toEqual({});
-    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
-    expect(vercelProtectionBypassHeaders()).toEqual({});
-  });
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', undefined);
+  expect(vercelProtectionBypassHeaders()).toEqual({});
+  vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', '');
+  expect(vercelProtectionBypassHeaders()).toEqual({});
 });
