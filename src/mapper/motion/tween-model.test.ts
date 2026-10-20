@@ -86,6 +86,18 @@ test('relocates instantly — no tween — when the move lands inside the birth 
   expect(gliding.tweens.has(31)).toBe(true);
 });
 
+test('treats a birth and its tree placement in one batch as surfacing in place', () => {
+  const state = adoptIntents(
+    createMotionState(),
+    [appeared(31), moved(31, { x: 10, y: 20 }, { x: 300, y: -150 })],
+    0,
+    PLAN,
+  );
+
+  expect(state.tweens.size).toBe(0);
+  expect(state.entering.has(31)).toBe(true);
+});
+
 test('suppresses a no-op move whose origin equals its target', () => {
   const state = adoptIntents(
     createMotionState(),

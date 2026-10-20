@@ -124,7 +124,7 @@ describe('GET /api/cron/refresh-sde', () => {
     });
   });
 
-  it('records a busy skip as cron_sde/busy when the lock is held (O-3)', async () => {
+  it('answers busy when the lock is held (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08');
     lockGot = false;

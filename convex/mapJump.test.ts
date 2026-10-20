@@ -606,6 +606,8 @@ test('authors a new line when the destination or pair is already in trash', asyn
   const corpse = await t.run(async (ctx) => await ctx.db.get(trashedPairId));
   expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
   expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+    .not.toBe(OBSERVED_AT + 60_000);
+  expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
     .toBeLessThanOrEqual(Date.now());
   expect(state.stamps).toHaveLength(1);
 });
@@ -663,6 +665,8 @@ test('resolves a remapped stub without leaving the collapsed pair dying', async 
   })]);
   const corpse = await t.run(async (ctx) => await ctx.db.get(corpseId));
   expect(tombstoneDeletedAt(corpse!)).toBe(OBSERVED_AT - 1_000);
+  expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
+    .not.toBe(OBSERVED_AT + 60_000);
   expect(corpse?.tombstone.kind === 'removed' ? corpse.tombstone.purgeAfter : null)
     .toBeLessThanOrEqual(Date.now());
 });
