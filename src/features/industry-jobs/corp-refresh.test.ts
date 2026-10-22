@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { EsiReadSession } from '@/data/esi-store/session';
 import type { EnumeratedOwner, SingleOwnerRead } from '@/platform/owner-sync';
 import { NO_STATEMENTS, ownerFixture, readSessionFake } from '@/platform/owner-sync/__tests__/owner-fixtures';
@@ -76,208 +76,178 @@ function makeFakePort(opts: FakeOptions) {
   return { port, calls };
 }
 
-describe('refreshCorpJobsForUser', () => {
-  it('does zero work for a corp whose stored answer is unexpired (the store is the dedup)', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      now: new Date('2026-06-28T12:00:00Z'),
-      due: { 2000: false },
-    });
-    await refreshCorpJobsForUser(port, 'user-1');
-    expect(calls.vend).toEqual([]);
-    expect(calls.readJobs).toEqual([]);
-    expect(calls.saveJobs).toEqual([]);
-    expect(calls.stampFresh).toEqual([]);
+const CORP = { ownerType: 'corporation', ownerId: 2000 } as const;
+
+test('a due corp saves its board on a fresh read and stamps freshness on a 304, while an unexpired one does no work', async () => {
+  const fresh = industryJob({ job_id: 7 });
+  const neverSynced = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
   });
+  expect(await refreshCorpJobsForUser(neverSynced.port, 'user-1')).toEqual([{ kind: 'succeeded', target: CORP }]);
+  expect(neverSynced.calls.readJobs).toEqual([2000]);
+  expect(neverSynced.calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'etag-1' }]);
 
-  it('resolves a director and saves the board for a never-synced corp', async () => {
-    const fresh = industryJob({ job_id: 7 });
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
-    });
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } }]);
-    expect(calls.readJobs).toEqual([2000]);
-    expect(calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'etag-1' }]);
+  const unchanged = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    syncStates: { 2000: { lastRefreshedAt: null } },
+    reads: { 2000: { kind: 'unchanged' } },
   });
+  expect(await refreshCorpJobsForUser(unchanged.port, 'user-1')).toEqual([{ kind: 'succeeded', target: CORP }]);
+  expect(unchanged.calls.readJobs).toEqual([2000]);
+  expect(unchanged.calls.stampFresh).toEqual([2000]);
+  expect(unchanged.calls.saveJobs).toEqual([]);
 
-  it('records needs_role when no member holds the role, without an ESI read', async () => {
-    const { port, calls } = makeFakePort({
-      members: [
-        ownerFixture(1, { corporationId: 2000 }),
-        ownerFixture(2, { corporationId: 2000 }),
-      ],
-      roles: { 1: ['Accountant'], 2: ['Station_Manager'] },
-    });
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-    expect(result).toEqual([
-      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'needs_role' },
-    ]);
-    expect(calls.readJobs).toEqual([]);
-    expect(calls.saveNeedsRole).toEqual([2000]);
-    expect(calls.saveJobs).toEqual([]);
-    expect(calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: null }]);
+  // The stored answer is the dedup: an unexpired one vends, reads and writes nothing.
+  const unexpired = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    now: new Date('2026-06-28T12:00:00Z'),
+    due: { 2000: false },
   });
+  await refreshCorpJobsForUser(unexpired.port, 'user-1');
+  expect(unexpired.calls.vend).toEqual([]);
+  expect(unexpired.calls.readJobs).toEqual([]);
+  expect(unexpired.calls.saveJobs).toEqual([]);
+  expect(unexpired.calls.stampFresh).toEqual([]);
+});
 
-  it('skips (no stamp) when no member can be vended — transient, retry next view', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      tokens: { 1: null },
-    });
-    await refreshCorpJobsForUser(port, 'user-1');
-    expect(calls.readJobs).toEqual([]);
-    expect(calls.saveNeedsRole).toEqual([]);
-    expect(calls.stampFresh).toEqual([]);
-    expect(calls.saveJobs).toEqual([]);
-    expect(calls.recordRefusal).toEqual([]);
+test('needs_role is recorded when no member holds the role, without a read, and when a read 403s mid-run', async () => {
+  const noRole = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+    roles: { 1: ['Accountant'], 2: ['Station_Manager'] },
   });
+  expect(await refreshCorpJobsForUser(noRole.port, 'user-1')).toEqual([
+    { kind: 'failed_permanent', target: CORP, code: 'needs_role' },
+  ]);
+  expect(noRole.calls.readJobs).toEqual([]);
+  expect(noRole.calls.saveNeedsRole).toEqual([2000]);
+  expect(noRole.calls.saveJobs).toEqual([]);
+  expect(noRole.calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: null }]);
 
-  it('stamps freshness on a 304', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      syncStates: { 2000: { lastRefreshedAt: null } },
-      reads: { 2000: { kind: 'unchanged' } },
-    });
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } }]);
-    expect(calls.readJobs).toEqual([2000]);
-    expect(calls.stampFresh).toEqual([2000]);
-    expect(calls.saveJobs).toEqual([]);
+  const revoked = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
   });
+  expect(await refreshCorpJobsForUser(revoked.port, 'user-1')).toEqual([
+    { kind: 'failed_permanent', target: CORP, code: 'needs_role' },
+  ]);
+  expect(revoked.calls.saveNeedsRole).toEqual([2000]);
+  expect(revoked.calls.saveJobs).toEqual([]);
+  expect(revoked.calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: 8_000 }]);
+});
 
-  it('maps a read 403 (role revoked mid-run) to needs_role', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
-    });
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-    expect(result).toEqual([
-      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'needs_role' },
-    ]);
-    expect(calls.saveNeedsRole).toEqual([2000]);
-    expect(calls.saveJobs).toEqual([]);
-    expect(calls.recordRefusal).toEqual([{ corporationId: 2000, expiresAt: 8_000 }]);
+test('skips (no stamp) when no member can be vended — transient, retry next view', async () => {
+  const { port, calls } = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    tokens: { 1: null },
   });
+  await refreshCorpJobsForUser(port, 'user-1');
+  expect(calls.readJobs).toEqual([]);
+  expect(calls.saveNeedsRole).toEqual([]);
+  expect(calls.stampFresh).toEqual([]);
+  expect(calls.saveJobs).toEqual([]);
+  expect(calls.recordRefusal).toEqual([]);
+});
 
-  it('falls back to the next role-holder when ESI refuses the first, recording needs_role only when nobody is left', async () => {
-    const fresh = industryJob({ job_id: 9 });
-    const refusedFirst = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
-      reads: { 2000: (accessToken) => (accessToken === 'tok-1' ? { kind: 'error', code: 'esi_403' } : { kind: 'fresh', body: [fresh], etag: 'e2' }) },
-    });
-    expect(await refreshCorpJobsForUser(refusedFirst.port, 'user-1')).toEqual([
-      { kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } },
-    ]);
-    expect(refusedFirst.calls.vend).toEqual([1, 2]);
-    expect(refusedFirst.calls.readJobs).toEqual([2000, 2000]);
-    expect(refusedFirst.calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'e2' }]);
-    expect(refusedFirst.calls.saveNeedsRole).toEqual([]);
-
-    const refusedAll = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
-      reads: { 2000: { kind: 'error', code: 'esi_403' } },
-    });
-    expect((await refreshCorpJobsForUser(refusedAll.port, 'user-1'))[0]).toMatchObject({ code: 'needs_role' });
-    expect(refusedAll.calls.readJobs).toEqual([2000, 2000]);
-    expect(refusedAll.calls.saveNeedsRole).toEqual([2000]);
+test('falls back to the next role-holder when ESI refuses the first, recording needs_role only when nobody is left', async () => {
+  const fresh = industryJob({ job_id: 9 });
+  const refusedFirst = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+    reads: { 2000: (accessToken) => (accessToken === 'tok-1' ? { kind: 'error', code: 'esi_403' } : { kind: 'fresh', body: [fresh], etag: 'e2' }) },
   });
+  expect(await refreshCorpJobsForUser(refusedFirst.port, 'user-1')).toEqual([{ kind: 'succeeded', target: CORP }]);
+  expect(refusedFirst.calls.vend).toEqual([1, 2]);
+  expect(refusedFirst.calls.readJobs).toEqual([2000, 2000]);
+  expect(refusedFirst.calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'e2' }]);
+  expect(refusedFirst.calls.saveNeedsRole).toEqual([]);
 
-  it.each([
-    ['token', { tokens: { 2: null } }],
-    ['roles', { roles: { 2: null } }],
-  ] as const)('keeps the saved jobs and records no refusal when ESI refused the first member and the next one\'s %s is unavailable for now', async (_case, unavailable) => {
+  const refusedAll = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+    reads: { 2000: { kind: 'error', code: 'esi_403' } },
+  });
+  expect((await refreshCorpJobsForUser(refusedAll.port, 'user-1'))[0]).toMatchObject({ code: 'needs_role' });
+  expect(refusedAll.calls.readJobs).toEqual([2000, 2000]);
+  expect(refusedAll.calls.saveNeedsRole).toEqual([2000]);
+});
+
+test("keeps the saved jobs and records no refusal when ESI refused the first member and the next one's token or roles are unavailable for now", async () => {
+  for (const unavailable of [{ tokens: { 2: null } }, { roles: { 2: null } }]) {
     const { port, calls } = makeFakePort({
       members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
       reads: { 2000: { kind: 'error', code: 'esi_403', expiresAt: 8_000 } },
       ...unavailable,
     });
-
     expect(await refreshCorpJobsForUser(port, 'user-1')).toEqual([
-      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'owner_temporarily_unavailable' },
+      { kind: 'failed_retryable', target: CORP, code: 'owner_temporarily_unavailable' },
     ]);
     expect(calls.readJobs).toEqual([2000]);
     expect(calls.saveNeedsRole).toEqual([]);
     expect(calls.recordRefusal).toEqual([]);
     expect(calls.saveJobs).toEqual([]);
     expect(calls.stampFresh).toEqual([]);
+  }
+});
+
+test('a transient read error and a fresh contract rejection are reported without saving or stamping', async () => {
+  const transient = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    reads: { 2000: { kind: 'error', code: 'esi_server_error' } },
   });
+  expect(await refreshCorpJobsForUser(transient.port, 'user-1')).toEqual([
+    { kind: 'failed_retryable', target: CORP, code: 'esi_server_error' },
+  ]);
+  expect(transient.calls.saveNeedsRole).toEqual([]);
+  expect(transient.calls.stampFresh).toEqual([]);
+  expect(transient.calls.saveJobs).toEqual([]);
 
-  it('reports a transient read error without saving or stamping', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      reads: { 2000: { kind: 'error', code: 'esi_server_error' } },
-    });
-
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-
-    expect(result).toEqual([
-      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'esi_server_error' },
-    ]);
-    expect(calls.saveNeedsRole).toEqual([]);
-    expect(calls.stampFresh).toEqual([]);
-    expect(calls.saveJobs).toEqual([]);
+  const rejected = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 })],
+    reads: { 2000: { kind: 'fresh', body: { not: 'an array' }, etag: 'bad' } },
   });
+  expect(await refreshCorpJobsForUser(rejected.port, 'user-1')).toEqual([
+    { kind: 'failed_permanent', target: CORP, code: 'contract_error' },
+  ]);
+  expect(rejected.calls.saveNeedsRole).toEqual([]);
+  expect(rejected.calls.stampFresh).toEqual([]);
+  expect(rejected.calls.saveJobs).toEqual([]);
+});
 
-  it('reports a fresh contract rejection without saving or stamping', async () => {
-    const { port, calls } = makeFakePort({
-      members: [ownerFixture(1, { corporationId: 2000 })],
-      reads: { 2000: { kind: 'fresh', body: { not: 'an array' }, etag: 'bad' } },
-    });
-
-    const result = await refreshCorpJobsForUser(port, 'user-1');
-
-    expect(result).toEqual([
-      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'contract_error' },
-    ]);
-    expect(calls.saveNeedsRole).toEqual([]);
-    expect(calls.stampFresh).toEqual([]);
-    expect(calls.saveJobs).toEqual([]);
+test('prefers a role-holder as the vending character', async () => {
+  const { port } = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 2000 })],
+    roles: { 1: ['Accountant'], 2: ['Director'] },
+    reads: { 2000: { kind: 'fresh', body: [], etag: 'e' } },
   });
+  const readJobs = vi.fn(port.readJobs);
+  port.readJobs = (session, userId, corporationId, accessToken) => {
+    expect(accessToken).toBe('tok-2');
+    return readJobs(session, userId, corporationId, accessToken);
+  };
+  await refreshCorpJobsForUser(port, 'user-1');
+  expect(readJobs).toHaveBeenCalledOnce();
+});
 
-  it('prefers a role-holder as the vending character', async () => {
-    const { port } = makeFakePort({
-      members: [
-        ownerFixture(1, { corporationId: 2000 }),
-        ownerFixture(2, { corporationId: 2000 }),
-      ],
-      roles: { 1: ['Accountant'], 2: ['Director'] },
-      reads: { 2000: { kind: 'fresh', body: [], etag: 'e' } },
-    });
-    const readJobs = vi.fn(port.readJobs);
-    port.readJobs = (session, userId, corporationId, accessToken) => {
-      expect(accessToken).toBe('tok-2');
-      return readJobs(session, userId, corporationId, accessToken);
-    };
-    await refreshCorpJobsForUser(port, 'user-1');
-    expect(readJobs).toHaveBeenCalledOnce();
+test('skips members missing the corp scopes and corps with no cached id', async () => {
+  const { port, calls } = makeFakePort({
+    members: [
+      ownerFixture(1, { corporationId: 2000, missingScopes: [SCOPE] }),
+      ownerFixture(2, { corporationId: null }),
+      ownerFixture(3, { corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
+    ],
   });
+  await refreshCorpJobsForUser(port, 'user-1');
+  expect(calls.vend).toEqual([]);
+  expect(calls.readJobs).toEqual([]);
+});
 
-  it('skips members missing the corp scopes and corps with no cached id', async () => {
-    const { port, calls } = makeFakePort({
-      members: [
-        ownerFixture(1, { corporationId: 2000, missingScopes: [SCOPE] }),
-        ownerFixture(2, { corporationId: null }),
-        ownerFixture(3, { corporationId: 3000, missingScopes: [ROLES_SCOPE] }),
-      ],
-    });
-    await refreshCorpJobsForUser(port, 'user-1');
-    expect(calls.vend).toEqual([]);
-    expect(calls.readJobs).toEqual([]);
+test('refreshes multiple corps independently', async () => {
+  const { port, calls } = makeFakePort({
+    members: [ownerFixture(1, { corporationId: 2000 }), ownerFixture(2, { corporationId: 3000 })],
+    reads: {
+      2000: { kind: 'fresh', body: [industryJob({ job_id: 1 })], etag: 'a' },
+      3000: { kind: 'fresh', body: [industryJob({ job_id: 2 })], etag: 'b' },
+    },
   });
-
-  it('refreshes multiple corps independently', async () => {
-    const { port, calls } = makeFakePort({
-      members: [
-        ownerFixture(1, { corporationId: 2000 }),
-        ownerFixture(2, { corporationId: 3000 }),
-      ],
-      reads: {
-        2000: { kind: 'fresh', body: [industryJob({ job_id: 1 })], etag: 'a' },
-        3000: { kind: 'fresh', body: [industryJob({ job_id: 2 })], etag: 'b' },
-      },
-    });
-    await refreshCorpJobsForUser(port, 'user-1');
-    expect(calls.saveJobs.map((s) => s.corporationId).sort()).toEqual([2000, 3000]);
-  });
+  await refreshCorpJobsForUser(port, 'user-1');
+  expect(calls.saveJobs.map((s) => s.corporationId).sort()).toEqual([2000, 3000]);
 });
