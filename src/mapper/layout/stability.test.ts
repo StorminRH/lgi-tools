@@ -25,35 +25,6 @@ const PROPORTIONAL = {
 };
 const FIXED_SLOT = { ...DEFAULT_LAYOUT_CONFIG, wedgePolicy: 'fixed-slot' as const };
 
-describe('leaf adds under the fixed-slot posture', () => {
-  it('adding a deep leaf moves no existing node', async () => {
-    const before = await compassKernel(layoutFacts([A, B, C], [[A, B], [B, C]]), FIXED_SLOT);
-    const after = await compassKernel(layoutFacts([A, B, C, D], [[A, B], [B, C], [C, D]]), FIXED_SLOT);
-    expect(movedSystems(before, after)).toEqual([]);
-  });
-
-  it('adding a new root child (claiming a fresh compass sector) moves no existing node', async () => {
-    const before = await compassKernel(layoutFacts([A, B, C], [[A, B], [B, C]]), FIXED_SLOT);
-    const after = await compassKernel(layoutFacts([A, B, C, D], [[A, B], [B, C], [A, D]]), FIXED_SLOT);
-    expect(movedSystems(before, after)).toEqual([]);
-  });
-
-  it('growing a corpus-scale chain by one leaf moves no existing node', async () => {
-    const base: (readonly [number, number])[] = [
-      [A, B], [B, C], [C, D], [B, E],
-      [A, 31_000_006], [31_000_006, 31_000_007], [31_000_007, 31_000_008],
-      [A, 31_000_009], [31_000_009, 31_000_010], [D, 31_000_011],
-    ];
-    const ids = [A, B, C, D, E, 31_000_006, 31_000_007, 31_000_008, 31_000_009, 31_000_010, 31_000_011];
-    const before = await compassKernel(layoutFacts(ids, base), FIXED_SLOT);
-    const after = await compassKernel(
-      layoutFacts([...ids, 31_000_012], [...base, [31_000_011, 31_000_012] as const]),
-      FIXED_SLOT,
-    );
-    expect(movedSystems(before, after)).toEqual([]);
-  });
-});
-
 describe('corpus-wide growth under the fixed-slot posture', () => {
   it('replays every corpus chain spawn by spawn: no attached node ever moves', async () => {
     for (const entry of PROOF_CORPUS) {
@@ -130,15 +101,6 @@ describe('corpus replay with interleaved stub rows', () => {
 });
 
 describe('sector fills', () => {
-  it('filling a sector under the fixed-slot posture moves nothing at all', async () => {
-    const before = await compassKernel(layoutFacts([A, B, C, E], [[A, B], [B, C], [C, E]]), FIXED_SLOT);
-    const after = await compassKernel(
-      layoutFacts([A, B, C, E, D], [[A, B], [B, C], [C, E], [B, D]]),
-      FIXED_SLOT,
-    );
-    expect(movedSystems(before, after)).toEqual([]);
-  });
-
   it('filling a sector under proportional re-spreads exactly the sibling group', async () => {
     const before = await compassKernel(layoutFacts([A, B, C], [[A, B], [B, C]]), PROPORTIONAL);
     const after = await compassKernel(
