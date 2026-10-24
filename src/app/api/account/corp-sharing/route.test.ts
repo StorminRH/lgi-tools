@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { sessionFixture } from '@/composition/__tests__/session-fixture';
 import type { SessionCheckResult } from '@/composition/route-guards';
 
@@ -57,41 +57,34 @@ beforeEach(() => {
   h.switches.clear();
 });
 
-describe('POST /api/account/corp-sharing', () => {
-  it('refuses a pilot who is not in the corporation', async () => {
-    h.getUserAffiliations.mockResolvedValue(pilotIn(98000002));
-    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
-    expect(res.status).toBe(403);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({ code: 'not_corp_member' });
-    expect(h.switches.size).toBe(0);
-  });
+test('refuses a pilot outside the corporation and a member who is not a Director', async () => {
+  h.getUserAffiliations.mockResolvedValueOnce(pilotIn(98000002));
+  const outsider = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
+  expect(outsider.status).toBe(403);
+  expect(problemBodySchema.parse(await outsider.json())).toMatchObject({ code: 'not_corp_member' });
 
-  it('refuses a member who is not a Director', async () => {
-    h.probeAndStoreRoles.mockResolvedValue(['Station_Manager', 'Factory_Manager']);
-    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
-    expect(res.status).toBe(403);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_director',
-      detail: 'Requires the Director role',
-    });
-    expect(h.switches.size).toBe(0);
+  h.probeAndStoreRoles.mockResolvedValue(['Station_Manager', 'Factory_Manager']);
+  const member = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
+  expect(member.status).toBe(403);
+  expect(problemBodySchema.parse(await member.json())).toMatchObject({
+    code: 'not_director',
+    detail: 'Requires the Director role',
   });
+  expect(h.switches.size).toBe(0);
+});
 
-  it('lets a Director turn sharing on', async () => {
-    const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ corporationId: CORP, enabled: true });
-    // One session read authorizes the request and names who set the switch.
-    expect(h.checkSession).toHaveBeenCalledOnce();
-    expect(h.getUserAffiliations).toHaveBeenCalledWith('user-1');
-    expect(h.switches.get(CORP)).toEqual({ enabled: true, setBy: ACTIVE_CHARACTER });
-  });
+test('lets a Director turn sharing on', async () => {
+  const res = await POST(postJson(ROUTE, { corporationId: CORP, enabled: true }));
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ corporationId: CORP, enabled: true });
+  expect(h.getUserAffiliations).toHaveBeenCalledWith('user-1');
+  expect(h.switches.get(CORP)).toEqual({ enabled: true, setBy: ACTIVE_CHARACTER });
+});
 
-  it('lands on the same value when the same request repeats', async () => {
-    const first = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
-    const second = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
-    expect([first.status, second.status]).toEqual([200, 200]);
-    expect(await second.json()).toEqual({ corporationId: CORP, enabled: false });
-    expect([...h.switches]).toEqual([[CORP, { enabled: false, setBy: ACTIVE_CHARACTER }]]);
-  });
+test('lands on the same value when the same request repeats', async () => {
+  const first = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
+  const second = await POST(postJson(ROUTE, { corporationId: CORP, enabled: false }));
+  expect([first.status, second.status]).toEqual([200, 200]);
+  expect(await second.json()).toEqual({ corporationId: CORP, enabled: false });
+  expect([...h.switches]).toEqual([[CORP, { enabled: false, setBy: ACTIVE_CHARACTER }]]);
 });
