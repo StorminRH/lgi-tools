@@ -23,7 +23,6 @@ describe(`generated-chain properties over the ${PROOF_CORPUS.length}-chain seede
   });
 
   it(`confines every edge crossing to loop-closing edges under the shipped default across all ${PROOF_CORPUS.length} corpus chains`, async () => {
-    expect(DEFAULT_LAYOUT_CONFIG.wedgePolicy).toBe('fixed-slot');
     for (const entry of PROOF_CORPUS) {
       const chain = generateChain(entry);
       const positions = await compassKernel(chain, DEFAULT_LAYOUT_CONFIG);

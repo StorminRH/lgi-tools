@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { siteDetail } from './__tests__/site-fixtures';
 import { selectDevSampleSites } from './dev-sample';
 import { siteClassSet } from './site-filter';
@@ -41,58 +41,44 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('selectDevSampleSites activation', () => {
-  it.each([
+test('selectDevSampleSites activates only for development plus the explicit 1 opt-in', () => {
+  for (const [nodeEnv, sampleEnv] of [
     ['production', '1'],
     ['test', '1'],
     ['development', undefined],
     ['development', '0'],
     ['development', 'yes'],
-  ])('stays inactive for NODE_ENV=%s and LGI_SITES_SAMPLE=%s', (nodeEnv, sampleEnv) => {
+  ] as const) {
     vi.stubEnv('NODE_ENV', nodeEnv);
     vi.stubEnv('LGI_SITES_SAMPLE', sampleEnv);
-
-    expect(selectDevSampleSites(representativeFixture())).toBeNull();
-  });
-
-  it('activates only for development plus the explicit 1 opt-in', () => {
-    vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('LGI_SITES_SAMPLE', '1');
-
-    expect(selectDevSampleSites(representativeFixture())).not.toBeNull();
-  });
-});
-
-describe('selectDevSampleSites selection', () => {
-  function select(sites: SiteDetail[]): SiteDetail[] {
-    vi.stubEnv('NODE_ENV', 'development');
-    vi.stubEnv('LGI_SITES_SAMPLE', '1');
-    return selectDevSampleSites(sites) ?? [];
+    expect(selectDevSampleSites(representativeFixture()), `${nodeEnv}/${sampleEnv}`).toBeNull();
   }
 
-  it('covers every type and class pair while keeping a strict representative subset', () => {
-    const sites = representativeFixture();
-    const sample = select(sites);
+  vi.stubEnv('NODE_ENV', 'development');
+  vi.stubEnv('LGI_SITES_SAMPLE', '1');
+  expect(selectDevSampleSites(representativeFixture())).not.toBeNull();
+});
 
-    expect(pairKeys(sample)).toEqual(pairKeys(sites));
-    expect(sample.length).toBeLessThan(sites.length);
-    expect(sample.length).toBeLessThanOrEqual(pairKeys(sites).size);
-  });
+test('selectDevSampleSites keeps one stable representative per type and class pair, in caller order', () => {
+  vi.stubEnv('NODE_ENV', 'development');
+  vi.stubEnv('LGI_SITES_SAMPLE', '1');
+  const select = (sites: SiteDetail[]) => selectDevSampleSites(sites) ?? [];
 
-  it('selects the same ids across permutations and preserves caller order', () => {
-    const sites = representativeFixture();
-    const shuffled = [sites[7], sites[4], sites[6], sites[2], sites[0], sites[5], sites[3], sites[1]]
-      .filter((site): site is SiteDetail => site !== undefined);
-    const selectedIds = new Set(select(sites).map((site) => site.id));
-    const shuffledSample = select(shuffled);
+  const sites = representativeFixture();
+  const sample = select(sites);
+  expect(pairKeys(sample)).toEqual(pairKeys(sites));
+  expect(sample.length).toBeLessThan(sites.length);
+  expect(sample.length).toBeLessThanOrEqual(pairKeys(sites).size);
 
-    expect(new Set(shuffledSample.map((site) => site.id))).toEqual(selectedIds);
-    expect(shuffledSample.map((site) => site.id)).toEqual(
-      shuffled.filter((site) => selectedIds.has(site.id)).map((site) => site.id),
-    );
-  });
+  // The same ids come back from any permutation, in the caller's order.
+  const shuffled = [sites[7], sites[4], sites[6], sites[2], sites[0], sites[5], sites[3], sites[1]]
+    .filter((site): site is SiteDetail => site !== undefined);
+  const selectedIds = new Set(sample.map((site) => site.id));
+  const shuffledSample = select(shuffled);
+  expect(new Set(shuffledSample.map((site) => site.id))).toEqual(selectedIds);
+  expect(shuffledSample.map((site) => site.id)).toEqual(
+    shuffled.filter((site) => selectedIds.has(site.id)).map((site) => site.id),
+  );
 
-  it('returns an empty active sample for an empty catalogue', () => {
-    expect(select([])).toEqual([]);
-  });
+  expect(select([])).toEqual([]);
 });

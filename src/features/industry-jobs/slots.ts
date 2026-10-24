@@ -33,7 +33,7 @@ export function slotCapacity(levels: Record<string, number> | null): SlotCapacit
   };
 }
 
-export function jobOccupiesSlot(status: JobStatus): boolean {
+function jobOccupiesSlot(status: JobStatus): boolean {
   return status === 'active' || status === 'paused' || status === 'ready';
 }
 

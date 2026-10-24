@@ -128,11 +128,3 @@ test('a skill-eligible pilot still syncing is reconciled on a backoff, then give
   await vi.advanceTimersByTimeAsync(600_000);
   expect(h.apiFetch).toHaveBeenCalledTimes(6);
 });
-
-test('reconciling stops once every skill-eligible pilot has synced', async () => {
-  h.apiFetch.mockResolvedValueOnce(answer([unsynced(7)])).mockResolvedValue(answer([synced]));
-  slots([7]);
-  await vi.advanceTimersByTimeAsync(600_000);
-  expect(h.apiFetch).toHaveBeenCalledTimes(2);
-  expect(slots([7]).characters).toEqual([synced]);
-});

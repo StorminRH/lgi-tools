@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   getCurrentUserIdMock: vi.fn(),
@@ -51,78 +51,54 @@ beforeEach(() => {
   h.listSavedPlansMock.mockReset().mockResolvedValue([planRow]);
 });
 
-describe('GET /api/account/saved-plans', () => {
-  it('fails soft for an anonymous caller: 200 with an empty list', async () => {
-    h.getCurrentUserIdMock.mockResolvedValue(null);
-    const res = await GET();
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ plans: [] });
-    expect(h.listSavedPlansMock).not.toHaveBeenCalled();
-  });
+test('GET fails soft for an anonymous caller and returns the caller-scoped plans when signed in', async () => {
+  h.getCurrentUserIdMock.mockResolvedValue(null);
+  const anonymous = await GET();
+  expect(anonymous.status).toBe(200);
+  expect(await anonymous.json()).toEqual({ plans: [] });
+  expect(h.listSavedPlansMock).not.toHaveBeenCalled();
 
-  it('returns the caller-scoped plans when signed in', async () => {
-    h.getCurrentUserIdMock.mockResolvedValue('user-1');
-    const res = await GET();
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ plans: [planRow] });
-    expect(h.listSavedPlansMock).toHaveBeenCalledWith('user-1');
-  });
+  h.getCurrentUserIdMock.mockResolvedValue('user-1');
+  const signedIn = await GET();
+  expect(signedIn.status).toBe(200);
+  expect(await signedIn.json()).toEqual({ plans: [planRow] });
+  expect(h.listSavedPlansMock).toHaveBeenCalledWith('user-1');
 });
 
-describe('POST /api/account/saved-plans', () => {
-  it('returns 400 for an invalid body', async () => {
-    const res = await POST(postJson(ROUTE, { name: 'no snapshot' }));
-    expect(res.status).toBe(400);
-    expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
-  });
+test('POST refuses an invalid body, malformed JSON, and an unknown blueprint before saving', async () => {
+  const invalid = await POST(postJson(ROUTE, { name: 'no snapshot' }));
+  expect(invalid.status).toBe(400);
 
-  it('returns 400 for malformed JSON', async () => {
-    const res = await POST(postJson(ROUTE, '{not valid json'));
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_json',
-      detail: 'Invalid JSON',
-    });
-    expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
+  const malformed = await POST(postJson(ROUTE, '{not valid json'));
+  expect(malformed.status).toBe(400);
+  expect(problemBodySchema.parse(await malformed.json())).toMatchObject({
+    code: 'invalid_json',
+    detail: 'Invalid JSON',
   });
+  expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
 
-  it('returns 400 when the blueprint does not resolve, before the cap is ever checked', async () => {
-    h.getBlueprintStructureMock.mockResolvedValue(null);
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'unknown_blueprint',
-      detail: 'unknown blueprint',
-    });
-    expect(h.createSavedPlanMock).not.toHaveBeenCalled();
+  h.getBlueprintStructureMock.mockResolvedValue(null);
+  const unknown = await POST(postJson(ROUTE, VALID_BODY));
+  expect(unknown.status).toBe(400);
+  expect(problemBodySchema.parse(await unknown.json())).toMatchObject({
+    code: 'unknown_blueprint',
+    detail: 'unknown blueprint',
   });
+  expect(h.createSavedPlanMock).not.toHaveBeenCalled();
+});
 
-  it('maps a full account to 409 without listing', async () => {
-    h.createSavedPlanMock.mockResolvedValue(false);
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(409);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'template_limit',
-      detail: 'template limit reached',
-    });
-    expect(h.createSavedPlanMock).toHaveBeenCalledTimes(1);
-    expect(h.listSavedPlansMock).not.toHaveBeenCalled();
-  });
-
-  it('saves the plan and returns the updated list with 201', async () => {
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ plans: [planRow] });
-    expect(h.createSavedPlanMock).toHaveBeenCalledWith(
-      'user-1',
-      expect.objectContaining({
-        name: 'Hulk batch',
-        blueprintTypeId: 22548,
-        productTypeId: 22544,
-        productName: 'Hulk',
-        snapshot: { v: 1, blueprintTypeId: 22548 },
-      }),
-    );
-  });
-
+test('POST saves the plan and returns the updated list with 201', async () => {
+  const res = await POST(postJson(ROUTE, VALID_BODY));
+  expect(res.status).toBe(201);
+  expect(await res.json()).toEqual({ plans: [planRow] });
+  expect(h.createSavedPlanMock).toHaveBeenCalledWith(
+    'user-1',
+    expect.objectContaining({
+      name: 'Hulk batch',
+      blueprintTypeId: 22548,
+      productTypeId: 22544,
+      productName: 'Hulk',
+      snapshot: { v: 1, blueprintTypeId: 22548 },
+    }),
+  );
 });

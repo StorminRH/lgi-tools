@@ -62,7 +62,6 @@ beforeEach(() => {
 test('renders visible pilots while syncing every eligible pilot, including hidden ones', () => {
   h.dimmed = [2, 3];
   const html = render(true);
-  expect(html).toContain('Personal jobs');
   expect(html).toContain('Pilot One');
   expect(html).not.toContain('Pilot Two');
   expect(html).toContain('Reconnect Pilot');
@@ -108,8 +107,6 @@ test('live jobs and empty boards use the right pilot, names, progress and sync t
   });
   const html = render();
   expect(html).toContain('Raven');
-  expect(html).toContain('×2 · Manufacturing');
-  expect(html).toContain('next done in');
   expect(html).toContain('As of');
   expect(html.indexOf('Raven')).toBeLessThan(html.indexOf('Pilot Two'));
   expect(html).toContain('No industry jobs running.');

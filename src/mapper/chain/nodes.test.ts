@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { SYSTEM_FRAME_HEIGHT, SYSTEM_FRAME_WIDTH } from '../canvas/disc-chrome';
 import { layoutFacts } from '../layout/__tests__/layout-facts-fixture';
 import { deriveChainTree } from '../layout/facts';
@@ -50,196 +50,162 @@ function stateFor(systemIds: readonly number[]): ChainState {
   return stateOf(chainSnapshot(systemIds));
 }
 
-describe('canvas node projection', () => {
-  it('projects one node per reconciled system with its label', () => {
-    const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel);
+test('projects one node per reconciled system, relabels in place, and drops a departed system', () => {
+  const nodes = syncNodes([], stateFor([JITA, AMARR]).systems, namedLabel);
 
-    expect(nodes).toEqual([
-      {
-        id: String(JITA),
-        type: 'chainSystem',
-        width: SYSTEM_FRAME_WIDTH,
-        height: SYSTEM_FRAME_HEIGHT,
-        position: positionOfSlot(0),
-        style: { pointerEvents: 'none' },
-        data: {
-          name: 'Jita',
-          className: null,
-          security: null,
-          whClassId: null,
-          effect: null,
-        },
+  expect(nodes).toEqual([
+    {
+      id: String(JITA),
+      type: 'chainSystem',
+      width: SYSTEM_FRAME_WIDTH,
+      height: SYSTEM_FRAME_HEIGHT,
+      position: positionOfSlot(0),
+      style: { pointerEvents: 'none' },
+      data: {
+        name: 'Jita',
+        className: null,
+        security: null,
+        whClassId: null,
+        effect: null,
       },
-      {
-        id: String(AMARR),
-        type: 'chainSystem',
-        width: SYSTEM_FRAME_WIDTH,
-        height: SYSTEM_FRAME_HEIGHT,
-        position: positionOfSlot(1),
-        style: { pointerEvents: 'none' },
-        data: {
-          name: 'J123456',
-          className: 'C5',
-          security: null,
-          whClassId: null,
-          effect: 'magnetar',
-        },
+    },
+    {
+      id: String(AMARR),
+      type: 'chainSystem',
+      width: SYSTEM_FRAME_WIDTH,
+      height: SYSTEM_FRAME_HEIGHT,
+      position: positionOfSlot(1),
+      style: { pointerEvents: 'none' },
+      data: {
+        name: 'J123456',
+        className: 'C5',
+        security: null,
+        whClassId: null,
+        effect: 'magnetar',
       },
-    ]);
-  });
+    },
+  ]);
 
-  it('drops a node the reconciler no longer holds', () => {
-    const before = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel);
-    const after = syncNodes(before, stateFor([JITA]).systems, fallbackLabel);
+  // A node whose label arrives late is relabelled in place.
+  const unlabelled = syncNodes([], stateFor([JITA, AMARR]).systems, fallbackLabel);
+  expect(unlabelled[0]?.data.name).toBe(String(JITA));
+  const relabelled = syncNodes(unlabelled, stateFor([JITA, AMARR]).systems, namedLabel);
+  expect(relabelled[0]?.data.name).toBe('Jita');
+  expect(relabelled[0]?.position).toEqual(unlabelled[0]?.position);
 
-    expect(after.map((node) => node.id)).toEqual([String(JITA)]);
-  });
-
-
-
-  it('relabels in place when the directory arrives late', () => {
-    const state = stateFor([JITA]);
-    const before = syncNodes([], state.systems, fallbackLabel);
-    const after = syncNodes(before, state.systems, namedLabel);
-
-    expect(before[0]?.data).toEqual({
-      name: String(JITA),
-      className: null,
-      security: null,
-      whClassId: null,
-      effect: null,
-    });
-    expect(after[0]?.data).toEqual({
-      name: 'Jita',
-      className: null,
-      security: null,
-      whClassId: null,
-      effect: null,
-    });
-    expect(after[0]?.position).toEqual(before[0]?.position);
-  });
+  // A node the reconciler no longer holds is dropped.
+  const dropped = syncNodes(relabelled, stateFor([JITA]).systems, namedLabel);
+  expect(dropped.map((node) => node.id)).toEqual([String(JITA)]);
 });
 
-describe('canvas edge projection', () => {
-  it('projects one edge per visible connection', () => {
-    const state = stateOf(
-      chainSnapshot([JITA, AMARR], [
-        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-      ]),
-    );
+test('projects one edge per visible connection', () => {
+  const state = stateOf(
+    chainSnapshot([JITA, AMARR], [
+      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]),
+  );
 
-    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
+  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
+    {
+      id: 'c1',
+      source: String(JITA),
+      target: String(AMARR),
+      data: { loop: false, tombstoneState: 'active' },
+    },
+  ]);
+});
+
+test('hides a dying corpse when a live line already spans the same pair', () => {
+  const now = 1_700_000_000_000;
+  const state = stateOf(
+    chainSnapshot([JITA, AMARR], [
       {
-        id: 'c1',
-        source: String(JITA),
-        target: String(AMARR),
-        data: { loop: false, tombstoneState: 'active' },
+        connectionId: 'live',
+        fromSystemId: JITA,
+        toSystemId: AMARR,
       },
-    ]);
-  });
-
-  it('hides a dying corpse when a live line already spans the same pair', () => {
-    const now = 1_700_000_000_000;
-    const state = stateOf(
-      chainSnapshot([JITA, AMARR], [
-        {
-          connectionId: 'live',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-        },
-        {
-          connectionId: 'dying',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          deletedAt: now - 1,
-          purgeAfter: now + 1,
-        },
-      ]),
-    );
-
-    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
       {
-        id: 'live',
-        source: String(JITA),
-        target: String(AMARR),
-        data: { loop: false, tombstoneState: 'active' },
+        connectionId: 'dying',
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        deletedAt: now - 1,
+        purgeAfter: now + 1,
       },
-    ]);
-  });
+    ]),
+  );
 
-  it('renders dying ties but keeps skeleton ties out of the canvas', () => {
-    const now = 1_700_000_000_000;
-    const state = stateOf(
-      chainSnapshot([JITA, AMARR], [
-        {
-          connectionId: 'dying',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          deletedAt: now - 1,
-          purgeAfter: now + 1,
-        },
-        {
-          connectionId: 'skeleton',
-          fromSystemId: JITA,
-          toSystemId: AMARR,
-          deletedAt: now - 2,
-          purgeAfter: null,
-        },
-      ]),
-    );
+  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+    {
+      id: 'live',
+      source: String(JITA),
+      target: String(AMARR),
+      data: { loop: false, tombstoneState: 'active' },
+    },
+  ]);
+});
 
-    const positionsBefore = [...state.systems.values()].map((row) => row.position);
-    expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+test('renders dying ties but keeps skeleton ties out of the canvas', () => {
+  const now = 1_700_000_000_000;
+  const state = stateOf(
+    chainSnapshot([JITA, AMARR], [
       {
-        id: 'dying',
-        source: String(JITA),
-        target: String(AMARR),
-        data: { loop: false, tombstoneState: 'dying' },
+        connectionId: 'dying',
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        deletedAt: now - 1,
+        purgeAfter: now + 1,
       },
-    ]);
-    expect(
-      buildEdges(state.connections, new Map([[AMARR, JITA]]), now + 2),
-    ).toEqual([]);
-    expect([...state.systems.values()].map((row) => row.position)).toEqual(
-      positionsBefore,
-    );
-    expect(state.connections.has('skeleton')).toBe(true);
-  });
+      {
+        connectionId: 'skeleton',
+        fromSystemId: JITA,
+        toSystemId: AMARR,
+        deletedAt: now - 2,
+        purgeAfter: null,
+      },
+    ]),
+  );
 
-  it('projects nothing for a withheld connection', () => {
-    const state = stateOf(
-      chainSnapshot([JITA], [
-        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-      ]),
-    );
+  const positionsBefore = [...state.systems.values()].map((row) => row.position);
+  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+    {
+      id: 'dying',
+      source: String(JITA),
+      target: String(AMARR),
+      data: { loop: false, tombstoneState: 'dying' },
+    },
+  ]);
+  expect(
+    buildEdges(state.connections, new Map([[AMARR, JITA]]), now + 2),
+  ).toEqual([]);
+  expect([...state.systems.values()].map((row) => row.position)).toEqual(
+    positionsBefore,
+  );
+  expect(state.connections.has('skeleton')).toBe(true);
+});
 
-    expect(buildEdges(state.connections, new Map())).toEqual([]);
-  });
+test('classifies tree links solid and loop closures dashed, once per pair', () => {
+  const DODIXIE = 30002659;
+  const state = stateOf(
+    chainSnapshot([JITA, AMARR, DODIXIE], [
+      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+      { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
+      { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
+      { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
+    ]),
+  );
+  const treeParents = deriveChainTree(layoutFacts(
+    [JITA, AMARR, DODIXIE],
+    [[JITA, AMARR], [AMARR, DODIXIE], [DODIXIE, JITA], [AMARR, JITA]],
+  )).parents;
 
-  it('classifies tree links solid and loop closures dashed, once per pair', () => {
-    const DODIXIE = 30002659;
-    const state = stateOf(
-      chainSnapshot([JITA, AMARR, DODIXIE], [
-        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-        { connectionId: 'c2', fromSystemId: AMARR, toSystemId: DODIXIE },
-        { connectionId: 'c3', fromSystemId: DODIXIE, toSystemId: JITA },
-        { connectionId: 'c4', fromSystemId: AMARR, toSystemId: JITA },
-      ]),
-    );
-    const treeParents = deriveChainTree(layoutFacts(
-      [JITA, AMARR, DODIXIE],
-      [[JITA, AMARR], [AMARR, DODIXIE], [DODIXIE, JITA], [AMARR, JITA]],
-    )).parents;
-
-    expect(
-      buildEdges(state.connections, treeParents).map((edge) => [edge.id, edge.data.loop]),
-    ).toEqual([
-      ['c1', false],
-      ['c2', false],
-      ['c3', true],
-      ['c4', true],
-    ]);
-  });
+  expect(
+    buildEdges(state.connections, treeParents).map((edge) => [edge.id, edge.data.loop]),
+  ).toEqual([
+    ['c1', false],
+    ['c2', false],
+    ['c3', true],
+    ['c4', true],
+  ]);
 });
 
 const RING1 = 30_000_144;
@@ -252,122 +218,118 @@ const placedHalo = (fogged: boolean, systemId: number = fogged ? RING3 : RING1) 
   position: { x: 500, y: 500 },
 });
 
-describe('halo node projection', () => {
-  it('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
-    const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
-      placedHalo(false),
-      placedHalo(true),
-    ]);
+test('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
+  const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
+    placedHalo(false),
+    placedHalo(true),
+  ]);
 
-    expect(nodes.map((node) => node.id)).toEqual(
-      [JITA, RING1, RING3].map(String),
-    );
-    const drawn = nodes[1];
-    expect(drawn).toMatchObject({
-      width: SYSTEM_FRAME_WIDTH,
-      height: SYSTEM_FRAME_HEIGHT,
-      position: { x: 500, y: 500 },
-      draggable: false,
-      data: { halo: { ring: 1, fogged: false } },
-    });
-    expect(drawn?.selectable).toBeUndefined();
-    expect(drawn?.style).toEqual({ pointerEvents: 'none' });
-    const fogged = nodes[2];
-    expect(fogged).toMatchObject({
-      draggable: false,
-      selectable: false,
-      selected: false,
-      style: { pointerEvents: 'none' },
-      data: { halo: { ring: 3, fogged: true } },
-    });
+  expect(nodes.map((node) => node.id)).toEqual(
+    [JITA, RING1, RING3].map(String),
+  );
+  const drawn = nodes[1];
+  expect(drawn).toMatchObject({
+    width: SYSTEM_FRAME_WIDTH,
+    height: SYSTEM_FRAME_HEIGHT,
+    position: { x: 500, y: 500 },
+    draggable: false,
+    data: { halo: { ring: 1, fogged: false } },
   });
-
-  it('retains selection for a drawn halo node across merges', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
-      placedHalo(false),
-    ]);
-    const selected = before.map((node) =>
-      node.id === String(RING1) ? { ...node, selected: true } : node,
-    );
-    const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
-      placedHalo(false),
-    ]);
-    expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
-  });
-
-  it('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
-    const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
-      placedHalo(true, RING1),
-    ]);
-    const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, []);
-
-    expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
-    const upgraded = after.find((node) => node.id === String(RING1));
-    expect(upgraded?.data.halo).toBeUndefined();
-    expect(upgraded?.draggable).toBeUndefined();
-    expect(upgraded?.selectable).toBeUndefined();
-    expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
-  });
-
-  it('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
-    const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
-      placedHalo(false, RING1),
-    ]);
-    expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
-    expect(nodes.find((node) => node.id === String(RING1))?.data.halo).toBeUndefined();
+  expect(drawn?.selectable).toBeUndefined();
+  expect(drawn?.style).toEqual({ pointerEvents: 'none' });
+  const fogged = nodes[2];
+  expect(fogged).toMatchObject({
+    draggable: false,
+    selectable: false,
+    selected: false,
+    style: { pointerEvents: 'none' },
+    data: { halo: { ring: 3, fogged: true } },
   });
 });
 
-describe('halo edge projection', () => {
-  it('appends prefixed halo links sharing the pair-claiming, skipping authored pairs', () => {
-    const state = stateOf(
-      chainSnapshot([JITA, AMARR], [
-        { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-      ]),
-    );
-    const treeParents = deriveChainTree(layoutFacts(
-      [JITA, AMARR, RING1, RING3],
-      [[JITA, AMARR], [JITA, RING1], [RING1, RING3]],
-    )).parents;
+test('retains selection for a drawn halo node across merges', () => {
+  const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
+    placedHalo(false),
+  ]);
+  const selected = before.map((node) =>
+    node.id === String(RING1) ? { ...node, selected: true } : node,
+  );
+  const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
+    placedHalo(false),
+  ]);
+  expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
+});
 
-    const edges = buildEdges(state.connections, treeParents, Date.now(), [
-      { a: JITA, b: AMARR },
+test('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
+  const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
+    placedHalo(true, RING1),
+  ]);
+  const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, []);
+
+  expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
+  const upgraded = after.find((node) => node.id === String(RING1));
+  expect(upgraded?.data.halo).toBeUndefined();
+  expect(upgraded?.draggable).toBeUndefined();
+  expect(upgraded?.selectable).toBeUndefined();
+  expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
+});
+
+test('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
+  const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
+    placedHalo(false, RING1),
+  ]);
+  expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
+  expect(nodes.find((node) => node.id === String(RING1))?.data.halo).toBeUndefined();
+});
+
+test('appends prefixed halo links sharing the pair-claiming, skipping authored pairs', () => {
+  const state = stateOf(
+    chainSnapshot([JITA, AMARR], [
+      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
+    ]),
+  );
+  const treeParents = deriveChainTree(layoutFacts(
+    [JITA, AMARR, RING1, RING3],
+    [[JITA, AMARR], [JITA, RING1], [RING1, RING3]],
+  )).parents;
+
+  const edges = buildEdges(state.connections, treeParents, Date.now(), [
+    { a: JITA, b: AMARR },
+    { a: JITA, b: RING1 },
+    { a: RING1, b: RING3 },
+    { a: AMARR, b: RING1 },
+  ]);
+
+  expect(edges.map((edge) => [edge.id, edge.data.loop, edge.data.halo])).toEqual([
+    ['c1', false, undefined],
+    [`halo:${JITA}>${RING1}`, false, true],
+    [`halo:${RING1}>${RING3}`, false, true],
+    [`halo:${AMARR}>${RING1}`, true, true],
+  ]);
+});
+
+test('marks the one fogged side and omits links whose two endpoints are fogged (OW4)', () => {
+  const treeParents = deriveChainTree(layoutFacts(
+    [JITA, RING1, RING3],
+    [[JITA, RING1], [RING1, RING3]],
+  )).parents;
+
+  const edges = buildEdges(
+    new Map(),
+    treeParents,
+    Date.now(),
+    [
       { a: JITA, b: RING1 },
       { a: RING1, b: RING3 },
-      { a: AMARR, b: RING1 },
-    ]);
+      { a: RING3, b: JITA },
+    ],
+    new Set([RING1, RING3]),
+  );
 
-    expect(edges.map((edge) => [edge.id, edge.data.loop, edge.data.halo])).toEqual([
-      ['c1', false, undefined],
-      [`halo:${JITA}>${RING1}`, false, true],
-      [`halo:${RING1}>${RING3}`, false, true],
-      [`halo:${AMARR}>${RING1}`, true, true],
-    ]);
-  });
-
-  it('marks the one fogged side and omits links whose two endpoints are fogged (OW4)', () => {
-    const treeParents = deriveChainTree(layoutFacts(
-      [JITA, RING1, RING3],
-      [[JITA, RING1], [RING1, RING3]],
-    )).parents;
-
-    const edges = buildEdges(
-      new Map(),
-      treeParents,
-      Date.now(),
-      [
-        { a: JITA, b: RING1 },
-        { a: RING1, b: RING3 },
-        { a: RING3, b: JITA },
-      ],
-      new Set([RING1, RING3]),
-    );
-
-    expect(edges.map((edge) => [edge.id, edge.data.fogSide])).toEqual([
-      [`halo:${JITA}>${RING1}`, 'target'],
-      [`halo:${RING3}>${JITA}`, 'source'],
-    ]);
-  });
+  expect(edges.map((edge) => [edge.id, edge.data.fogSide])).toEqual([
+    [`halo:${JITA}>${RING1}`, 'target'],
+    [`halo:${RING3}>${JITA}`, 'source'],
+  ]);
 });
 
 const placedStub = (
@@ -382,66 +344,70 @@ const placedStub = (
   ...overrides,
 });
 
-describe('wormhole stub projection', () => {
-  it('spawns one inert stub, retires it on resolve, and renders nothing without input', () => {
-    const state = stateFor([JITA]);
-    const stub = placedStub();
-    const nodes = syncNodes(
-      [],
-      state.systems,
-      fallbackLabel,
-      [],
-      [stub],
-    );
+test('spawns one inert stub, retires it on resolve, renders nothing without input, and carries a Leads-to hint', () => {
+  const state = stateFor([JITA]);
+  const stub = placedStub();
+  const nodes = syncNodes(
+    [],
+    state.systems,
+    fallbackLabel,
+    [],
+    [stub],
+  );
 
-    expect(nodes.map((node) => node.id)).toEqual([
-      String(JITA),
-      `${STUB_NODE_ID_PREFIX}${stub.connectionId}`,
-    ]);
-    expect(nodes[1]).toMatchObject({
-      position: { x: 300, y: 0 },
-      draggable: false,
-      selectable: false,
-      selected: false,
-      connectable: false,
-      focusable: false,
-      style: { pointerEvents: 'none' },
-      data: {
-        name: 'ABC-123',
-        className: null,
-        destinationHint: null,
-        stub: {
-          connectionId: 'stub-connection',
-          fromSystemId: JITA,
-          signatureId: 'ABC-123',
-        },
+  expect(nodes.map((node) => node.id)).toEqual([
+    String(JITA),
+    `${STUB_NODE_ID_PREFIX}${stub.connectionId}`,
+  ]);
+  expect(nodes[1]).toMatchObject({
+    position: { x: 300, y: 0 },
+    draggable: false,
+    selectable: false,
+    selected: false,
+    connectable: false,
+    focusable: false,
+    style: { pointerEvents: 'none' },
+    data: {
+      name: 'ABC-123',
+      className: null,
+      destinationHint: null,
+      stub: {
+        connectionId: 'stub-connection',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
       },
-    });
-    expect(buildEdges(state.connections, new Map(), Date.now(), [], new Set(), [stub]))
-      .toEqual([
-        {
-          id: 'stub-connection',
-          source: String(JITA),
-          target: `${STUB_NODE_ID_PREFIX}stub-connection`,
-          data: { loop: false, tombstoneState: 'active', stub: true },
-        },
-      ]);
-
-    const before = nodes;
-    const resolved = stateFor([JITA, AMARR]);
-    const after = syncNodes(
-      before,
-      resolved.systems,
-      fallbackLabel,
-    );
-    expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
-    expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
-
-    expect(
-      syncNodes([], stateFor([JITA]).systems, fallbackLabel, [], [])
-        .map((node) => node.id),
-    ).toEqual([String(JITA)]);
+    },
   });
+  expect(buildEdges(state.connections, new Map(), Date.now(), [], new Set(), [stub]))
+    .toEqual([
+      {
+        id: 'stub-connection',
+        source: String(JITA),
+        target: `${STUB_NODE_ID_PREFIX}stub-connection`,
+        data: { loop: false, tombstoneState: 'active', stub: true },
+      },
+    ]);
+
+  const before = nodes;
+  const resolved = stateFor([JITA, AMARR]);
+  const after = syncNodes(
+    before,
+    resolved.systems,
+    fallbackLabel,
+  );
+  expect(after.filter((node) => node.id === String(AMARR))).toHaveLength(1);
+  expect(after.some((node) => node.id.startsWith(STUB_NODE_ID_PREFIX))).toBe(false);
+
+  expect(
+    syncNodes([], stateFor([JITA]).systems, fallbackLabel, [], [])
+      .map((node) => node.id),
+  ).toEqual([String(JITA)]);
+
+  // A stored Leads-to hint is copied onto the scanned stub node.
+  const hinted = placedStub({ wormholeTypeCode: 'K162', destinationHint: 'unknown' });
+  expect(
+    syncNodes([], stateFor([JITA]).systems, fallbackLabel, [], [hinted])[1]?.data,
+  ).toMatchObject({ name: 'ABC-123', whClassId: null, destinationHint: 'unknown' });
 });
 
 const CLASS_BY_CODE: Readonly<Record<string, { className: string; whClassId: number }>> = {
@@ -506,166 +472,145 @@ function placePlannedStubs(
   }));
 }
 
-describe('static wormhole stub projection', () => {
-  it('renders exactly the believed-holes plan for the two-statics/four-sigs case', () => {
-    const rows = [
-      ...SYSTEM_PLACEHOLDERS,
+test('renders exactly the believed-holes plan for the two-statics/four-sigs case', () => {
+  const rows = [
+    ...SYSTEM_PLACEHOLDERS,
+    ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
+      scannedRow({
+        connectionId: `connection-${signatureId}`,
+        fromSystemId: JITA,
+        signatureId,
+      })),
+  ];
+  const planned = planStubNodes({
+    systemIds: [JITA],
+    rows,
+    connections: [],
+    rootSystemId: JITA,
+    classOf,
+  });
+  const placed = placePlannedStubs(planned);
+  const nodes = syncNodes(
+    [],
+    stateFor([JITA]).systems,
+    fallbackLabel,
+    [],
+    placed,
+  );
+
+  expect(nodes.slice(1).map((node) => node.id)).toEqual(
+    placed.map(stubNodeId),
+  );
+  expect(nodes.slice(1).map((node) => node.data.name)).toEqual([
+    'CCC-333',
+    'DDD-444',
+    'B274',
+    'H296',
+  ]);
+  expect(nodes.slice(1).map((node) => node.data.whClassId)).toEqual([
+    null,
+    null,
+    7,
+    5,
+  ]);
+  expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
+    .toHaveLength(2);
+});
+
+test('replaces a matching static with a code-carrying line and restores it after collapse', () => {
+  const liveConnection = {
+    fromSystemId: JITA,
+    toSystemId: AMARR,
+    from: {
+      typeCode: 'B274',
+      signatureId: 'ABC-123',
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+    to: {
+      typeCode: 'K162',
+      signatureId: null,
+      signalPct: null,
+      leadsTo: { kind: 'unset' as const },
+    },
+    tombstone: { kind: 'live' as const },
+  };
+  const input = {
+    systemIds: [JITA],
+    rows: SYSTEM_PLACEHOLDERS,
+    rootSystemId: JITA,
+    classOf,
+  };
+  const matched = placePlannedStubs(planStubNodes({
+    ...input,
+    connections: [liveConnection],
+  }));
+  expect(matched.map(stubNodeId)).toEqual([
+    `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
+  ]);
+
+  const collapsed = placePlannedStubs(planStubNodes({
+    ...input,
+    connections: [{
+      ...liveConnection,
+      tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: null },
+    }],
+  }));
+  expect(collapsed.map(stubNodeId)).toEqual([
+    `${STATIC_STUB_NODE_ID_PREFIX}ph-B274`,
+    `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
+  ]);
+  expect(
+    buildEdges(new Map(), new Map(), Date.now(), [], new Set(), collapsed)
+      .map((edge) => edge.id),
+  ).toEqual([
+    `${STATIC_STUB_EDGE_ID_PREFIX}ph-B274`,
+    `${STATIC_STUB_EDGE_ID_PREFIX}ph-H296`,
+  ]);
+});
+
+test('renders zero static ghosts in degraded mode while preserving the pasted stub', () => {
+  const placed = placePlannedStubs(planStubNodes({
+    systemIds: [JITA],
+    rows: [scannedRow({
+      connectionId: 'scan-1',
+      fromSystemId: JITA,
+      signatureId: 'ABC-123',
+    })],
+    connections: [],
+    rootSystemId: JITA,
+    classOf,
+  }));
+  const nodes = syncNodes(
+    [],
+    stateFor([JITA]).systems,
+    fallbackLabel,
+    [],
+    placed,
+  );
+
+  expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
+    .toEqual([]);
+  expect(nodes.map((node) => node.id)).toEqual([String(JITA), 'stub:scan-1']);
+});
+
+test('reserves the inbound hole on a non-root system so four unidentified sigs draw one Unknown', () => {
+  const planned = planStubNodes({
+    systemIds: [AMARR],
+    rows: [
+      placeholderRow({ connectionId: 'ph-B274', fromSystemId: AMARR, code: 'B274' }),
+      placeholderRow({ connectionId: 'ph-H296', fromSystemId: AMARR, code: 'H296' }),
       ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
         scannedRow({
           connectionId: `connection-${signatureId}`,
-          fromSystemId: JITA,
+          fromSystemId: AMARR,
           signatureId,
         })),
-    ];
-    const planned = planStubNodes({
-      systemIds: [JITA],
-      rows,
-      connections: [],
-      rootSystemId: JITA,
-      classOf,
-    });
-    const placed = placePlannedStubs(planned);
-    const nodes = syncNodes(
-      [],
-      stateFor([JITA]).systems,
-      fallbackLabel,
-      [],
-      placed,
-    );
-
-    expect(nodes.slice(1).map((node) => node.id)).toEqual(
-      placed.map(stubNodeId),
-    );
-    expect(nodes.slice(1).map((node) => node.data.name)).toEqual([
-      'CCC-333',
-      'DDD-444',
-      'B274',
-      'H296',
-    ]);
-    expect(nodes.slice(1).map((node) => node.data.whClassId)).toEqual([
-      null,
-      null,
-      7,
-      5,
-    ]);
-    expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
-      .toHaveLength(2);
+    ],
+    connections: [],
+    rootSystemId: JITA,
+    classOf,
   });
-
-  it('replaces a matching static with a code-carrying line and restores it after collapse', () => {
-    const liveConnection = {
-      fromSystemId: JITA,
-      toSystemId: AMARR,
-      from: {
-        typeCode: 'B274',
-        signatureId: 'ABC-123',
-        signalPct: null,
-        leadsTo: { kind: 'unset' as const },
-      },
-      to: {
-        typeCode: 'K162',
-        signatureId: null,
-        signalPct: null,
-        leadsTo: { kind: 'unset' as const },
-      },
-      tombstone: { kind: 'live' as const },
-    };
-    const input = {
-      systemIds: [JITA],
-      rows: SYSTEM_PLACEHOLDERS,
-      rootSystemId: JITA,
-      classOf,
-    };
-    const matched = placePlannedStubs(planStubNodes({
-      ...input,
-      connections: [liveConnection],
-    }));
-    expect(matched.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
-    ]);
-
-    const collapsed = placePlannedStubs(planStubNodes({
-      ...input,
-      connections: [{
-        ...liveConnection,
-        tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: null },
-      }],
-    }));
-    expect(collapsed.map(stubNodeId)).toEqual([
-      `${STATIC_STUB_NODE_ID_PREFIX}ph-B274`,
-      `${STATIC_STUB_NODE_ID_PREFIX}ph-H296`,
-    ]);
-    expect(
-      buildEdges(new Map(), new Map(), Date.now(), [], new Set(), collapsed)
-        .map((edge) => edge.id),
-    ).toEqual([
-      `${STATIC_STUB_EDGE_ID_PREFIX}ph-B274`,
-      `${STATIC_STUB_EDGE_ID_PREFIX}ph-H296`,
-    ]);
-  });
-
-  it('renders zero static ghosts in degraded mode while preserving the pasted stub', () => {
-    const placed = placePlannedStubs(planStubNodes({
-      systemIds: [JITA],
-      rows: [scannedRow({
-        connectionId: 'scan-1',
-        fromSystemId: JITA,
-        signatureId: 'ABC-123',
-      })],
-      connections: [],
-      rootSystemId: JITA,
-      classOf,
-    }));
-    const nodes = syncNodes(
-      [],
-      stateFor([JITA]).systems,
-      fallbackLabel,
-      [],
-      placed,
-    );
-
-    expect(nodes.filter((node) => node.id.startsWith(STATIC_STUB_NODE_ID_PREFIX)))
-      .toEqual([]);
-    expect(nodes.map((node) => node.id)).toEqual([String(JITA), 'stub:scan-1']);
-  });
-
-  it('reserves the inbound hole on a non-root system so four unidentified sigs draw one Unknown', () => {
-    const planned = planStubNodes({
-      systemIds: [AMARR],
-      rows: [
-        placeholderRow({ connectionId: 'ph-B274', fromSystemId: AMARR, code: 'B274' }),
-        placeholderRow({ connectionId: 'ph-H296', fromSystemId: AMARR, code: 'H296' }),
-        ...['AAA-111', 'BBB-222', 'CCC-333', 'DDD-444'].map((signatureId) =>
-          scannedRow({
-            connectionId: `connection-${signatureId}`,
-            fromSystemId: AMARR,
-            signatureId,
-          })),
-      ],
-      connections: [],
-      rootSystemId: JITA,
-      classOf,
-    });
-    expect(planned.filter((stub) => 'connectionId' in stub)).toHaveLength(1);
-    expect(planned.filter((stub) => 'staticId' in stub)).toHaveLength(2);
-  });
-
-  it('copies a stored Leads-to hint onto the scanned stub node', () => {
-    const stub = placedStub({
-      wormholeTypeCode: 'K162',
-      destinationHint: 'unknown',
-    });
-    const nodes = syncNodes(
-      [],
-      stateFor([JITA]).systems,
-      fallbackLabel,
-      [],
-      [stub],
-    );
-    expect(nodes[1]?.data).toMatchObject({
-      name: 'ABC-123',
-      whClassId: null,
-      destinationHint: 'unknown',
-    });
-  });
+  expect(planned.filter((stub) => 'connectionId' in stub)).toHaveLength(1);
+  expect(planned.filter((stub) => 'staticId' in stub)).toHaveLength(2);
 });

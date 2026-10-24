@@ -206,40 +206,33 @@ describe('POST /api/account/characters/unlink', () => {
     errorSpy.mockRestore();
   });
 
-  it('keeps the character linked when Convex revocation fails', async () => {
+  it('keeps the character linked when queuing the affected maps or Convex revocation fails', async () => {
     getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    enqueueAffectedMapAccessChangesMock.mockResolvedValueOnce([{ mapId: 'map-1', version: 'v1' }]);
-    revokeUserMapClaimsMock.mockRejectedValue(new Error('Convex unavailable'));
+    unlinkAccountMock.mockResolvedValue({ status: true });
     const errorSpy = silenceConsolePrefixes('error', [
       '[account/unlink] map access revocation failed',
     ]);
 
-    const response = await POST(postForm(ROUTE, { characterId: '100' }));
+    enqueueAffectedMapAccessChangesMock.mockRejectedValueOnce(new Error('neon enqueue failed'));
+    const queueFailed = await POST(postForm(ROUTE, { characterId: '100' }));
+    expect(queueFailed.status).toBe(303);
+    expect(locationOf(queueFailed)).toContain('error=unlink_failed');
+    expect(errorSpy).toHaveBeenLastCalledWith('[account/unlink] map access revocation failed', expect.any(Error));
 
-    expect(locationOf(response)).toContain('error=unlink_failed');
+    enqueueAffectedMapAccessChangesMock.mockReset().mockResolvedValueOnce([{ mapId: 'map-1', version: 'v1' }]);
+    enqueueAffectedMapAccessChangesMock.mockResolvedValue([]);
+    revokeUserMapClaimsMock.mockReset().mockRejectedValue(new Error('Convex unavailable'));
+    emitCostMetricMock.mockReset();
+    errorSpy.mockClear();
+    const revokeFailed = await POST(postForm(ROUTE, { characterId: '100' }));
+    expect(locationOf(revokeFailed)).toContain('error=unlink_failed');
     expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'unexpected', code: 'unlink_failed' }]);
     expect(revokeUserMapClaimsMock).toHaveBeenCalledWith('eve-user-1', ['map-1']);
     expect(errorSpy).toHaveBeenCalledWith('[account/unlink] map access revocation failed', expect.any(Error));
+
     expect(unlinkAccountMock).not.toHaveBeenCalled();
     expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
-    errorSpy.mockRestore();
-  });
-
-  it('keeps the character linked when queuing the affected maps fails', async () => {
-    getSessionMock.mockResolvedValue(SESSION);
-    listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
-    unlinkAccountMock.mockResolvedValue({ status: true });
-    enqueueAffectedMapAccessChangesMock.mockRejectedValue(new Error('neon enqueue failed'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    const res = await POST(postForm(ROUTE, { characterId: '100' }));
-
-    expect(res.status).toBe(303);
-    expect(locationOf(res)).toContain('error=unlink_failed');
-    expect(unlinkAccountMock).not.toHaveBeenCalled();
-    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 });
