@@ -74,6 +74,8 @@ test('overlayLivePrices prices eligible resources from one deduplicated read and
   const expectedTypeIds = [10, 20, 30, 40, 50, 60, 70];
   expect(h.getPrices).toHaveBeenCalledWith(expectedTypeIds);
   expect(h.getTypesByIds).toHaveBeenCalledWith(expectedTypeIds);
+  expect(h.getPrices).toHaveBeenCalledTimes(1);
+  expect(h.getTypesByIds).toHaveBeenCalledTimes(1);
 
   expect(result).not.toBe(sites);
   expect(result[0]).not.toBe(resourceSite);

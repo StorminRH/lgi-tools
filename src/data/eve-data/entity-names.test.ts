@@ -2,18 +2,18 @@ import { expect, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => ({
-esiFetch: vi.fn(),
-readStored: vi.fn(),
-store: vi.fn(),
+  esiFetch: vi.fn(),
+  readStored: vi.fn(),
+  store: vi.fn(),
 }));
 
 vi.mock('@/data/esi-store', async () => {
-const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
-return passThroughStub((...args) => h.esiFetch(...args));
+  const { passThroughStub } = await import('@/data/esi-store/__tests__/pass-through-stub');
+  return passThroughStub((...args) => h.esiFetch(...args));
 });
 vi.mock('./entity-names-store', () => ({
-readStoredEntityNames: (...args: unknown[]) => h.readStored(...args),
-storeEntityNames: (...args: unknown[]) => h.store(...args),
+  readStoredEntityNames: (...args: unknown[]) => h.readStored(...args),
+  storeEntityNames: (...args: unknown[]) => h.store(...args),
 }));
 
 import { resolveEntityNames, resolveEntityNamesStrict, resolveEntityNamesWithPending } from './entity-names';
@@ -21,28 +21,28 @@ import { resolveEntityNames, resolveEntityNamesStrict, resolveEntityNamesWithPen
 const DAY = 24 * 60 * 60 * 1000;
 
 function posted(init: RequestInit): number[] {
-return JSON.parse(String(init.body)) as number[];
+  return JSON.parse(String(init.body)) as number[];
 }
 
 /** ESI's real behaviour: 404 for the whole batch when any id is unknown. */
 function esiKnowing(known: ReadonlySet<number>) {
-return async (_url: string, init: RequestInit) => {
-  const ids = posted(init);
-  if (ids.some((id) => !known.has(id))) return new Response(null, { status: 404 });
-  return Response.json(ids.map((id) => ({ category: 'character', id, name: `Pilot ${id}` })));
-};
+  return async (_url: string, init: RequestInit) => {
+    const ids = posted(init);
+    if (ids.some((id) => !known.has(id))) return new Response(null, { status: 404 });
+    return Response.json(ids.map((id) => ({ category: 'character', id, name: `Pilot ${id}` })));
+  };
 }
 
 function storedRows(): { id: number; name: string | null }[] {
-return h.store.mock.calls.flatMap(([rows]) => rows as { id: number; name: string | null }[]);
+  return h.store.mock.calls.flatMap(([rows]) => rows as { id: number; name: string | null }[]);
 }
 
 function fresh(): void {
-vi.restoreAllMocks();
-h.esiFetch.mockReset();
-h.readStored.mockReset().mockResolvedValue(new Map());
-h.store.mockReset().mockResolvedValue(undefined);
-silenceConsolePrefixes('warn', ['[entity-names]']);
+  vi.restoreAllMocks();
+  h.esiFetch.mockReset();
+  h.readStored.mockReset().mockResolvedValue(new Map());
+  h.store.mockReset().mockResolvedValue(undefined);
+  silenceConsolePrefixes('warn', ['[entity-names]']);
 }
 
 test('asks ESI once for every id it has no stored answer for, and stores the answers', async () => {
