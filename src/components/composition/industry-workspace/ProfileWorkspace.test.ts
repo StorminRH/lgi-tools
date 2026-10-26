@@ -233,7 +233,7 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(box('Composite reactions')).toContain('aria-checked="true"');
   expect(box('Composite reactions')).toContain('aria-disabled="true"');
   expect(box('All components')).toContain('aria-checked="false"');
-  expect(categories.map(nameOf)).not.toContain(undefined);
+  expect(categories.map(nameOf).every((name) => typeof name === 'string' && name.trim() !== '')).toBe(true);
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.

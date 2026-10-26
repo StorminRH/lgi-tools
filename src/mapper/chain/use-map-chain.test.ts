@@ -95,17 +95,22 @@ test('is stable for identical content and changes on every graph-relevant edit',
     [systems([JITA, AMARR]), connections([])],
     [systems([]), connections([])],
     [systems([JITA]), connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }])],
-    [systems([JITA]), connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR + 1 }])],
-    [systems([JITA], false), connections([], false)],
+    [systems([JITA], false), connections([])],
+    [systems([JITA]), connections([], false)],
   ] as const) {
     expect(chainSignature(nextSystems, nextConnections)).not.toBe(base);
   }
 
-  // A swapped document id and a tombstone on the same endpoints both count.
+  // A moved endpoint, a swapped document id and a tombstone on the same
+  // endpoints all count.
   const linked = chainSignature(
     systems([JITA, AMARR]),
     connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null }]),
   );
+  expect(chainSignature(
+    systems([JITA, AMARR]),
+    connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR + 1, deletedAt: null }]),
+  )).not.toBe(linked);
   expect(chainSignature(
     systems([JITA, AMARR]),
     connections([{ _id: 'c2', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null }]),
