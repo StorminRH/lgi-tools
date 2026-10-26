@@ -543,12 +543,12 @@ test('reuses a held online answer inside its window, then re-reads /online once 
   expect(row?.onlineExpiresAt).toBeGreaterThan(lapsed);
 });
 
-test('skips location and ship for an offline pilot and paces at the online window', async () => {
+test('skips location and ship for an offline pilot, paces at the online window, and resumes on login', async () => {
   const t = await testConvex();
   await seedSyncState(t);
   await seedTracking(t);
   const onlineExpires = new Date(Date.now() + 60_000).toUTCString();
-  const fetchFn = stubFetch({
+  const offlineFetch = stubFetch({
     esi: (url) => {
       if (url.includes('/online')) {
         return Response.json({ online: false }, { headers: { ETag: 'on1', Expires: onlineExpires } });
@@ -559,22 +559,22 @@ test('skips location and ship for an offline pilot and paces at the online windo
 
   await run(t);
 
-  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(false);
-  expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
+  expect(offlineFetch.mock.calls.some(([u]) => String(u).includes('/location'))).toBe(false);
+  expect(offlineFetch.mock.calls.some(([u]) => String(u).includes('/ship'))).toBe(false);
   expect(await readDoc(t)).toBeNull();
-  const row = await readOnlineRow(t);
-  expect(row?.online).toBe(false);
-  expect(row?.etagOnline).toBe('on1');
+  const offline = await readOnlineRow(t);
+  expect(offline?.online).toBe(false);
+  expect(offline?.etagOnline).toBe('on1');
   const subject = await readSyncState(t);
   expect(subject?.minExpiresAt).toBeGreaterThan(Date.now() + 30_000);
   expect(subject?.coveredCharacterIds).toEqual([]);
-});
 
-test('resumes the location loop when the probe sees a login', async () => {
-  const t = await testConvex();
-  await seedSyncState(t);
-  await seedTracking(t);
-  await seedOnline(t, { online: false, onlineExpiresAt: Date.now() - 1 });
+  // The online window lapses and the next probe sees a login.
+  await t.run(async (ctx) => {
+    const row = await ctx.db.query('characterLocationOnline').unique();
+    if (row === null) throw new Error('missing online row');
+    await ctx.db.patch(row._id, { onlineExpiresAt: Date.now() - 1 });
+  });
   stubFetch({
     esi: (url) => {
       if (url.includes('/online')) {

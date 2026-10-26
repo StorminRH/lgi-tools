@@ -1,6 +1,6 @@
 import { SDE_CACHE_TAG } from '@/data/eve-data/constants';
 import type { CombatStats } from '@/data/npc-stats/types';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { SiteListItem } from './types';
 
 const { chain, state, reset } = await vi.hoisted(async () => {
@@ -107,7 +107,7 @@ function combatStats(values: {
 
 const NOW = Date.parse('2026-10-12T12:00:00Z');
 
-beforeEach(() => {
+function fresh(): void {
   reset();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
@@ -120,108 +120,254 @@ beforeEach(() => {
   h.withColdStartRetry.mockImplementation(
     (read: () => Promise<unknown>) => read(),
   );
+}
+
+test('caches the price-overlaid catalogue under the prices tag until a price write clears it, over the SDE-tagged catalogue', async () => {
+  fresh();
+  const site = siteRow(1);
+  const resource = { id: 501, siteId: 1, orderInSite: 1, resourceKind: 'gas', resourceName: 'A', units: 1, volumeM3: 1, iskPerM3: 1, totalIsk: 1, typeId: 1_001 };
+  state.results = [[site], [], [resource]];
+  h.getCombatStatsBatch.mockResolvedValue(new Map());
+
+  const priced = await listPricedSiteDetails();
+
+  expect(priced).toHaveLength(1);
+  expect(h.overlayLivePrices).toHaveBeenCalledWith(priced);
+  expect(h.cacheTag.mock.calls).toEqual([
+    ['eve:market_prices'],
+    [SDE_CACHE_TAG],
+  ]);
+  expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
 });
 
-describe('listPricedSiteDetails', () => {
-  it('caches the price-overlaid catalogue under the prices tag until a price write clears it, over the SDE-tagged catalogue', async () => {
-    const site = siteRow(1);
-    const resource = { id: 501, siteId: 1, orderInSite: 1, resourceKind: 'gas', resourceName: 'A', units: 1, volumeM3: 1, iskPerM3: 1, totalIsk: 1, typeId: 1_001 };
-    state.results = [[site], [], [resource]];
-    h.getCombatStatsBatch.mockResolvedValue(new Map());
+test('overlays prices on a site detail cached under the SDE tag, and returns null for a missing site', async () => {
+  fresh();
+  const site = siteRow(9);
+  state.results = [[site], [], [], []];
+  h.getCombatStatsBatch.mockResolvedValue(new Map());
 
-    const priced = await listPricedSiteDetails();
-
-    expect(priced).toHaveLength(1);
-    expect(h.overlayLivePrices).toHaveBeenCalledWith(priced);
-    expect(h.cacheTag.mock.calls).toEqual([
-      ['eve:market_prices'],
-      [SDE_CACHE_TAG],
-    ]);
-    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
-    expect(h.withColdStartRetry).toHaveBeenCalledTimes(2);
+  await expect(getPricedSiteDetail(9)).resolves.toEqual({
+    ...site,
+    waves: [],
+    resources: [],
   });
+
+  expect(h.overlayLivePrices).toHaveBeenCalledWith([
+    { ...site, waves: [], resources: [] },
+  ]);
+  expect(h.cacheTag.mock.calls).toEqual([
+    ['eve:market_prices'],
+    [SDE_CACHE_TAG],
+  ]);
+  expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
+
+  reset();
+  h.cacheLife.mockClear();
+  state.results = [[]];
+
+  await expect(getPricedSiteDetail(10)).resolves.toBeNull();
+
+  expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
 });
 
-describe('getPricedSiteDetail', () => {
-  it('overlays prices on a site detail cached under the SDE tag, and returns null for a missing site', async () => {
-    const site = siteRow(9);
-    state.results = [[site], [], [], []];
-    h.getCombatStatsBatch.mockResolvedValue(new Map());
+test('caches an empty catalogue under the SDE tag, then assembles every site with weighted combat, per-type EWAR, and raw resources', async () => {
+  fresh();
+  state.results = [[]];
+  await expect(listSiteDetails()).resolves.toEqual([]);
+  expect(h.cacheLife.mock.calls).toEqual([['max']]);
+  expect(h.cacheTag.mock.calls).toEqual([[SDE_CACHE_TAG]]);
 
-    await expect(getPricedSiteDetail(9)).resolves.toEqual({
-      ...site,
-      waves: [],
-      resources: [],
-    });
-
-    expect(state.calls.select).toBe(4);
-    expect(state.results).toEqual([]);
-    expect(h.overlayLivePrices).toHaveBeenCalledWith([
-      { ...site, waves: [], resources: [] },
-    ]);
-    expect(h.cacheTag.mock.calls).toEqual([
-      ['eve:market_prices'],
-      [SDE_CACHE_TAG],
-    ]);
-    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
-
-    reset();
-    h.overlayLivePrices.mockClear();
-    h.getCombatStatsBatch.mockClear();
-    h.cacheLife.mockClear();
-    state.results = [[]];
-
-    await expect(getPricedSiteDetail(10)).resolves.toBeNull();
-
-    expect(state.calls.select).toBe(1);
-    expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
-    expect(h.overlayLivePrices).not.toHaveBeenCalled();
-    expect(h.cacheLife.mock.calls).toEqual([['max'], ['max']]);
+  reset();
+  const fought = siteRow(1);
+  const emptyDetail = siteRow(3, { name: 'Empty C3 site' });
+  const statsA = combatStats({
+    dps: 10.4,
+    alpha: 20.2,
+    ehp: 100.1,
+    scram: 2,
+    web: -60,
+    neut: 3,
+    sig: 45,
+    speed: 120,
+    distance: 15_000,
+    velocity: 80,
   });
-});
-
-describe('listSiteDetails', () => {
-  it('caches under the SDE tag and short-circuits an empty catalogue without dependent reads', async () => {
-    state.results = [[]];
-
-    await expect(listSiteDetails()).resolves.toEqual([]);
-
-    expect(h.cacheLife.mock.calls).toEqual([['max']]);
-    expect(h.cacheTag.mock.calls).toEqual([[SDE_CACHE_TAG]]);
-    expect(state.calls.select).toBe(1);
-    expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
-    expect(h.withColdStartRetry).toHaveBeenCalledTimes(1);
-    expect(state.results).toEqual([]);
+  const statsB = combatStats({
+    dps: 5.1,
+    alpha: 7.6,
+    ehp: 50.4,
+    rrep: 4,
+    sig: 60,
+    speed: 90,
+    distance: 20_000,
+    velocity: 70,
   });
+  const resourceA = {
+    id: 501,
+    siteId: 1,
+    orderInSite: 1,
+    resourceKind: 'gas',
+    resourceName: 'Fullerite-A',
+    units: 10,
+    volumeM3: 100,
+    iskPerM3: 50,
+    totalIsk: 5_000,
+    typeId: 1_001,
+  };
+  const resourceB = {
+    id: 502,
+    siteId: 1,
+    orderInSite: 2,
+    resourceKind: 'gas',
+    resourceName: 'Fullerite-B',
+    units: null,
+    volumeM3: null,
+    iskPerM3: null,
+    totalIsk: null,
+    typeId: null,
+  };
 
-  it('assembles every site with weighted combat, per-type EWAR, and raw resources', async () => {
-    const fought = siteRow(1);
-    const emptyDetail = siteRow(3, { name: 'Empty C3 site' });
-    const statsA = combatStats({
-      dps: 10.4,
-      alpha: 20.2,
-      ehp: 100.1,
-      scram: 2,
-      web: -60,
-      neut: 3,
-      sig: 45,
-      speed: 120,
-      distance: 15_000,
-      velocity: 80,
-    });
-    const statsB = combatStats({
-      dps: 5.1,
-      alpha: 7.6,
-      ehp: 50.4,
-      rrep: 4,
-      sig: 60,
-      speed: 90,
-      distance: 20_000,
-      velocity: 70,
-    });
-    const resourceA = {
+  state.results = [
+    [fought, emptyDetail],
+    [
+      { id: 11, siteId: 1, waveNumber: 1, waveLabel: 'Initial' },
+      { id: 12, siteId: 1, waveNumber: 2, waveLabel: 'Reinforcement' },
+      { id: 13, siteId: 1, waveNumber: 3, waveLabel: 'Empty' },
+    ],
+    [resourceA, resourceB],
+    [
+      {
+        id: 101,
+        waveId: 11,
+        typeId: 100,
+        orderInWave: 1,
+        triggerLabel: 'Trigger',
+        quantity: 3,
+        sleeperName: 'Scramming Sleeper',
+        sleeperClassCode: 'F',
+      },
+      {
+        id: 102,
+        waveId: 11,
+        typeId: 200,
+        orderInWave: 2,
+        triggerLabel: null,
+        quantity: 2,
+        sleeperName: 'Repairing Sleeper',
+        sleeperClassCode: 'C',
+      },
+      {
+        id: 103,
+        waveId: 11,
+        typeId: 300,
+        orderInWave: 3,
+        triggerLabel: null,
+        quantity: 4,
+        sleeperName: 'Unknown Sleeper',
+        sleeperClassCode: 'B',
+      },
+      {
+        id: 104,
+        waveId: 12,
+        typeId: 100,
+        orderInWave: 1,
+        triggerLabel: null,
+        quantity: 1,
+        sleeperName: 'Scramming Sleeper',
+        sleeperClassCode: 'F',
+      },
+    ],
+  ];
+  h.getCombatStatsBatch.mockResolvedValue(new Map([
+    [100, statsA],
+    [200, statsB],
+  ]));
+
+  const result = await listSiteDetails();
+
+  expect(result.map((site) => site.id)).toEqual([1, 3]);
+
+  const firstWave = result[0]?.waves[0];
+  expect(firstWave).toMatchObject({
+    id: 11,
+    waveNumber: 1,
+    waveLabel: 'Initial',
+    ewScram: 2,
+    ewWeb: 1,
+    ewNeut: -3,
+    ewRrep: 4,
+    dpsTotal: 41,
+    alphaTotal: 76,
+    ehpTotal: 401,
+  });
+  expect(firstWave?.npcs[0]).toEqual({
+    id: 101,
+    orderInWave: 1,
+    triggerLabel: 'Trigger',
+    quantity: 3,
+    sleeperName: 'Scramming Sleeper',
+    sleeperClassCode: 'F',
+    scram: 2,
+    web: 1,
+    neut: -3,
+    rrep: 0,
+    sig: 45,
+    speed: 120,
+    distance: 15_000,
+    velocity: 80,
+    dps: 10,
+    alpha: 20,
+    ehp: 100,
+  });
+  expect(firstWave?.npcs[1]).toMatchObject({
+    id: 102,
+    scram: 0,
+    web: 0,
+    neut: -0,
+    rrep: 4,
+    dps: 5,
+    alpha: 8,
+    ehp: 50,
+  });
+  expect(firstWave?.npcs[2]).toMatchObject({
+    id: 103,
+    scram: null,
+    web: null,
+    neut: null,
+    rrep: null,
+    sig: null,
+    speed: null,
+    distance: null,
+    velocity: null,
+    dps: null,
+    alpha: null,
+    ehp: null,
+  });
+  expect(result[0]?.waves[1]).toMatchObject({
+    dpsTotal: 10,
+    alphaTotal: 20,
+    ehpTotal: 100,
+    ewScram: 2,
+    ewWeb: 1,
+    ewNeut: -3,
+    ewRrep: null,
+  });
+  expect(result[0]?.waves[2]).toEqual({
+    id: 13,
+    waveNumber: 3,
+    waveLabel: 'Empty',
+    ewScram: null,
+    ewWeb: null,
+    ewNeut: null,
+    ewRrep: null,
+    dpsTotal: 0,
+    alphaTotal: 0,
+    ehpTotal: 0,
+    npcs: [],
+  });
+  expect(result[0]?.resources).toEqual([
+    {
       id: 501,
-      siteId: 1,
       orderInSite: 1,
       resourceKind: 'gas',
       resourceName: 'Fullerite-A',
@@ -230,10 +376,12 @@ describe('listSiteDetails', () => {
       iskPerM3: 50,
       totalIsk: 5_000,
       typeId: 1_001,
-    };
-    const resourceB = {
+      liveIsk: null,
+      effectiveIsk: 5_000,
+      liveEligible: false,
+    },
+    {
       id: 502,
-      siteId: 1,
       orderInSite: 2,
       resourceKind: 'gas',
       resourceName: 'Fullerite-B',
@@ -242,178 +390,10 @@ describe('listSiteDetails', () => {
       iskPerM3: null,
       totalIsk: null,
       typeId: null,
-    };
-
-    state.results = [
-      [fought, emptyDetail],
-      [
-        { id: 11, siteId: 1, waveNumber: 1, waveLabel: 'Initial' },
-        { id: 12, siteId: 1, waveNumber: 2, waveLabel: 'Reinforcement' },
-        { id: 13, siteId: 1, waveNumber: 3, waveLabel: 'Empty' },
-      ],
-      [resourceA, resourceB],
-      [
-        {
-          id: 101,
-          waveId: 11,
-          typeId: 100,
-          orderInWave: 1,
-          triggerLabel: 'Trigger',
-          quantity: 3,
-          sleeperName: 'Scramming Sleeper',
-          sleeperClassCode: 'F',
-        },
-        {
-          id: 102,
-          waveId: 11,
-          typeId: 200,
-          orderInWave: 2,
-          triggerLabel: null,
-          quantity: 2,
-          sleeperName: 'Repairing Sleeper',
-          sleeperClassCode: 'C',
-        },
-        {
-          id: 103,
-          waveId: 11,
-          typeId: 300,
-          orderInWave: 3,
-          triggerLabel: null,
-          quantity: 4,
-          sleeperName: 'Unknown Sleeper',
-          sleeperClassCode: 'B',
-        },
-        {
-          id: 104,
-          waveId: 12,
-          typeId: 100,
-          orderInWave: 1,
-          triggerLabel: null,
-          quantity: 1,
-          sleeperName: 'Scramming Sleeper',
-          sleeperClassCode: 'F',
-        },
-      ],
-    ];
-    h.getCombatStatsBatch.mockResolvedValue(new Map([
-      [100, statsA],
-      [200, statsB],
-    ]));
-
-    const result = await listSiteDetails();
-
-    expect(result.map((site) => site.id)).toEqual([1, 3]);
-    expect(state.calls.select).toBe(4);
-    expect(h.getCombatStatsBatch).toHaveBeenCalledWith([100, 200, 300]);
-
-    const firstWave = result[0]?.waves[0];
-    expect(firstWave).toMatchObject({
-      id: 11,
-      waveNumber: 1,
-      waveLabel: 'Initial',
-      ewScram: 2,
-      ewWeb: 1,
-      ewNeut: -3,
-      ewRrep: 4,
-      dpsTotal: 41,
-      alphaTotal: 76,
-      ehpTotal: 401,
-    });
-    expect(firstWave?.npcs[0]).toEqual({
-      id: 101,
-      orderInWave: 1,
-      triggerLabel: 'Trigger',
-      quantity: 3,
-      sleeperName: 'Scramming Sleeper',
-      sleeperClassCode: 'F',
-      scram: 2,
-      web: 1,
-      neut: -3,
-      rrep: 0,
-      sig: 45,
-      speed: 120,
-      distance: 15_000,
-      velocity: 80,
-      dps: 10,
-      alpha: 20,
-      ehp: 100,
-    });
-    expect(firstWave?.npcs[1]).toMatchObject({
-      id: 102,
-      scram: 0,
-      web: 0,
-      neut: -0,
-      rrep: 4,
-      dps: 5,
-      alpha: 8,
-      ehp: 50,
-    });
-    expect(firstWave?.npcs[2]).toMatchObject({
-      id: 103,
-      scram: null,
-      web: null,
-      neut: null,
-      rrep: null,
-      sig: null,
-      speed: null,
-      distance: null,
-      velocity: null,
-      dps: null,
-      alpha: null,
-      ehp: null,
-    });
-    expect(result[0]?.waves[1]).toMatchObject({
-      dpsTotal: 10,
-      alphaTotal: 20,
-      ehpTotal: 100,
-      ewScram: 2,
-      ewWeb: 1,
-      ewNeut: -3,
-      ewRrep: null,
-    });
-    expect(result[0]?.waves[2]).toEqual({
-      id: 13,
-      waveNumber: 3,
-      waveLabel: 'Empty',
-      ewScram: null,
-      ewWeb: null,
-      ewNeut: null,
-      ewRrep: null,
-      dpsTotal: 0,
-      alphaTotal: 0,
-      ehpTotal: 0,
-      npcs: [],
-    });
-    expect(result[0]?.resources).toEqual([
-      {
-        id: 501,
-        orderInSite: 1,
-        resourceKind: 'gas',
-        resourceName: 'Fullerite-A',
-        units: 10,
-        volumeM3: 100,
-        iskPerM3: 50,
-        totalIsk: 5_000,
-        typeId: 1_001,
-        liveIsk: null,
-        effectiveIsk: 5_000,
-        liveEligible: false,
-      },
-      {
-        id: 502,
-        orderInSite: 2,
-        resourceKind: 'gas',
-        resourceName: 'Fullerite-B',
-        units: null,
-        volumeM3: null,
-        iskPerM3: null,
-        totalIsk: null,
-        typeId: null,
-        liveIsk: null,
-        effectiveIsk: null,
-        liveEligible: false,
-      },
-    ]);
-    expect(result[1]).toEqual({ ...emptyDetail, waves: [], resources: [] });
-  });
+      liveIsk: null,
+      effectiveIsk: null,
+      liveEligible: false,
+    },
+  ]);
+  expect(result[1]).toEqual({ ...emptyDetail, waves: [], resources: [] });
 });

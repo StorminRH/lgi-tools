@@ -8,7 +8,7 @@ import { failureMessage, type FailedOutcome, type FailureCopy } from '@/transpor
 import type { PreparedMapCreation } from './access-editor-model';
 import { atlasMapHref } from './map-navigation';
 
-export const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
+const MAP_CREATION_INTERSTITIAL_MIN_MS = 5_000;
 
 export async function createMapWithMinimumInterstitial(input: CreateMapRequest) {
   const [outcome] = await Promise.all([
@@ -52,12 +52,12 @@ export function handoffCreatedMap(
   actions.navigate(atlasMapHref(mapId));
 }
 
-export type MapCreationSubmitStart =
+type MapCreationSubmitStart =
   | { readonly kind: 'ignored' }
   | { readonly kind: 'invalid'; readonly message: string }
   | { readonly kind: 'begin'; readonly input: CreateMapRequest };
 
-export function mapCreationSubmitStart(
+function mapCreationSubmitStart(
   busy: boolean,
   prepared: PreparedMapCreation,
 ): MapCreationSubmitStart {
