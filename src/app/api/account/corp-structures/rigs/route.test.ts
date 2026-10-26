@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   requireUserIdMock: vi.fn(),
@@ -56,54 +56,48 @@ beforeEach(() => {
   h.getStructureRigsMock.mockReset().mockResolvedValue([lMfgRig]);
 });
 
-describe('POST /api/account/corp-structures/rigs', () => {
-  it('returns 401 for an anonymous caller', async () => {
-    h.requireUserIdMock.mockResolvedValue({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(401);
-    expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
+test('returns 401 for an anonymous caller', async () => {
+  h.requireUserIdMock.mockResolvedValue({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
+  });
+  const res = await POST(postJson(ROUTE, VALID_BODY));
+  expect(res.status).toBe(401);
+  expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
+});
+
+test('refuses an invalid body, an unowned structure, and a rig that does not fit before saving', async () => {
+  const invalid = await POST(postJson(ROUTE, { corporationId: 2001 }));
+  expect(invalid.status).toBe(400);
+  expect(h.stationManagerGateMock).not.toHaveBeenCalled();
+
+  const misfit = await POST(postJson(ROUTE, { ...VALID_BODY, rigTypeIds: [46490] }));
+  expect(misfit.status).toBe(400);
+  expect(problemBodySchema.parse(await misfit.json())).toMatchObject({
+    code: 'invalid_structure',
+    detail: 'One or more rigs do not fit this structure',
   });
 
-  it('returns 400 for an invalid body', async () => {
-    const res = await POST(postJson(ROUTE, { corporationId: 2001 }));
-    expect(res.status).toBe(400);
-    expect(h.stationManagerGateMock).not.toHaveBeenCalled();
+  h.getCorpStructuresMock.mockResolvedValue(new Map());
+  const unowned = await POST(postJson(ROUTE, VALID_BODY));
+  expect(unowned.status).toBe(400);
+  expect(problemBodySchema.parse(await unowned.json())).toMatchObject({
+    code: 'invalid_structure',
+    detail: 'Unknown structure for this corporation',
   });
+  expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
+});
 
-  it('returns 400 for a structure the corp does not own', async () => {
-    h.getCorpStructuresMock.mockResolvedValue(new Map());
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_structure',
-      detail: 'Unknown structure for this corporation',
-    });
-  });
+test('saves the rigs and echoes the stored completion', async () => {
+  const res = await POST(postJson(ROUTE, VALID_BODY));
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 });
+  expect(h.upsertCorpStructureRigsMock).toHaveBeenCalledWith(2001, 1001, [37170], 1.5);
 
-  it('returns 400 for a rig that does not fit the structure', async () => {
-    const res = await POST(postJson(ROUTE, { ...VALID_BODY, rigTypeIds: [46490] }));
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_structure',
-      detail: 'One or more rigs do not fit this structure',
-    });
-    expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
-  });
-
-  it('saves the rigs and echoes the stored completion', async () => {
-    const res = await POST(postJson(ROUTE, VALID_BODY));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 });
-    expect(h.upsertCorpStructureRigsMock).toHaveBeenCalledWith(2001, 1001, [37170], 1.5);
-
-    // A rig-only save sends no tax; the answer carries the tax the row kept.
-    h.upsertCorpStructureRigsMock.mockResolvedValue({ rigTypeIds: [37170], taxPct: 2.5 });
-    const rigOnlyRes = await POST(postJson(ROUTE, { corporationId: 2001, structureId: 1001, rigTypeIds: [37170] }));
-    expect(rigOnlyRes.status).toBe(200);
-    expect(await rigOnlyRes.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 2.5 });
-    expect(h.upsertCorpStructureRigsMock).toHaveBeenLastCalledWith(2001, 1001, [37170], undefined);
-  });
+  // A rig-only save sends no tax; the answer carries the tax the row kept.
+  h.upsertCorpStructureRigsMock.mockResolvedValue({ rigTypeIds: [37170], taxPct: 2.5 });
+  const rigOnlyRes = await POST(postJson(ROUTE, { corporationId: 2001, structureId: 1001, rigTypeIds: [37170] }));
+  expect(rigOnlyRes.status).toBe(200);
+  expect(await rigOnlyRes.json()).toEqual({ structureId: 1001, rigTypeIds: [37170], taxPct: 2.5 });
+  expect(h.upsertCorpStructureRigsMock).toHaveBeenLastCalledWith(2001, 1001, [37170], undefined);
 });

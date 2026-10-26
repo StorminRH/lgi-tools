@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
+import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 
 const h = vi.hoisted(() => ({
   esiFetch: vi.fn(),
@@ -36,212 +37,188 @@ function storedRows(): { id: number; name: string | null }[] {
   return h.store.mock.calls.flatMap(([rows]) => rows as { id: number; name: string | null }[]);
 }
 
-beforeEach(() => {
+function fresh(): void {
+  vi.restoreAllMocks();
   h.esiFetch.mockReset();
   h.readStored.mockReset().mockResolvedValue(new Map());
   h.store.mockReset().mockResolvedValue(undefined);
-  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  silenceConsolePrefixes('warn', ['[entity-names]']);
+}
+
+test('asks ESI once for every id it has no stored answer for, and stores the answers', async () => {
+  fresh();
+  h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2, 3])));
+
+  await expect(resolveEntityNames([1, 2, 2, 3])).resolves.toEqual({
+    '1': 'Pilot 1',
+    '2': 'Pilot 2',
+    '3': 'Pilot 3',
+  });
+
+  expect(h.esiFetch).toHaveBeenCalledOnce();
+  expect(posted(h.esiFetch.mock.calls[0]![1] as RequestInit)).toEqual([1, 2, 3]);
+  expect(storedRows().map((row) => row.id)).toEqual([1, 2, 3]);
 });
 
-describe('resolveEntityNames', () => {
-  it('asks ESI once for every id it has no stored answer for, and stores the answers', async () => {
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2, 3])));
+test('reuses stored answers while fresh, and asks again once a name or a miss has aged out', async () => {
+  fresh();
+  const now = new Date();
+  h.readStored.mockResolvedValue(new Map([
+    [1, { name: 'Stored Pilot', category: 'character', resolvedAt: now }],
+    [2, { name: null, category: null, resolvedAt: now }],
+    [3, { name: 'Week Old', category: 'character', resolvedAt: new Date(Date.now() - 6 * DAY) }],
+  ]));
+  await expect(resolveEntityNames([1, 2, 3])).resolves.toEqual({ '1': 'Stored Pilot', '3': 'Week Old' });
+  expect(h.esiFetch).not.toHaveBeenCalled();
+  expect(h.store).not.toHaveBeenCalled();
 
-    await expect(resolveEntityNames([1, 2, 2, 3])).resolves.toEqual({
-      '1': 'Pilot 1',
-      '2': 'Pilot 2',
-      '3': 'Pilot 3',
-    });
-
-    expect(h.esiFetch).toHaveBeenCalledOnce();
-    expect(posted(h.esiFetch.mock.calls[0]![1] as RequestInit)).toEqual([1, 2, 3]);
-    expect(storedRows().map((row) => row.id)).toEqual([1, 2, 3]);
-  });
-
-  it('serves fresh stored answers without ESI, including remembered unresolvable ids', async () => {
-    const now = new Date();
-    h.readStored.mockResolvedValue(new Map([
-      [1, { name: 'Stored Pilot', category: 'character', resolvedAt: now }],
-      [2, { name: null, category: null, resolvedAt: now }],
-    ]));
-
-    await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Stored Pilot' });
-    expect(h.esiFetch).not.toHaveBeenCalled();
-    expect(h.store).not.toHaveBeenCalled();
-  });
-
-  it('reuses a stored name for a week without asking ESI', async () => {
-    h.readStored.mockResolvedValue(new Map([
-      [1, { name: 'Week Old', category: 'character', resolvedAt: new Date(Date.now() - 6 * DAY) }],
-    ]));
-
-    await expect(resolveEntityNames([1])).resolves.toEqual({ '1': 'Week Old' });
-    expect(h.esiFetch).not.toHaveBeenCalled();
-  });
-
-  it('asks again once a stored name or a stored miss has aged out', async () => {
-    const old = new Date(Date.now() - 8 * DAY);
-    const oldMiss = new Date(Date.now() - 7 * 60 * 60 * 1000);
-    h.readStored.mockResolvedValue(new Map([
-      [1, { name: 'Old Name', category: 'character', resolvedAt: old }],
-      [2, { name: null, category: null, resolvedAt: oldMiss }],
-    ]));
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2])));
-
-    await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Pilot 1', '2': 'Pilot 2' });
-    expect(h.esiFetch).toHaveBeenCalledOnce();
-  });
-
-  it('splits a 404 batch in halves to find its unresolvable ids, and remembers them', async () => {
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1, 3])));
-
-    await expect(resolveEntityNames([1, 2, 3])).resolves.toEqual({ '1': 'Pilot 1', '3': 'Pilot 3' });
-
-    // [1,2,3] 404s, then [1,2] 404s beside [3], then [1] beside [2], which 404s alone.
-    expect(h.esiFetch.mock.calls.map(([, init]) => posted(init as RequestInit))).toEqual(
-      expect.arrayContaining([[1, 2, 3], [1, 2], [3], [1], [2]]),
-    );
-    expect(h.esiFetch).toHaveBeenCalledTimes(5);
-    expect(storedRows()).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 2, name: null }),
-      expect.objectContaining({ id: 1, name: 'Pilot 1' }),
-    ]));
-  });
-
-  it('names every other id in one resolution when a long batch holds one unresolvable id', async () => {
-    const ids = Array.from({ length: 200 }, (_, index) => index + 1);
-    h.esiFetch.mockImplementation(esiKnowing(new Set(ids.filter((id) => id !== 137))));
-
-    const names = await resolveEntityNames(ids);
-
-    expect(Object.keys(names)).toHaveLength(199);
-    expect(names['137']).toBeUndefined();
-    const statuses = await Promise.all(h.esiFetch.mock.results.map(async ({ value }) => (await value).status));
-    // About log2(200) halvings: far fewer 404s against the shared budget than one POST per id.
-    expect(statuses.filter((status) => status === 404).length).toBeLessThanOrEqual(9);
-    expect(storedRows()).toEqual(expect.arrayContaining([{ id: 137, name: null, category: null }]));
-  });
-
-  it('caps the halving POSTs a single resolution may spend', async () => {
-    h.esiFetch.mockImplementation(esiKnowing(new Set()));
-    const ids = Array.from({ length: 40 }, (_, index) => index + 1);
-
-    await expect(resolveEntityNames(ids)).resolves.toEqual({});
-
-    // The first batch, then 12 halvings of two POSTs each before the budget of 25 runs out.
-    expect(h.esiFetch).toHaveBeenCalledTimes(1 + 24);
-    // Only ids ESI answered alone are remembered; the rest are asked again next time.
-    expect(storedRows().every((row) => row.name === null)).toBe(true);
-  });
-
-  it('never sends ids ESI cannot take, and treats a lone 404 as unresolvable without retrying', async () => {
-    h.esiFetch.mockImplementation(esiKnowing(new Set()));
-
-    await expect(resolveEntityNames([0, -4, 1.5, 3_000_000_000, 7])).resolves.toEqual({});
-
-    expect(h.esiFetch).toHaveBeenCalledOnce();
-    expect(posted(h.esiFetch.mock.calls[0]![1] as RequestInit)).toEqual([7]);
-    expect(storedRows()).toEqual([{ id: 7, name: null, category: null }]);
-  });
-
-  it('splits more than 1000 ids into separate POSTs', async () => {
-    const ids = Array.from({ length: 1001 }, (_, index) => index + 1);
-    h.esiFetch.mockImplementation(esiKnowing(new Set(ids)));
-
-    const names = await resolveEntityNames(ids);
-
-    expect(Object.keys(names)).toHaveLength(1001);
-    expect(h.esiFetch.mock.calls.map(([, init]) => posted(init as RequestInit).length)).toEqual([1000, 1]);
-  });
-
-  it('asks ESI when stored names are unavailable', async () => {
-    h.readStored.mockRejectedValue(new Error('db down'));
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2])));
-
-    await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Pilot 1', '2': 'Pilot 2' });
-    expect(h.esiFetch).toHaveBeenCalledOnce();
-  });
-
-  it('remembers nothing from an outage', async () => {
-    h.esiFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
-
-    await expect(resolveEntityNames([1, 2])).resolves.toEqual({});
-    expect(h.store).not.toHaveBeenCalled();
-  });
-
-  it('reports which ids ESI could not answer this time, apart from ids it does not know', async () => {
-    h.readStored.mockResolvedValue(new Map([
-      [3, { name: 'Old Name', category: 'corporation', resolvedAt: new Date(Date.now() - 20 * DAY) }],
-    ]));
-    // 1 is unknown to ESI; 2 and 3 meet a 503 once the 404 batch is split.
-    h.esiFetch.mockImplementation(async (_url: string, init: RequestInit) => {
-      const ids = posted(init);
-      return new Response(null, { status: ids.length > 1 || ids[0] === 1 ? 404 : 503 });
-    });
-
-    const outcome = await resolveEntityNamesWithPending([1, 2, 3]);
-
-    // 3 falls back to its stored name; only 2 is left to ask for again.
-    expect(outcome).toEqual({ names: { '3': 'Old Name' }, pending: [2] });
-    expect(storedRows()).toEqual([{ id: 1, name: null, category: null }]);
-  });
-
-  it('serves an older stored name when ESI cannot answer for it now', async () => {
-    h.readStored.mockResolvedValue(new Map([
-      [1, { name: 'Old Name', category: 'corporation', resolvedAt: new Date(Date.now() - 20 * DAY) }],
-    ]));
-    h.esiFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
-
-    await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Old Name' });
-    await expect(resolveEntityNamesStrict([1])).rejects.toThrow();
-  });
-
-  it('still answers when the names cannot be stored', async () => {
-    h.store.mockRejectedValue(new Error('db down'));
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1])));
-
-    await expect(resolveEntityNames([1])).resolves.toEqual({ '1': 'Pilot 1' });
-  });
+  h.readStored.mockResolvedValue(new Map([
+    [1, { name: 'Old Name', category: 'character', resolvedAt: new Date(Date.now() - 8 * DAY) }],
+    [2, { name: null, category: null, resolvedAt: new Date(Date.now() - 7 * 60 * 60 * 1000) }],
+  ]));
+  h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2])));
+  await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Pilot 1', '2': 'Pilot 2' });
+  expect(h.esiFetch).toHaveBeenCalledOnce();
 });
 
-describe('resolveEntityNamesStrict', () => {
-  it('propagates malformed response failures while best-effort resolution omits the name', async () => {
-    h.esiFetch.mockImplementation(async () => Response.json({ names: [] }));
+test('splits a 404 batch in halves to find its unresolvable ids, and remembers them', async () => {
+  fresh();
+  h.esiFetch.mockImplementation(esiKnowing(new Set([1, 3])));
 
-    await expect(resolveEntityNamesStrict([7])).rejects.toThrow(
-      'ESI /universe/names/ response was malformed',
-    );
-    await expect(resolveEntityNames([7])).resolves.toEqual({});
+  await expect(resolveEntityNames([1, 2, 3])).resolves.toEqual({ '1': 'Pilot 1', '3': 'Pilot 3' });
+
+  // [1,2,3] 404s, then [1,2] 404s beside [3], then [1] beside [2], which 404s alone.
+  expect(h.esiFetch.mock.calls.map(([, init]) => posted(init as RequestInit))).toEqual(
+    expect.arrayContaining([[1, 2, 3], [1, 2], [3], [1], [2]]),
+  );
+  expect(h.esiFetch).toHaveBeenCalledTimes(5);
+  expect(storedRows()).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 2, name: null }),
+    expect.objectContaining({ id: 1, name: 'Pilot 1' }),
+  ]));
+});
+
+test('names every other id in one resolution when a long batch holds one unresolvable id', async () => {
+  fresh();
+  const ids = Array.from({ length: 200 }, (_, index) => index + 1);
+  h.esiFetch.mockImplementation(esiKnowing(new Set(ids.filter((id) => id !== 137))));
+
+  const names = await resolveEntityNames(ids);
+
+  expect(Object.keys(names)).toHaveLength(199);
+  expect(names['137']).toBeUndefined();
+  const statuses = await Promise.all(h.esiFetch.mock.results.map(async ({ value }) => (await value).status));
+  // About log2(200) halvings: far fewer 404s against the shared budget than one POST per id.
+  expect(statuses.filter((status) => status === 404).length).toBeLessThanOrEqual(9);
+  expect(storedRows()).toEqual(expect.arrayContaining([{ id: 137, name: null, category: null }]));
+});
+
+test('caps the halving POSTs a single resolution may spend', async () => {
+  fresh();
+  h.esiFetch.mockImplementation(esiKnowing(new Set()));
+  const ids = Array.from({ length: 40 }, (_, index) => index + 1);
+
+  await expect(resolveEntityNames(ids)).resolves.toEqual({});
+
+  // The first batch, then 12 halvings of two POSTs each before the budget of 25 runs out.
+  expect(h.esiFetch).toHaveBeenCalledTimes(1 + 24);
+  // Only ids ESI answered alone are remembered; the rest are asked again next time.
+  expect(storedRows().every((row) => row.name === null)).toBe(true);
+});
+
+test('never sends ids ESI cannot take, and treats a lone 404 as unresolvable without retrying', async () => {
+  fresh();
+  h.esiFetch.mockImplementation(esiKnowing(new Set()));
+
+  await expect(resolveEntityNames([0, -4, 1.5, 3_000_000_000, 7])).resolves.toEqual({});
+
+  expect(h.esiFetch).toHaveBeenCalledOnce();
+  expect(posted(h.esiFetch.mock.calls[0]![1] as RequestInit)).toEqual([7]);
+  expect(storedRows()).toEqual([{ id: 7, name: null, category: null }]);
+});
+
+test('splits more than 1000 ids into separate POSTs', async () => {
+  fresh();
+  const ids = Array.from({ length: 1001 }, (_, index) => index + 1);
+  h.esiFetch.mockImplementation(esiKnowing(new Set(ids)));
+
+  const names = await resolveEntityNames(ids);
+
+  expect(Object.keys(names)).toHaveLength(1001);
+  expect(h.esiFetch.mock.calls.map(([, init]) => posted(init as RequestInit).length)).toEqual([1000, 1]);
+});
+
+test('asks ESI when stored names are unavailable', async () => {
+  fresh();
+  h.readStored.mockRejectedValue(new Error('db down'));
+  h.esiFetch.mockImplementation(esiKnowing(new Set([1, 2])));
+
+  await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Pilot 1', '2': 'Pilot 2' });
+  expect(h.esiFetch).toHaveBeenCalledOnce();
+});
+
+test('remembers nothing from an outage', async () => {
+  fresh();
+  h.esiFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+  await expect(resolveEntityNames([1, 2])).resolves.toEqual({});
+  expect(h.store).not.toHaveBeenCalled();
+});
+
+test('reports which ids ESI could not answer this time, apart from ids it does not know', async () => {
+  fresh();
+  h.readStored.mockResolvedValue(new Map([
+    [3, { name: 'Old Name', category: 'corporation', resolvedAt: new Date(Date.now() - 20 * DAY) }],
+  ]));
+  // 1 is unknown to ESI; 2 and 3 meet a 503 once the 404 batch is split.
+  h.esiFetch.mockImplementation(async (_url: string, init: RequestInit) => {
+    const ids = posted(init);
+    return new Response(null, { status: ids.length > 1 || ids[0] === 1 ? 404 : 503 });
   });
 
-  it('reports a missing entity when the response is a valid empty array', async () => {
-    h.esiFetch.mockResolvedValue(Response.json([]));
+  const outcome = await resolveEntityNamesWithPending([1, 2, 3]);
 
-    await expect(resolveEntityNamesStrict([7])).rejects.toThrow('EVE entity name missing for 7');
-  });
+  // 3 falls back to its stored name; only 2 is left to ask for again.
+  expect(outcome).toEqual({ names: { '3': 'Old Name' }, pending: [2] });
+  expect(storedRows()).toEqual([{ id: 1, name: null, category: null }]);
+});
 
-  it('fails the whole result when any id cannot be named', async () => {
-    h.esiFetch.mockImplementation(esiKnowing(new Set([1, 3])));
+test('serves an older stored name when ESI cannot answer for it now', async () => {
+  fresh();
+  h.readStored.mockResolvedValue(new Map([
+    [1, { name: 'Old Name', category: 'corporation', resolvedAt: new Date(Date.now() - 20 * DAY) }],
+  ]));
+  h.esiFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
 
-    await expect(resolveEntityNamesStrict([1, 2, 3])).rejects.toThrow('EVE entity name missing for 2');
-  });
+  await expect(resolveEntityNames([1, 2])).resolves.toEqual({ '1': 'Old Name' });
+  await expect(resolveEntityNamesStrict([1])).rejects.toThrow();
+});
 
-  it('fails on a transient upstream failure and recovers on the next call', async () => {
-    h.esiFetch
-      .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(Response.json([{ category: 'character', id: 7, name: 'Recovered Pilot' }]));
+test('still answers when the names cannot be stored', async () => {
+  fresh();
+  h.store.mockRejectedValue(new Error('db down'));
+  h.esiFetch.mockImplementation(esiKnowing(new Set([1])));
 
-    await expect(resolveEntityNamesStrict([7])).rejects.toThrow('EVE entity name request failed (503)');
-    await expect(resolveEntityNamesStrict([7])).resolves.toEqual({ '7': 'Recovered Pilot' });
-  });
+  await expect(resolveEntityNames([1])).resolves.toEqual({ '1': 'Pilot 1' });
+});
 
-  it('names every id from one POST', async () => {
-    const ids = Array.from({ length: 20 }, (_, index) => index + 1);
-    h.esiFetch.mockImplementation(esiKnowing(new Set(ids)));
+test('strict resolution throws for a malformed body, an empty answer, any unnamed id, and an outage, then recovers', async () => {
+  fresh();
+  h.esiFetch.mockImplementation(async () => Response.json({ names: [] }));
+  await expect(resolveEntityNamesStrict([7])).rejects.toThrow('ESI /universe/names/ response was malformed');
+  // Best-effort resolution of the same answer omits the name instead.
+  await expect(resolveEntityNames([7])).resolves.toEqual({});
 
-    await expect(resolveEntityNamesStrict(ids)).resolves.toEqual(
-      Object.fromEntries(ids.map((id) => [String(id), `Pilot ${id}`])),
-    );
-    expect(h.esiFetch).toHaveBeenCalledOnce();
-  });
+  h.esiFetch.mockReset().mockImplementation(async () => Response.json([]));
+  await expect(resolveEntityNamesStrict([7])).rejects.toThrow('EVE entity name missing for 7');
+
+  h.esiFetch.mockReset().mockImplementation(esiKnowing(new Set([1, 3])));
+  await expect(resolveEntityNamesStrict([1, 2, 3])).rejects.toThrow('EVE entity name missing for 2');
+
+  h.esiFetch
+    .mockReset()
+    .mockResolvedValueOnce(new Response(null, { status: 503 }))
+    .mockResolvedValueOnce(Response.json([{ category: 'character', id: 7, name: 'Recovered Pilot' }]));
+  await expect(resolveEntityNamesStrict([7])).rejects.toThrow('EVE entity name request failed (503)');
+  await expect(resolveEntityNamesStrict([7])).resolves.toEqual({ '7': 'Recovered Pilot' });
 });

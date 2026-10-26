@@ -1,92 +1,50 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import { industryJob } from './__tests__/job-fixture';
 import { deriveJobStatus, jobProgress, summarizeJobs } from './job-state';
 
 const NOW = Date.parse('2026-06-12T12:00:00Z');
 
-describe('deriveJobStatus', () => {
-  it("marks an 'active' job ready once its end date passes, despite ESI's lazy status", () => {
-    expect(deriveJobStatus('active', '2026-06-12T11:00:00Z', NOW)).toBe('ready');
-  });
-
-  it('treats the exact end instant as ready', () => {
-    expect(deriveJobStatus('active', '2026-06-12T12:00:00Z', NOW)).toBe('ready');
-  });
-
-  it("keeps a still-running 'active' job active", () => {
-    expect(deriveJobStatus('active', '2026-06-12T13:00:00Z', NOW)).toBe('active');
-  });
-
-  it('never completes a paused job, even past its original end date', () => {
-    expect(deriveJobStatus('paused', '2026-06-12T11:00:00Z', NOW)).toBe('paused');
-  });
-
-  it('stores every non-active status verbatim', () => {
-    expect(deriveJobStatus('ready', '2026-06-12T13:00:00Z', NOW)).toBe('ready');
-    expect(deriveJobStatus('delivered', '2026-06-12T11:00:00Z', NOW)).toBe('delivered');
-  });
-
-  it('leaves a job with an unparseable end date untouched', () => {
-    expect(deriveJobStatus('active', 'not-a-date', NOW)).toBe('active');
-  });
+test("deriveJobStatus completes an 'active' job at its end despite ESI's lazy status, and nothing else", () => {
+  expect(deriveJobStatus('active', '2026-06-12T11:00:00Z', NOW)).toBe('ready');
+  // The exact end instant is ready.
+  expect(deriveJobStatus('active', '2026-06-12T12:00:00Z', NOW)).toBe('ready');
+  expect(deriveJobStatus('active', '2026-06-12T13:00:00Z', NOW)).toBe('active');
+  // A paused job never completes, even past its original end date.
+  expect(deriveJobStatus('paused', '2026-06-12T11:00:00Z', NOW)).toBe('paused');
+  expect(deriveJobStatus('ready', '2026-06-12T13:00:00Z', NOW)).toBe('ready');
+  expect(deriveJobStatus('delivered', '2026-06-12T11:00:00Z', NOW)).toBe('delivered');
+  expect(deriveJobStatus('active', 'not-a-date', NOW)).toBe('active');
 });
 
-describe('jobProgress', () => {
-  it('interpolates an active job by time', () => {
-    expect(jobProgress(industryJob(), NOW)).toBeCloseTo(50);
-  });
-
-  it('clamps an active job whose end date already passed', () => {
-    const overdue = industryJob({
-      start_date: '2026-06-11T00:00:00Z',
-      end_date: '2026-06-12T00:00:00Z',
-    });
-    expect(jobProgress(overdue, NOW)).toBe(100);
-  });
-
-  it('freezes a paused job at its pause timestamp', () => {
-    const paused = industryJob({ status: 'paused', pause_date: '2026-06-12T06:00:00Z' });
-    expect(jobProgress(paused, NOW)).toBeCloseTo(25);
-  });
-
-  it('shows no progress for a paused job without a pause date', () => {
-    expect(jobProgress(industryJob({ status: 'paused' }), NOW)).toBe(0);
-  });
-
-  it('treats ready and delivered as complete', () => {
-    expect(jobProgress(industryJob({ status: 'ready' }), NOW)).toBe(100);
-    expect(jobProgress(industryJob({ status: 'delivered' }), NOW)).toBe(100);
-  });
-
-  it('renders no progress for unparseable or inverted dates', () => {
-    expect(jobProgress(industryJob({ start_date: 'bogus' }), NOW)).toBe(0);
-    expect(
-      jobProgress(industryJob({ start_date: '2026-06-13T00:00:00Z', end_date: '2026-06-12T00:00:00Z' }), NOW),
-    ).toBe(0);
-  });
+test('jobProgress interpolates active jobs, freezes paused ones, completes settled ones and zeroes bad dates', () => {
+  expect(jobProgress(industryJob(), NOW)).toBeCloseTo(50);
+  expect(jobProgress(industryJob({ start_date: '2026-06-11T00:00:00Z', end_date: '2026-06-12T00:00:00Z' }), NOW)).toBe(100);
+  expect(jobProgress(industryJob({ status: 'paused', pause_date: '2026-06-12T06:00:00Z' }), NOW)).toBeCloseTo(25);
+  expect(jobProgress(industryJob({ status: 'paused' }), NOW)).toBe(0);
+  expect(jobProgress(industryJob({ status: 'ready' }), NOW)).toBe(100);
+  expect(jobProgress(industryJob({ status: 'delivered' }), NOW)).toBe(100);
+  expect(jobProgress(industryJob({ start_date: 'bogus' }), NOW)).toBe(0);
+  expect(
+    jobProgress(industryJob({ start_date: '2026-06-13T00:00:00Z', end_date: '2026-06-12T00:00:00Z' }), NOW),
+  ).toBe(0);
 });
 
-describe('summarizeJobs', () => {
-  it('counts statuses and reports the soonest pending completion', () => {
-    const summary = summarizeJobs(
-      [
-        industryJob({ job_id: 1, end_date: '2026-06-13T00:00:00Z' }),
-        industryJob({ job_id: 2, end_date: '2026-06-12T18:00:00Z' }),
-        industryJob({ job_id: 3, status: 'ready' }),
-        industryJob({ job_id: 4, status: 'paused' }),
-      ],
-      NOW,
-    );
-    expect(summary).toEqual({
-      total: 4,
-      readyCount: 1,
-      pausedCount: 1,
-      nextEndAt: Date.parse('2026-06-12T18:00:00Z'),
-    });
+test('summarizeJobs counts statuses and reports the soonest pending completion, or none', () => {
+  const summary = summarizeJobs(
+    [
+      industryJob({ job_id: 1, end_date: '2026-06-13T00:00:00Z' }),
+      industryJob({ job_id: 2, end_date: '2026-06-12T18:00:00Z' }),
+      industryJob({ job_id: 3, status: 'ready' }),
+      industryJob({ job_id: 4, status: 'paused' }),
+    ],
+    NOW,
+  );
+  expect(summary).toEqual({
+    total: 4,
+    readyCount: 1,
+    pausedCount: 1,
+    nextEndAt: Date.parse('2026-06-12T18:00:00Z'),
   });
-
-  it('reports no pending completion for an empty or all-settled board', () => {
-    expect(summarizeJobs([], NOW).nextEndAt).toBeNull();
-    expect(summarizeJobs([industryJob({ status: 'ready' })], NOW).nextEndAt).toBeNull();
-  });
+  expect(summarizeJobs([], NOW).nextEndAt).toBeNull();
+  expect(summarizeJobs([industryJob({ status: 'ready' })], NOW).nextEndAt).toBeNull();
 });

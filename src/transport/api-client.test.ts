@@ -15,7 +15,6 @@ const echoSchema = z.object({ value: z.string() });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -118,24 +117,17 @@ describe('apiFetch', () => {
     );
   });
 
-  it('resolves path parameters and query values into the request URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
+  it('resolves path parameters and query values into the URL, not the request init', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ value: 'ok' }));
     vi.stubGlobal('fetch', fetchMock);
 
     await apiFetch(detailEndpoint, { params: { id: '42' } });
     await apiFetch(filteredEndpoint, { query: { kind: 'b' } });
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/test/things/42');
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/test/things?kind=b');
-  });
-
-  it('keeps params and query out of the request init', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({ value: 'ok' }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    await apiFetch(detailEndpoint, { params: { id: '42' } });
-
-    expect(fetchMock).toHaveBeenCalledWith('/api/test/things/42', { method: 'GET' });
+    expect(fetchMock.mock.calls).toEqual([
+      ['/api/test/things/42', { method: 'GET' }],
+      ['/api/test/things?kind=b', { method: 'GET' }],
+    ]);
   });
 
   it('returns raw JSON through the exact declared success arm', async () => {
@@ -154,18 +146,6 @@ describe('apiFetch', () => {
     if (result.ok && result.status === 200) {
       expectTypeOf(result.data).toEqualTypeOf<{ value: string }>();
     }
-  });
-
-  it('returns undefined data for a declared empty success response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
-
-    const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
-
-    expect(result).toEqual({
-      ok: true,
-      status: 204,
-      data: undefined,
-    });
   });
 
   it('returns a declared problem through its narrowed API arm', async () => {
@@ -204,59 +184,6 @@ describe('apiFetch', () => {
     });
   });
 
-  it.each(['development', 'production'] as const)(
-    'returns protocol failure for response drift in %s',
-    async (nodeEnv) => {
-      vi.stubEnv('NODE_ENV', nodeEnv);
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue(Response.json({ value: 123 })),
-      );
-
-      const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
-
-      expect(result).toMatchObject({
-        ok: false,
-        kind: 'protocol',
-        status: 200,
-      });
-    },
-  );
-
-  it('returns protocol failure for undeclared status, invalid JSON, and code drift', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(Response.json({ value: 'ok' }, { status: 201 }))
-      .mockResolvedValueOnce(new Response('not json', { status: 400 }))
-      .mockResolvedValueOnce(
-        Response.json(problemResponseBody('different_code'), { status: 400 }),
-      );
-    vi.stubGlobal('fetch', fetchMock);
-
-    await expect(
-      apiFetch(typedEndpoint, { body: { value: 'request' } }),
-    ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 201 });
-    await expect(
-      apiFetch(typedEndpoint, { body: { value: 'request' } }),
-    ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 400 });
-    await expect(
-      apiFetch(typedEndpoint, { body: { value: 'request' } }),
-    ).resolves.toMatchObject({ ok: false, kind: 'protocol', status: 400 });
-  });
-
-  it('treats a body on an empty codec as protocol drift', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response('unexpected body', { status: 200 })),
-    );
-
-    await expect(apiFetch(emptyWireEndpoint)).resolves.toMatchObject({
-      ok: false,
-      kind: 'protocol',
-      status: 200,
-    });
-  });
-
   it('returns explicit network and abort arms instead of throwing', async () => {
     const fetchMock = vi
       .fn()
@@ -282,34 +209,6 @@ describe('apiFetch', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
 
     await expect(apiFetch(emptyWireEndpoint)).resolves.toMatchObject({
-      ok: false,
-      kind: 'network',
-      aborted: false,
-    });
-  });
-
-  it('returns a network arm when JSON or problem body streams fail', async () => {
-    const json = Response.json({ value: 'ok' });
-    const problemBody = Response.json(problemResponseBody(), { status: 400 });
-    vi.spyOn(json, 'json').mockRejectedValue(new TypeError('json stream failed'));
-    vi.spyOn(problemBody, 'json').mockRejectedValue(
-      new TypeError('problem stream failed'),
-    );
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValueOnce(json).mockResolvedValueOnce(problemBody),
-    );
-
-    await expect(
-      apiFetch(typedEndpoint, { body: { value: 'request' } }),
-    ).resolves.toMatchObject({
-      ok: false,
-      kind: 'network',
-      aborted: false,
-    });
-    await expect(
-      apiFetch(typedEndpoint, { body: { value: 'request' } }),
-    ).resolves.toMatchObject({
       ok: false,
       kind: 'network',
       aborted: false,

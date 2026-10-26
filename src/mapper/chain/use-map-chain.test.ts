@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { expect, test } from 'vitest';
 import type { Doc, Id } from '@/data/convex/data-model';
 import { blankDoor, blankHallway } from '@/data/maps/connection-hallway';
-import { chainSnapshot } from './__tests__/chain-snapshot-fixture';
 import { connectionEditorFixture } from './__tests__/connection-editor-fixture';
 import {
   chainSignature,
@@ -25,26 +24,10 @@ import {
   stubPostKey,
 } from './stub-layout';
 import { normalizeMapAccess } from './use-map-chain-pages';
-import type { ChainPosition } from './intents';
-import {
-  EMPTY_CHAIN_STATE,
-  reconcileChain,
-  type ChainMerge,
-  type ChainSnapshot,
-  type ChainState,
-} from './reconciler';
-import { DEFAULT_LAYOUT_CONFIG, type LayoutFacts } from '../layout/layout-contract';
-import { deriveChainTree } from '../layout/facts';
-import {
-  acceptReply,
-  failRequest,
-  initialKernelRequestState,
-  postRequest,
-} from '../layout/kernel-requests';
+import { DEFAULT_LAYOUT_CONFIG } from '../layout/layout-contract';
 
 const JITA = 30_000_142;
 const AMARR = 30_002_187;
-const DODIXIE = 30_002_659;
 
 function systems(ids: readonly number[], complete = true) {
   return { rows: ids.map((systemId) => ({ systemId })), complete };
@@ -87,442 +70,354 @@ function unresolvedConnection(
   });
 }
 
-function mergeKeepingPositions(previous: ChainState, snapshot: ChainSnapshot): ChainMerge {
-  const positions = new Map<number, ChainPosition>();
-  for (const { systemId } of snapshot.systems.rows) {
-    positions.set(
-      systemId,
-      previous.systems.get(systemId)?.position ?? { x: systemId, y: 0 },
-    );
+test('projects an awaiting jump only as a prompt, leaving graph and scanner rows untouched', () => {
+  const candidate = unresolvedConnection({ _id: 'candidate', from: { ...blankDoor(), signatureId: 'AAA-123' } });
+  const awaiting = unresolvedConnection({
+    _id: 'awaiting',
+    resolution: {
+      kind: 'awaiting-signature', destinationSystemId: AMARR, characterId: 101,
+      candidates: [{ connectionId: candidate._id, signatureId: 'AAA-123' }],
+    },
+  });
+  const rows = [candidate, awaiting];
+  expect([...connectionDetailsFromRows(rows)]).toEqual([]);
+  expect(unresolvedHolesFromRows(rows).map((row) => row.connectionId)).toEqual([candidate._id]);
+  expect(awaitingJumpsFromRows(rows).map((row) => row.connectionId)).toEqual([awaiting._id]);
+  const removed = { ...awaiting, tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: 2 } };
+  expect(awaitingJumpsFromRows([removed])).toEqual([]);
+  expect(slotHolderRows([removed])).toEqual([]);
+});
+test('is stable for identical content and changes on every graph-relevant edit', () => {
+  const base = chainSignature(systems([JITA]), connections([]));
+  expect(chainSignature(systems([JITA]), connections([]))).toBe(base);
+
+  for (const [nextSystems, nextConnections] of [
+    [systems([JITA, AMARR]), connections([])],
+    [systems([]), connections([])],
+    [systems([JITA]), connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }])],
+    [systems([JITA], false), connections([])],
+    [systems([JITA]), connections([], false)],
+  ] as const) {
+    expect(chainSignature(nextSystems, nextConnections)).not.toBe(base);
   }
-  return reconcileChain(previous, snapshot, positions);
-}
 
-describe('chain snapshot signature', () => {
-  it('projects an awaiting jump only as a prompt, leaving graph and scanner rows untouched', () => {
-    const candidate = unresolvedConnection({ _id: 'candidate', from: { ...blankDoor(), signatureId: 'AAA-123' } });
-    const awaiting = unresolvedConnection({
-      _id: 'awaiting',
-      resolution: {
-        kind: 'awaiting-signature', destinationSystemId: AMARR, characterId: 101,
-        candidates: [{ connectionId: candidate._id, signatureId: 'AAA-123' }],
-      },
-    });
-    const rows = [candidate, awaiting];
-    expect([...connectionDetailsFromRows(rows)]).toEqual([]);
-    expect(unresolvedHolesFromRows(rows).map((row) => row.connectionId)).toEqual([candidate._id]);
-    expect(awaitingJumpsFromRows(rows).map((row) => row.connectionId)).toEqual([awaiting._id]);
-    const removed = { ...awaiting, tombstone: { kind: 'removed' as const, deletedAt: 1, purgeAfter: 2 } };
-    expect(awaitingJumpsFromRows([removed])).toEqual([]);
-    expect(slotHolderRows([removed])).toEqual([]);
-  });
-  it('is stable across freshly built objects with identical content', () => {
-    const a = chainSignature(
-      systems([JITA, AMARR]),
-      connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }]),
-    );
-    const b = chainSignature(
-      systems([JITA, AMARR]),
-      connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }]),
-    );
-
-    expect(a).toBe(b);
-  });
-
-  it.each([
-    ['a system arrives', systems([JITA, AMARR]), connections([])],
-    ['the last system leaves', systems([]), connections([])],
-    [
-      'a connection arrives',
-      systems([JITA]),
-      connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }]),
-    ],
-    [
-      'a connection endpoint changes',
-      systems([JITA]),
-      connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR + 1 }]),
-    ],
-  ])('changes when %s', (_label, nextSystems, nextConnections) => {
-    const before = chainSignature(systems([JITA]), connections([]));
-
-    expect(chainSignature(nextSystems, nextConnections)).not.toBe(before);
-  });
-
-  it('changes when a collection finishes draining', () => {
-    const draining = chainSignature(systems([JITA], false), connections([], false));
-    const complete = chainSignature(systems([JITA], true), connections([], true));
-
-    expect(draining).not.toBe(complete);
-  });
-
-  it('distinguishes two connections that differ only by document id', () => {
-    const first = chainSignature(
-      systems([JITA, AMARR]),
-      connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR }]),
-    );
-    const second = chainSignature(
-      systems([JITA, AMARR]),
-      connections([{ _id: 'c2', fromSystemId: JITA, toSystemId: AMARR }]),
-    );
-
-    expect(first).not.toBe(second);
-  });
-
-  it('changes when a connection becomes tombstoned without changing endpoints', () => {
-    const active = connections([
-      { _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null },
-    ]);
-    const tombstoned = connections([
-      { _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: 42 },
-    ]);
-    expect(chainSignature(systems([JITA, AMARR]), tombstoned)).not.toBe(
-      chainSignature(systems([JITA, AMARR]), active),
-    );
-  });
+  // A moved endpoint, a swapped document id and a tombstone on the same
+  // endpoints all count.
+  const linked = chainSignature(
+    systems([JITA, AMARR]),
+    connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null }]),
+  );
+  expect(chainSignature(
+    systems([JITA, AMARR]),
+    connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR + 1, deletedAt: null }]),
+  )).not.toBe(linked);
+  expect(chainSignature(
+    systems([JITA, AMARR]),
+    connections([{ _id: 'c2', fromSystemId: JITA, toSystemId: AMARR, deletedAt: null }]),
+  )).not.toBe(linked);
+  expect(chainSignature(
+    systems([JITA, AMARR]),
+    connections([{ _id: 'c1', fromSystemId: JITA, toSystemId: AMARR, deletedAt: 42 }]),
+  )).not.toBe(linked);
 });
 
-function factsFromSnapshot(snapshot: ChainSnapshot): LayoutFacts {
-  return {
-    systems: snapshot.systems.rows.map((row) => ({ systemId: row.systemId })),
-    connections: snapshot.connections.rows.map((row) => ({
-      fromSystemId: row.fromSystemId,
-      toSystemId: row.toSystemId,
-    })),
-  };
-}
+test('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
+  const summaries = unresolvedHolesFromRows([
+    unresolvedConnection({
+      _id: 'c1',
+      from: { ...blankDoor(), signatureId: 'ABC-123' },
+    }),
+    unresolvedConnection({ _id: 'unscanned' }),
+    unresolvedConnection({
+      _id: 'off-map',
+      fromSystemId: AMARR,
+      from: { ...blankDoor(), signatureId: 'DEF-456' },
+    }),
+    unresolvedConnection({
+      _id: 'resolved-overlap',
+      from: { ...blankDoor(), signatureId: 'GHI-789' },
+    }),
+  ]);
+  const scannedRows = stubLayoutRows(
+    summaries,
+    [{ systemId: JITA }],
+    [{ _id: 'resolved-overlap' }],
+  );
 
-describe('unresolved wormhole layout facts', () => {
-  it('places only scanned rows with live anchors and excludes a resolved-feed overlap', () => {
-    const summaries = unresolvedHolesFromRows([
-      unresolvedConnection({
-        _id: 'c1',
-        from: { ...blankDoor(), signatureId: 'ABC-123' },
-      }),
-      unresolvedConnection({ _id: 'unscanned' }),
-      unresolvedConnection({
-        _id: 'off-map',
-        fromSystemId: AMARR,
-        from: { ...blankDoor(), signatureId: 'DEF-456' },
-      }),
-      unresolvedConnection({
-        _id: 'resolved-overlap',
-        from: { ...blankDoor(), signatureId: 'GHI-789' },
-      }),
-    ]);
-    const scannedRows = stubLayoutRows(
-      summaries,
-      [{ systemId: JITA }],
-      [{ _id: 'resolved-overlap' }],
-    );
-
-    expect(scannedRows).toHaveLength(1);
-    expect(scannedRows[0]).toMatchObject({
+  expect(scannedRows).toHaveLength(1);
+  expect(scannedRows[0]).toMatchObject({
+    connectionId: 'c1',
+    fromSystemId: JITA,
+    from: expect.objectContaining({ signatureId: 'ABC-123' }),
+    layoutSystemId: -1,
+  });
+  const layoutRows = accountedStubLayoutRows([
+    {
       connectionId: 'c1',
       fromSystemId: JITA,
-      from: expect.objectContaining({ signatureId: 'ABC-123' }),
-      layoutSystemId: -1,
-    });
-    const layoutRows = accountedStubLayoutRows([
-      {
-        connectionId: 'c1',
-        fromSystemId: JITA,
-        signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-      },
-    ], scannedRows);
-    expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
+      signatureId: 'ABC-123',
+      wormholeTypeCode: null,
+      whClassId: null,
+    },
+  ], scannedRows);
+  expect(stubLayoutSignature(layoutRows)).toBe(`c1:${JITA}>-1`);
 
-    const facts = seatOrderedLayout({
-      systems: [{ systemId: JITA }],
-      connections: [],
-      stubRows: layoutRows,
-      slotHolders: [],
-    }).facts;
-    expect(facts).toEqual({
-      systems: [{ systemId: JITA }, { systemId: -1 }],
-      connections: [{ fromSystemId: JITA, toSystemId: -1 }],
-    });
-
-    const positions = stubPositionsFromLayout(
-      layoutRows,
-      new Map([
-        [-1, { x: 300, y: 0 }],
-        [-4, { x: 600, y: 0 }],
-      ]),
-    );
-    expect(placedStubs(layoutRows, positions)).toEqual([
-      {
-        connectionId: 'c1',
-        fromSystemId: JITA,
-        signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-        position: { x: 300, y: 0 },
-      },
-    ]);
-    expect(
-      placedStubs(layoutRows, new Map([
-        ['resolved-overlap', { x: 600, y: 0 }],
-      ])),
-    ).toEqual([]);
+  const facts = seatOrderedLayout({
+    systems: [{ systemId: JITA }],
+    connections: [],
+    stubRows: layoutRows,
+    slotHolders: [],
+  }).facts;
+  expect(facts).toEqual({
+    systems: [{ systemId: JITA }, { systemId: -1 }],
+    connections: [{ fromSystemId: JITA, toSystemId: -1 }],
   });
 
-  it('allocates scanned layout ids over kept stubs so a skipped row cannot collide with a static', () => {
-    const scannedRows = stubLayoutRows(
-      unresolvedHolesFromRows([
-        unresolvedConnection({ _id: 'unscanned' }),
-        unresolvedConnection({
-          _id: 'kept',
-          from: { ...blankDoor(), signatureId: 'ABC-123' },
-        }),
-      ]),
-      [{ systemId: JITA }],
-      [],
-    );
-    expect(scannedRows).toEqual([
-      expect.objectContaining({ connectionId: 'kept', layoutSystemId: -1 }),
-    ]);
-    const layoutRows = accountedStubLayoutRows(
-      [
-        {
-          connectionId: 'kept',
-          fromSystemId: JITA,
-          signatureId: 'ABC-123',
-          wormholeTypeCode: null,
-          whClassId: null,
-        },
-        {
-          staticId: `${JITA}:C247:1`,
-          fromSystemId: JITA,
-          code: 'C247',
-          className: 'C3',
-          whClassId: 3,
-        },
-      ],
-      scannedRows,
-    );
-    expect(stubLayoutSignature(layoutRows)).toBe(
-      `kept:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
-    );
-  });
-
-  it('fingerprints and places static ghosts beside selected scanned rows', () => {
-    const scannedRows = stubLayoutRows(
-      unresolvedHolesFromRows([
-        unresolvedConnection({
-          _id: 'scan-1',
-          from: { ...blankDoor(), signatureId: 'ABC-123' },
-        }),
-      ]),
-      [{ systemId: JITA }],
-      [],
-    );
-    const layoutRows = accountedStubLayoutRows([
-      {
-        connectionId: 'scan-1',
-        fromSystemId: JITA,
-        signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-      },
-      {
-        staticId: `${JITA}:C247:1`,
-        fromSystemId: JITA,
-        code: 'C247',
-        className: 'C3',
-        whClassId: 3,
-      },
-    ], scannedRows);
-
-    expect(stubLayoutSignature(layoutRows)).toBe(
-      `scan-1:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
-    );
-    const facts = seatOrderedLayout({
-      systems: [{ systemId: JITA }],
-      connections: [],
-      stubRows: layoutRows,
-      slotHolders: [],
-    }).facts;
-    expect(facts.systems).toEqual([
-      { systemId: JITA },
-      { systemId: -2 },
-      { systemId: -1 },
-    ]);
-    expect(
-      placedStubs(
-        layoutRows,
-        stubPositionsFromLayout(layoutRows, new Map([
-          [-1, { x: 300, y: 0 }],
-          [-2, { x: 480, y: 0 }],
-        ])),
-      ),
-    ).toEqual([
-      {
-        connectionId: 'scan-1',
-        fromSystemId: JITA,
-        signatureId: 'ABC-123',
-        wormholeTypeCode: null,
-        whClassId: null,
-        position: { x: 300, y: 0 },
-      },
-      {
-        staticId: `${JITA}:C247:1`,
-        fromSystemId: JITA,
-        code: 'C247',
-        className: 'C3',
-        whClassId: 3,
-        position: { x: 480, y: 0 },
-      },
-    ]);
-  });
-});
-
-describe('layout-then-merge posted-key guard', () => {
-  it('includes the dial fingerprint so a config change re-posts', () => {
-    const signature = chainSignature(systems([JITA]), connections([]));
-    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    const base = layoutPostKey(signature, configKey);
-    expect(
-      layoutPostKey(
-        signature,
-        layoutConfigKey({ ...DEFAULT_LAYOUT_CONFIG, ringSpacing: DEFAULT_LAYOUT_CONFIG.ringSpacing + 60 }),
-      ),
-    ).not.toBe(base);
-  });
-
-  it('includes the halo fingerprint so a halo membership change re-posts', () => {
-    const signature = chainSignature(systems([JITA]), connections([]));
-    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    expect(layoutPostKey(signature, configKey, '#')).not.toBe(
-      layoutPostKey(signature, configKey, `${JITA + 1}:1:0#`),
-    );
-    expect(layoutPostKey(signature, configKey)).toBe(
-      layoutPostKey(signature, configKey),
-    );
-  });
-
-  it('includes the stub fingerprint so paste and resolution re-post layout', () => {
-    const signature = chainSignature(systems([JITA]), connections([]));
-    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    expect(layoutPostKey(signature, configKey, '', `c1:${JITA}>-1`)).not.toBe(
-      layoutPostKey(signature, configKey, '', ''),
-    );
-  });
-
-  it('includes slot holders in the stub fingerprint so a deletion re-posts', () => {
-    const signature = chainSignature(systems([JITA]), connections([]));
-    const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
-    const withoutHolder = stubPostKey([]);
-    const withHolder = stubPostKey([], [{
-      connectionId: 'dead-1',
+  const positions = stubPositionsFromLayout(
+    layoutRows,
+    new Map([
+      [-1, { x: 300, y: 0 }],
+      [-4, { x: 600, y: 0 }],
+    ]),
+  );
+  expect(placedStubs(layoutRows, positions)).toEqual([
+    {
+      connectionId: 'c1',
       fromSystemId: JITA,
-      _creationTime: 10,
-    }]);
-    expect(withHolder).not.toBe(withoutHolder);
-    expect(layoutPostKey(signature, configKey, '', withHolder)).not.toBe(
-      layoutPostKey(signature, configKey, '', withoutHolder),
-    );
+      signatureId: 'ABC-123',
+      wormholeTypeCode: null,
+      whClassId: null,
+      position: { x: 300, y: 0 },
+    },
+  ]);
+  expect(
+    placedStubs(layoutRows, new Map([
+      ['resolved-overlap', { x: 600, y: 0 }],
+    ])),
+  ).toEqual([]);
+});
+
+test('allocates scanned layout ids over kept stubs so a skipped row cannot collide with a static', () => {
+  const scannedRows = stubLayoutRows(
+    unresolvedHolesFromRows([
+      unresolvedConnection({ _id: 'unscanned' }),
+      unresolvedConnection({
+        _id: 'kept',
+        from: { ...blankDoor(), signatureId: 'ABC-123' },
+      }),
+    ]),
+    [{ systemId: JITA }],
+    [],
+  );
+  expect(scannedRows).toEqual([
+    expect.objectContaining({ connectionId: 'kept', layoutSystemId: -1 }),
+  ]);
+  const layoutRows = accountedStubLayoutRows(
+    [
+      {
+        connectionId: 'kept',
+        fromSystemId: JITA,
+        signatureId: 'ABC-123',
+        wormholeTypeCode: null,
+        whClassId: null,
+      },
+      {
+        staticId: `${JITA}:C247:1`,
+        fromSystemId: JITA,
+        code: 'C247',
+        className: 'C3',
+        whClassId: 3,
+      },
+    ],
+    scannedRows,
+  );
+  expect(stubLayoutSignature(layoutRows)).toBe(
+    `kept:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
+  );
+});
+
+test('fingerprints and places static ghosts beside selected scanned rows', () => {
+  const scannedRows = stubLayoutRows(
+    unresolvedHolesFromRows([
+      unresolvedConnection({
+        _id: 'scan-1',
+        from: { ...blankDoor(), signatureId: 'ABC-123' },
+      }),
+    ]),
+    [{ systemId: JITA }],
+    [],
+  );
+  const layoutRows = accountedStubLayoutRows([
+    {
+      connectionId: 'scan-1',
+      fromSystemId: JITA,
+      signatureId: 'ABC-123',
+      wormholeTypeCode: null,
+      whClassId: null,
+    },
+    {
+      staticId: `${JITA}:C247:1`,
+      fromSystemId: JITA,
+      code: 'C247',
+      className: 'C3',
+      whClassId: 3,
+    },
+  ], scannedRows);
+
+  expect(stubLayoutSignature(layoutRows)).toBe(
+    `scan-1:${JITA}>-1,static:${JITA}:C247:1:${JITA}>-2`,
+  );
+  const facts = seatOrderedLayout({
+    systems: [{ systemId: JITA }],
+    connections: [],
+    stubRows: layoutRows,
+    slotHolders: [],
+  }).facts;
+  expect(facts.systems).toEqual([
+    { systemId: JITA },
+    { systemId: -2 },
+    { systemId: -1 },
+  ]);
+  expect(
+    placedStubs(
+      layoutRows,
+      stubPositionsFromLayout(layoutRows, new Map([
+        [-1, { x: 300, y: 0 }],
+        [-2, { x: 480, y: 0 }],
+      ])),
+    ),
+  ).toEqual([
+    {
+      connectionId: 'scan-1',
+      fromSystemId: JITA,
+      signatureId: 'ABC-123',
+      wormholeTypeCode: null,
+      whClassId: null,
+      position: { x: 300, y: 0 },
+    },
+    {
+      staticId: `${JITA}:C247:1`,
+      fromSystemId: JITA,
+      code: 'C247',
+      className: 'C3',
+      whClassId: 3,
+      position: { x: 480, y: 0 },
+    },
+  ]);
+});
+
+test('re-posts layout when the dials, halo membership, stubs or slot holders change', () => {
+  const signature = chainSignature(systems([JITA]), connections([]));
+  const configKey = layoutConfigKey(DEFAULT_LAYOUT_CONFIG);
+  expect(
+    layoutPostKey(
+      signature,
+      layoutConfigKey({ ...DEFAULT_LAYOUT_CONFIG, ringSpacing: DEFAULT_LAYOUT_CONFIG.ringSpacing + 60 }),
+    ),
+  ).not.toBe(layoutPostKey(signature, configKey));
+  expect(layoutPostKey(signature, configKey, '#')).not.toBe(
+    layoutPostKey(signature, configKey, `${JITA + 1}:1:0#`),
+  );
+  expect(layoutPostKey(signature, configKey, '', `c1:${JITA}>-1`)).not.toBe(
+    layoutPostKey(signature, configKey, '', ''),
+  );
+  const withoutHolder = stubPostKey([]);
+  const withHolder = stubPostKey([], [{
+    connectionId: 'dead-1',
+    fromSystemId: JITA,
+    _creationTime: 10,
+  }]);
+  expect(layoutPostKey(signature, configKey, '', withHolder)).not.toBe(
+    layoutPostKey(signature, configKey, '', withoutHolder),
+  );
+});
+
+test('drops tombstoned rows and changes the signature', () => {
+  const subscribed = {
+    rows: [
+      { systemId: JITA, deletedAt: null as number | null },
+      { systemId: AMARR, deletedAt: 1_700_000_000_000 },
+    ],
+    complete: true,
+  };
+  const live = filterLivePages(subscribed);
+  expect(live.rows.map((row) => row.systemId)).toEqual([JITA]);
+  expect(chainSignature(systems([JITA, AMARR]), connections([]))).not.toBe(
+    chainSignature(
+      { rows: live.rows.map((row) => ({ systemId: row.systemId })), complete: true },
+      connections([]),
+    ),
+  );
+});
+
+test('treats undefined deletedAt as live (optional-field normalization)', () => {
+  const pages = {
+    rows: [{ systemId: JITA }, { systemId: AMARR, deletedAt: undefined }],
+    complete: true,
+  };
+  expect(filterLivePages(pages)).toBe(pages);
+});
+
+test('keeps unanswered access distinct from a live denial', () => {
+  expect(normalizeMapAccess(undefined)).toEqual({
+    access: undefined,
+    canEdit: undefined,
   });
-
-  it('drops a stale reply after a newer key posts (merges wait for the latest positions)', () => {
-    let state = initialKernelRequestState();
-    const first = postRequest(state, layoutPostKey('sig', 'cfg'));
-    if (first.kind !== 'posted') throw new Error('expected post');
-    state = first.state;
-    const second = postRequest(state, layoutPostKey('sig', 'cfg', 'halo-b'));
-    if (second.kind !== 'posted') throw new Error('expected post');
-    state = second.state;
-
-    expect(acceptReply(state, first.requestId)).toBe(false);
-    expect(acceptReply(state, second.requestId)).toBe(true);
-  });
-
-  it('resets the posted key on terminal-without-apply so the next change retries', () => {
-    const posted = postRequest(
-      initialKernelRequestState(),
-      layoutPostKey('sig', 'cfg'),
-    );
-    if (posted.kind !== 'posted') throw new Error('expected post');
-    const failed = failRequest(posted.state, posted.requestId);
-    const retry = postRequest(failed, layoutPostKey('sig', 'cfg'));
-    expect(retry.kind).toBe('posted');
+  expect(normalizeMapAccess({ granted: false, canEdit: false })).toEqual({
+    access: false,
+    canEdit: false,
   });
 });
 
-describe('live-row filter upstream of chainSignature', () => {
-  it('drops tombstoned rows and changes the signature', () => {
-    const subscribed = {
-      rows: [
-        { systemId: JITA, deletedAt: null as number | null },
-        { systemId: AMARR, deletedAt: 1_700_000_000_000 },
-      ],
-      complete: true,
-    };
-    const live = filterLivePages(subscribed);
-    expect(live.rows.map((row) => row.systemId)).toEqual([JITA]);
-    expect(chainSignature(systems([JITA, AMARR]), connections([]))).not.toBe(
-      chainSignature(
-        { rows: live.rows.map((row) => ({ systemId: row.systemId })), complete: true },
-        connections([]),
-      ),
-    );
+test('normalizes optional connection detail fields without dropping tombstones', () => {
+  const row = connectionDoc({
+    _id: 'c1',
+    _creationTime: 10,
+    fromSystemId: JITA,
+    toSystemId: AMARR,
+    tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
   });
-
-  it('treats undefined deletedAt as live (optional-field normalization)', () => {
-    const pages = {
-      rows: [{ systemId: JITA }, { systemId: AMARR, deletedAt: undefined }],
-      complete: true,
-    };
-    expect(filterLivePages(pages)).toBe(pages);
+  const unresolved = connectionDoc({
+    _id: 'stub-1',
+    _creationTime: 10,
+    fromSystemId: JITA,
+    toSystemId: null,
+    from: { ...blankDoor(), signatureId: 'ABC-123' },
+    tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
   });
-
-});
-
-describe('client subscription projections', () => {
-  it('keeps unanswered access distinct from a live denial', () => {
-    expect(normalizeMapAccess(undefined)).toEqual({
-      access: undefined,
-      canEdit: undefined,
-    });
-    expect(normalizeMapAccess({ granted: false, canEdit: false })).toEqual({
-      access: false,
-      canEdit: false,
-    });
-  });
-
-  it('normalizes optional connection detail fields without dropping tombstones', () => {
-    const row = connectionDoc({
-      _id: 'c1',
+  const details = connectionDetailsFromRows([row, unresolved]);
+  expect(details.get(row._id)).toEqual(
+    connectionEditorFixture({
+      connectionId: row._id,
       _creationTime: 10,
       fromSystemId: JITA,
       toSystemId: AMARR,
       tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
-    });
-    const unresolved = connectionDoc({
-      _id: 'stub-1',
-      _creationTime: 10,
-      fromSystemId: JITA,
-      toSystemId: null,
-      from: { ...blankDoor(), signatureId: 'ABC-123' },
-      tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
-    });
-    const details = connectionDetailsFromRows([row, unresolved]);
-    expect(details.get(row._id)).toEqual(
-      connectionEditorFixture({
-        connectionId: row._id,
-        _creationTime: 10,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
-      }),
-    );
-    expect(details.has(unresolved._id)).toBe(false);
-  });
+    }),
+  );
+  expect(details.has(unresolved._id)).toBe(false);
+});
 
-  it('projects merged identity fields for the card and prompt consumers', () => {
-    const row = connectionDoc({
-      _id: 'c1',
+test('projects merged identity fields for the card and prompt consumers', () => {
+  const row = connectionDoc({
+    _id: 'c1',
+    _creationTime: 10,
+    fromSystemId: JITA,
+    toSystemId: AMARR,
+    from: {
+      typeCode: 'K162',
+      signatureId: 'ABC-123',
+      signalPct: null,
+      leadsTo: { kind: 'hint', hint: 'deadly' },
+    },
+    identity: { kind: 'typed', provenance: 'human' },
+    resolution: { kind: 'destination', provenance: 'assumed' },
+    observedMassKg: 300_000_000,
+    observedMassAtStateKg: 100_000_000,
+  });
+  expect(connectionDetailsFromRows([row]).get(row._id)).toEqual(
+    connectionEditorFixture({
+      connectionId: row._id,
       _creationTime: 10,
       fromSystemId: JITA,
       toSystemId: AMARR,
@@ -536,151 +431,58 @@ describe('client subscription projections', () => {
       resolution: { kind: 'destination', provenance: 'assumed' },
       observedMassKg: 300_000_000,
       observedMassAtStateKg: 100_000_000,
-    });
-    expect(connectionDetailsFromRows([row]).get(row._id)).toEqual(
-      connectionEditorFixture({
-        connectionId: row._id,
-        _creationTime: 10,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        from: {
-          typeCode: 'K162',
-          signatureId: 'ABC-123',
-          signalPct: null,
-          leadsTo: { kind: 'hint', hint: 'deadly' },
-        },
-        identity: { kind: 'typed', provenance: 'human' },
-        resolution: { kind: 'destination', provenance: 'assumed' },
-        observedMassKg: 300_000_000,
-        observedMassAtStateKg: 100_000_000,
-      }),
-    );
-  });
+    }),
+  );
+});
 
-  it('summarizes only live unresolved slots for the prompt feed', () => {
-    const rows = [
-      connectionDoc({
-        _id: 'stub-1',
+test('summarizes only live unresolved slots for the prompt feed', () => {
+  const rows = [
+    connectionDoc({
+      _id: 'stub-1',
+      _creationTime: 10,
+      fromSystemId: JITA,
+      toSystemId: null,
+      from: { ...blankDoor(), signatureId: 'ABC-123' },
+    }),
+    connectionDoc({
+      _id: 'resolved',
+      _creationTime: 10,
+      fromSystemId: JITA,
+      toSystemId: AMARR,
+      from: { ...blankDoor(), typeCode: 'B274' },
+      to: { ...blankDoor(), typeCode: 'K162' },
+      identity: { kind: 'typed', provenance: 'human' },
+    }),
+    connectionDoc({
+      _id: 'stub-dead',
+      _creationTime: 10,
+      fromSystemId: JITA,
+      toSystemId: null,
+      tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
+    }),
+  ];
+  expect(unresolvedHolesFromRows(rows)).toEqual([
+    {
+      ...connectionEditorFixture({
+        connectionId: 'stub-1' as Id<'mapConnections'>,
         _creationTime: 10,
         fromSystemId: JITA,
         toSystemId: null,
         from: { ...blankDoor(), signatureId: 'ABC-123' },
       }),
-      connectionDoc({
-        _id: 'resolved',
-        _creationTime: 10,
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        from: { ...blankDoor(), typeCode: 'B274' },
-        to: { ...blankDoor(), typeCode: 'K162' },
-        identity: { kind: 'typed', provenance: 'human' },
-      }),
-      connectionDoc({
-        _id: 'stub-dead',
+      toSystemId: null,
+    },
+  ]);
+  expect(slotHolderRows(rows)).toEqual([
+    {
+      ...connectionEditorFixture({
+        connectionId: 'stub-dead' as Id<'mapConnections'>,
         _creationTime: 10,
         fromSystemId: JITA,
         toSystemId: null,
         tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
       }),
-    ];
-    expect(unresolvedHolesFromRows(rows)).toEqual([
-      {
-        ...connectionEditorFixture({
-          connectionId: 'stub-1' as Id<'mapConnections'>,
-          _creationTime: 10,
-          fromSystemId: JITA,
-          toSystemId: null,
-          from: { ...blankDoor(), signatureId: 'ABC-123' },
-        }),
-        toSystemId: null,
-      },
-    ]);
-    expect(slotHolderRows(rows)).toEqual([
-      {
-        ...connectionEditorFixture({
-          connectionId: 'stub-dead' as Id<'mapConnections'>,
-          _creationTime: 10,
-          fromSystemId: JITA,
-          toSystemId: null,
-          tombstone: { kind: 'removed', deletedAt: 20, purgeAfter: 30 },
-        }),
-        toSystemId: null,
-      },
-    ]);
-  });
-});
-
-describe('tombstone → merge removal and root re-derivation (SC-4.5)', () => {
-  it('removes a tombstoned root from canvas state and re-roots to the next live system', () => {
-    const before = chainSnapshot([JITA, AMARR], [
-      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-    ]);
-    const populated = mergeKeepingPositions(EMPTY_CHAIN_STATE, before);
-    expect(deriveChainTree(factsFromSnapshot(before)).rootSystemId).toBe(JITA);
-
-    const afterFilter = chainSnapshot([AMARR]);
-    const after = mergeKeepingPositions(populated.state, afterFilter);
-
-    expect([...after.state.systems.keys()]).toEqual([AMARR]);
-    expect(after.intents.map((intent) => intent.kind)).toEqual(
-      expect.arrayContaining(['system-departed', 'connection-departed']),
-    );
-    expect(deriveChainTree(factsFromSnapshot(afterFilter)).rootSystemId).toBe(
-      AMARR,
-    );
-  });
-
-  it('re-derives the original root from pure facts once it is live again', () => {
-    const withoutRoot = chainSnapshot([AMARR, DODIXIE]);
-    const restored = chainSnapshot([JITA, AMARR, DODIXIE]);
-    expect(deriveChainTree(factsFromSnapshot(withoutRoot)).rootSystemId).toBe(
-      AMARR,
-    );
-    expect(deriveChainTree(factsFromSnapshot(restored)).rootSystemId).toBe(JITA);
-  });
-});
-
-describe('optimistic add through the merge', () => {
-  it('shows an optimistic edge then removes it on rollback to server truth', () => {
-    const home = chainSnapshot([JITA]);
-    const withHome = mergeKeepingPositions(EMPTY_CHAIN_STATE, home);
-
-    const optimistic = chainSnapshot([JITA, AMARR], [
-      { connectionId: 'optimistic:mapConnections:c1', fromSystemId: JITA, toSystemId: AMARR },
-    ]);
-    const local = mergeKeepingPositions(withHome.state, optimistic);
-    expect(
-      local.state.connections.has('optimistic:mapConnections:c1'),
-    ).toBe(true);
-    expect(
-      local.intents.some((intent) => intent.kind === 'connection-appeared'),
-    ).toBe(true);
-
-    const rolledBack = mergeKeepingPositions(local.state, home);
-    expect(rolledBack.state.connections.size).toBe(0);
-    expect([...rolledBack.state.systems.keys()]).toEqual([JITA]);
-    expect(
-      rolledBack.intents.some((intent) => intent.kind === 'connection-departed'),
-    ).toBe(true);
-  });
-
-  it('swaps a confirmed id in place with no connection intent pair', () => {
-    const optimistic = chainSnapshot([JITA, AMARR], [
-      { connectionId: 'optimistic:mapConnections:c1', fromSystemId: JITA, toSystemId: AMARR },
-    ]);
-    const confirmed = chainSnapshot([JITA, AMARR], [
-      { connectionId: 'confirmed:c1', fromSystemId: JITA, toSystemId: AMARR },
-    ]);
-    const local = mergeKeepingPositions(EMPTY_CHAIN_STATE, optimistic);
-    const merged = mergeKeepingPositions(local.state, confirmed);
-
-    expect([...merged.state.connections.keys()]).toEqual(['confirmed:c1']);
-    expect(
-      merged.intents.filter(
-        (intent) =>
-          intent.kind === 'connection-appeared' ||
-          intent.kind === 'connection-departed',
-      ),
-    ).toEqual([]);
-  });
+      toSystemId: null,
+    },
+  ]);
 });

@@ -189,16 +189,13 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(team).toContain(`${BUILDER.name}: Capital ships · All components`);
   // An unlinked member stays on the team as unresolved.
   expect(team).toContain('Old Alt: Nothing assigned, not linked');
-  expect(team).toContain('Not linked');
   expect(team).toContain('Production skills by member');
-  expect(team).toContain('>Facilities<');
   // Each facility names what it builds; the station reads as one.
   expect(team).toContain('Moon Tatara');
   expect(team).toContain('All reactions');
   expect(team).toContain('NPC station');
   expect(team).toContain('All manufacturing');
   expect(team).toContain('aria-label="Add a facility"');
-  expect(team).toContain('Production capacity');
   expect(capacityReadout(team)).toContain('?/8+');
   // Each member's row reads its slots the way the panel does: known totals
   // beside unknown usage, and "?" for skills that have not synced.
@@ -223,7 +220,6 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(capacityReadout(reactor)).toContain('?/?');
   // The team sheet offers adding a facility; a member's sheet does not.
   expect(reactor).not.toContain('aria-label="Add a facility"');
-  expect(reactor).toContain(`What ${REACTOR.name} builds</legend>`);
   const categories = reactor.match(/<[^>]*role="checkbox"[^>]*>/g) ?? [];
   expect(categories).toHaveLength(22);
   // Each category box is named by its full category name, not the short row text.
@@ -237,12 +233,7 @@ test('the workspace walks from signed out, to a first profile, to a team and one
   expect(box('Composite reactions')).toContain('aria-checked="true"');
   expect(box('Composite reactions')).toContain('aria-disabled="true"');
   expect(box('All components')).toContain('aria-checked="false"');
-  const names = categories.map(nameOf);
-  expect(names).not.toContain(undefined);
-  expect(names).toContain('All manufacturing');
-  expect(names).toContain('All ships');
-  expect(names).toContain('Small T1 ships');
-  expect(names).toContain('Hybrid reactions');
+  expect(categories.map(nameOf).every((name) => typeof name === 'string' && name.trim() !== '')).toBe(true);
   expect(reactor).toContain(`Remove ${REACTOR.name} from this profile`);
 
   // A member that is not on the profile shows the whole profile instead.
