@@ -75,44 +75,44 @@
     "better-call": "1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "convex": "^1.46.0",
+    "convex": "^1.47.0",
     "drizzle-orm": "^0.45.4",
     "fuzzysort": "4.0.2",
-    "google-auth-library": "^11.2.0",
+    "google-auth-library": "^11.3.1",
     "jose": "^6.2.12",
-    "next": "16.4.0",
+    "next": "16.4.2",
     "postgres": "^3.4.9",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "server-only": "^0.0.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "yauzl": "^3.4.0",
-    "zod": "^4.6.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
-    "@neondatabase/config": "1.8.6",
-    "@playwright/test": "1.64.0",
+    "@neondatabase/config": "1.9.2",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/yauzl": "^3.4.0",
-    "@vitest/coverage-istanbul": "5.0.3",
+    "@vitest/coverage-istanbul": "5.0.5",
     "concurrently": "^10.0.6",
-    "convex-test": "0.0.61",
-    "dotenv": "^18.0.7",
+    "convex-test": "0.0.62",
+    "dotenv": "^18.0.8",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.2",
     "eslint-plugin-tsdoc": "0.5.4",
     "fallow": "3.31.0",
-    "playwright": "1.64.0",
+    "playwright": "1.64.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -130,7 +130,7 @@
       "shell-quote": "1.11.0",
       "sharp": "0.35.5",
       "source-map-js": ">=1.2.2",
-      "vite": "8.0.16"
+      "vite": "8.1.6"
     }
   }
 }
