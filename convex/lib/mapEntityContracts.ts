@@ -32,7 +32,7 @@ export const NOTE_TARGET_KINDS = ['map', 'system', 'signature'] as const;
 
 export type NoteTargetKind = (typeof NOTE_TARGET_KINDS)[number];
 
-export const legacyMapOwnerRoleValidator = v.literal('owner');
+const legacyMapOwnerRoleValidator = v.literal('owner');
 
 export type StoredMapRole = MapRole | Infer<typeof legacyMapOwnerRoleValidator>;
 
