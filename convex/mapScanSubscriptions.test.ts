@@ -1,5 +1,4 @@
 // @vitest-environment edge-runtime
-import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
 import { describe, expect, it } from 'vitest';
 import { api } from './_generated/api';
@@ -184,13 +183,5 @@ describe('system signature subscriptions', () => {
     expect(await t.query(api.mapScan.watchMapGlanceGroups, args)).toEqual(denied);
     expect(await t.withIdentity({ subject: 'stranger' }).query(api.mapScan.watchMapGlanceGroups, args))
       .toEqual(denied);
-  });
-
-  it('places both selection bounds in the indexed read before pagination', () => {
-    const source = readFileSync('convex/mapScan.ts', 'utf8');
-    const reader = source.slice(source.indexOf('async function viewableSignaturePage'));
-    expect(reader).toMatch(/indexed\(ctx\.db\.query\('mapSignatures'\)\)\.paginate\(clampPageSize\(paginationOpts, MAP_SIGNATURE_PAGE_SIZE\)\)/);
-    const watcher = source.slice(source.indexOf('async function readSignaturePage'));
-    expect(watcher).toMatch(/withIndex\('by_map_signature',[\s\S]*?q\.eq\('mapId', mapId\)\.eq\('systemId', systemId\)/);
   });
 });

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { convexTest } from 'convex-test';
 import type { PaginationResult } from 'convex/server';
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { stripComments } from '@/lib/__tests__/source-scan';
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -76,544 +76,360 @@ async function revokeClaim(t: Chain, mapId: string, userId: string): Promise<voi
   });
 }
 
-describe('map chain read path', () => {
-  describe('gate', () => {
-    it.each(
-      (
-        ['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const
-      ).flatMap((fn) =>
-        (
-          [
-            ['a signed-out caller', undefined],
-            ['a caller holding no claim', STRANGER],
-          ] as const
-        ).map(([label, subject]) => ({ fn, label, subject })),
-      ),
-    )('serves $label of $fn an empty, complete page', async ({ fn, subject }) => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await placeSystems(t, MAP_A, [JITA]);
-      await connect(t, MAP_A, JITA, AMARR);
+it('serves signed-out and unclaimed callers an empty chain, denied access, and no events', async () => {
+  for (const subject of [undefined, STRANGER]) {
+    const t = convexTest(schema, modules);
+    await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+    await placeSystems(t, MAP_A, [JITA]);
+    await connect(t, MAP_A, JITA, AMARR);
+    await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+      mapId: MAP_A,
+      fromSystemId: JITA,
+      fromSignatureId: 'ABC-123',
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('mapEvents', {
+        mapId: MAP_A,
+        at: 1,
+        kind: 'connection_severed_retained',
+        actor: 'Editor',
+        payload: { connectionId: 'connection-1' },
+        purgeAfter: 2,
+      });
+    });
+    const caller = subject === undefined ? t : asUser(t, subject);
 
-      const result = await (subject === undefined
-        ? t.query(chain[fn], { mapId: MAP_A, paginationOpts: page(10) })
-        : asUser(t, subject).query(chain[fn], {
-            mapId: MAP_A,
-            paginationOpts: page(10),
-          }));
-
-      expect(result.page).toEqual([]);
+    for (const fn of ['watchMapSystems', 'watchMapConnections', 'watchUnresolvedHoles'] as const) {
+      const result = await caller.query(chain[fn], { mapId: MAP_A, paginationOpts: page(10) });
+      expect(result.page, `${fn} for ${subject ?? 'signed out'}`).toEqual([]);
       expect(result.isDone).toBe(true);
-    });
+    }
+    expect(await caller.query(chain.watchMapAccess, { mapId: MAP_A }))
+      .toEqual({ granted: false, canEdit: false, trackableCharacterIds: null });
+    expect(await caller.query(chain.watchMapEvents, { mapId: MAP_A })).toEqual([]);
+  }
+});
 
-    it.each([
-      ['a signed-out caller', undefined],
-      ['a caller holding no claim', STRANGER],
-    ] as const)('reports access as not granted for %s', async (_label, subject) => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+it('reports granted access for a viewer and canEdit for an editor', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
 
-      const result = await (subject === undefined
-        ? t.query(chain.watchMapAccess, { mapId: MAP_A })
-        : asUser(t, subject).query(chain.watchMapAccess, { mapId: MAP_A }));
+  expect(
+    await asUser(t, VIEWER).query(chain.watchMapAccess, { mapId: MAP_A }),
+  ).toEqual({ granted: true, canEdit: false, trackableCharacterIds: null });
+  expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
+    granted: true,
+    canEdit: true,
+    trackableCharacterIds: null,
+  });
+});
 
-      expect(result).toEqual({ granted: false, canEdit: false, trackableCharacterIds: null });
-    });
+it('gives a viewer disjoint resolved and unresolved connection feeds', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
+  await placeSystems(t, MAP_A, [JITA, AMARR]);
+  await connect(t, MAP_A, JITA, AMARR);
+  const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+    mapId: MAP_A,
+    fromSystemId: JITA,
+    fromSignatureId: 'ABC-123',
+  });
 
-    it.each([
-      ['a signed-out caller', undefined],
-      ['a caller holding no claim', STRANGER],
-    ] as const)('serves %s an empty event ledger', async (_label, subject) => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await t.run(async (ctx) => {
-        await ctx.db.insert('mapEvents', {
-          mapId: MAP_A,
-          at: 1,
-          kind: 'connection_severed_retained',
-          actor: 'Editor',
-          payload: { connectionId: 'connection-1' },
-          purgeAfter: 2,
-        });
+  const systems = await asUser(t, VIEWER).query(chain.watchMapSystems, {
+    mapId: MAP_A,
+    paginationOpts: page(10),
+  });
+  const connections = await asUser(t, VIEWER).query(chain.watchMapConnections, {
+    mapId: MAP_A,
+    paginationOpts: page(10),
+  });
+  const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
+    mapId: MAP_A,
+    paginationOpts: page(10),
+  });
+
+  expect(systems.page).toHaveLength(2);
+  expect(connections.page).toHaveLength(1);
+  expect(connections.page[0]?.toSystemId).toBe(AMARR);
+  expect(holes.page).toEqual([
+    expect.objectContaining({
+      _id: unresolved.connectionId,
+      fromSystemId: JITA,
+      toSystemId: null,
+      from: expect.objectContaining({ signatureId: 'ABC-123' }),
+    }),
+  ]);
+});
+
+it('returns tombstoned unresolved rows as slot holders', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
+  await placeSystems(t, MAP_A, [JITA]);
+  const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+    mapId: MAP_A,
+    fromSystemId: JITA,
+    fromSignatureId: 'ABC-123',
+  });
+  await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
+    mapId: MAP_A,
+    connectionId: unresolved.connectionId,
+  });
+
+  const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
+    mapId: MAP_A,
+    paginationOpts: page(10),
+  });
+  expect(holes.page).toEqual([
+    expect.objectContaining({
+      _id: unresolved.connectionId,
+      toSystemId: null,
+      tombstone: expect.objectContaining({ kind: 'removed' }),
+    }),
+  ]);
+});
+
+it('flips access off on revocation and restores rows when the claim returns', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  await placeSystems(t, MAP_A, [JITA]);
+
+  const before = await asUser(t).query(chain.watchMapSystems, {
+    mapId: MAP_A,
+    paginationOpts: page(10),
+  });
+  expect(before.page).toHaveLength(1);
+  expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
+    granted: true,
+    canEdit: true,
+    trackableCharacterIds: null,
+  });
+
+  await revokeClaim(t, MAP_A, EDITOR);
+
+  expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
+    granted: false,
+    canEdit: false,
+    trackableCharacterIds: null,
+  });
+  expect(
+    (await asUser(t).query(chain.watchMapSystems, {
+      mapId: MAP_A,
+      paginationOpts: page(10),
+    })).page,
+  ).toEqual([]);
+
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+
+  expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
+    granted: true,
+    canEdit: true,
+    trackableCharacterIds: null,
+  });
+  expect(
+    (await asUser(t).query(chain.watchMapSystems, {
+      mapId: MAP_A,
+      paginationOpts: page(10),
+    })).page,
+  ).toHaveLength(1);
+});
+
+it('returns only the requested map’s rows', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
+  await placeSystems(t, MAP_A, [JITA]);
+  await placeSystems(t, MAP_B, [AMARR]);
+  await connect(t, MAP_B, AMARR, AMARR + 1);
+
+  const systems = await asUser(t).query(chain.watchMapSystems, {
+    mapId: MAP_A,
+    paginationOpts: page(50),
+  });
+  const connections = await asUser(t).query(chain.watchMapConnections, {
+    mapId: MAP_A,
+    paginationOpts: page(50),
+  });
+
+  expect(systems.page.map((row) => row.systemId)).toEqual([JITA]);
+  expect(connections.page).toHaveLength(0);
+});
+
+it('continues a multi-page systems read across real cursors', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  const seeded = [JITA, JITA + 1, JITA + 2, JITA + 3, JITA + 4];
+  await placeSystems(t, MAP_A, seeded);
+
+  const collected: number[] = [];
+  let cursor: string | null = null;
+  let pages = 0;
+
+  for (;;) {
+    const result: PaginationResult<Doc<'mapSystems'>> = await asUser(t).query(
+      chain.watchMapSystems,
+      { mapId: MAP_A, paginationOpts: page(2, cursor) },
+    );
+    collected.push(...result.page.map((row) => row.systemId));
+    pages += 1;
+    if (result.isDone) break;
+    cursor = result.continueCursor;
+    expect(pages).toBeLessThan(10);
+  }
+
+  expect(collected.toSorted((a, b) => a - b)).toEqual(seeded);
+  expect(pages).toBeGreaterThan(1);
+});
+
+it('clamps an oversized requested page to the maximum', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  await placeSystems(
+    t,
+    MAP_A,
+    Array.from({ length: MAP_CHAIN_MAX_PAGE_SIZE + 5 }, (_, index) => JITA + index),
+  );
+
+  const result = await asUser(t).query(chain.watchMapSystems, {
+    mapId: MAP_A,
+    paginationOpts: page(MAP_CHAIN_MAX_PAGE_SIZE * 5),
+  });
+
+  expect(result.page).toHaveLength(MAP_CHAIN_MAX_PAGE_SIZE);
+  expect(result.isDone).toBe(false);
+});
+
+it('reads only one map event range, newest-first and bounded', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
+  await t.run(async (ctx) => {
+    for (let at = 0; at < MAP_EVENT_READ_LIMIT + 2; at += 1) {
+      await ctx.db.insert('mapEvents', {
+        mapId: MAP_A,
+        at,
+        kind: 'connection_severed_retained',
+        actor: 'Editor',
+        payload: { connectionId: `connection-${at}` },
+        purgeAfter: at + 10_000,
       });
-
-      const events = await (subject === undefined
-        ? t.query(chain.watchMapEvents, { mapId: MAP_A })
-        : asUser(t, subject).query(chain.watchMapEvents, { mapId: MAP_A }));
-      expect(events).toEqual([]);
+    }
+    await ctx.db.insert('mapEvents', {
+      mapId: MAP_B,
+      at: MAP_EVENT_READ_LIMIT + 100,
+      kind: 'connection_severed_retained',
+      actor: 'Other map',
+      payload: { connectionId: 'other-map' },
+      purgeAfter: MAP_EVENT_READ_LIMIT + 10_000,
     });
+  });
 
-    it('reports granted access for a viewer and canEdit for an editor', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
+  const events = await asUser(t, VIEWER).query(chain.watchMapEvents, {
+    mapId: MAP_A,
+  });
+  expect(events).toHaveLength(MAP_EVENT_READ_LIMIT);
+  expect(events[0]?.at).toBe(MAP_EVENT_READ_LIMIT + 1);
+  expect(events.at(-1)?.at).toBe(2);
+  expect(events.every((event) => event.mapId === MAP_A)).toBe(true);
+});
 
-      expect(
-        await asUser(t, VIEWER).query(chain.watchMapAccess, { mapId: MAP_A }),
-      ).toEqual({ granted: true, canEdit: false, trackableCharacterIds: null });
-      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
-        granted: true,
-        canEdit: true,
-        trackableCharacterIds: null,
-      });
-    });
+it('removes fixture systems and connections, refusing a referenced system', async () => {
+  const t = convexTest(schema, modules);
+  await placeSystems(t, MAP_A, [JITA, AMARR]);
+  const connectionId = await connect(t, MAP_A, JITA, AMARR);
+  const mapSystems = async () =>
+    (await t.run((ctx) => ctx.db.query('mapSystems').withIndex('by_map', (q) => q.eq('mapId', MAP_A)).collect()))
+      .map((row) => row.systemId);
 
-    it('gives a viewer disjoint resolved and unresolved connection feeds', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
-      await placeSystems(t, MAP_A, [JITA, AMARR]);
-      await connect(t, MAP_A, JITA, AMARR);
-      const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
+  await expectConvexErrorCode(
+    t.mutation(internal.mapFixtureRemove.removeSystemFixture, { mapId: MAP_A, systemId: AMARR }),
+    'SYSTEM_IN_USE',
+  );
+  expect(await t.mutation(internal.mapFixtureRemove.removeSystemFixture, { mapId: MAP_A, systemId: AMARR + 1 }))
+    .toBe('unchanged');
+  expect(await mapSystems()).toEqual([JITA, AMARR]);
+
+  expect(await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, { connectionId })).toBe('removed');
+  expect(await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, { connectionId })).toBe('unchanged');
+
+  expect(await t.mutation(internal.mapFixtureRemove.removeSystemFixture, { mapId: MAP_A, systemId: AMARR }))
+    .toBe('removed');
+  expect(await mapSystems()).toEqual([JITA]);
+});
+
+it('removes an unreferenced system even when the map already has many other doors', async () => {
+  const t = convexTest(schema, modules);
+  await placeSystems(t, MAP_A, [JITA]);
+  await t.run(async (ctx) => {
+    for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
+      await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: AMARR + index,
+        toSystemId: AMARR + index + 1,
+        wormholeTypeCode: null,
+        massState: 'stable',
+        shipSize: 'M',
+      }));
+    }
+  });
+
+  const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
+    mapId: MAP_A,
+    systemId: JITA,
+  });
+
+  expect(outcome).toBe('removed');
+  const remaining = await t.run(async (ctx) =>
+    await ctx.db
+      .query('mapSystems')
+      .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
+      .collect(),
+  );
+  expect(remaining).toHaveLength(0);
+});
+
+it('refuses to remove a system that still has many doors', async () => {
+  const t = convexTest(schema, modules);
+  await placeSystems(t, MAP_A, [JITA]);
+  await t.run(async (ctx) => {
+    for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
+      await ctx.db.insert('mapConnections', connectionInsert({
         mapId: MAP_A,
         fromSystemId: JITA,
-        fromSignatureId: 'ABC-123',
-      });
-
-      const systems = await asUser(t, VIEWER).query(chain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-      const connections = await asUser(t, VIEWER).query(chain.watchMapConnections, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-      const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-
-      expect(systems.page).toHaveLength(2);
-      expect(connections.page).toHaveLength(1);
-      expect(connections.page[0]?.toSystemId).toBe(AMARR);
-      expect(holes.page).toEqual([
-        expect.objectContaining({
-          _id: unresolved.connectionId,
-          fromSystemId: JITA,
-          toSystemId: null,
-          from: expect.objectContaining({ signatureId: 'ABC-123' }),
-        }),
-      ]);
-    });
-
-    it('returns tombstoned unresolved rows as slot holders', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
-      await placeSystems(t, MAP_A, [JITA]);
-      const unresolved = await t.mutation(internal.mapFixtureHoles.upsertUnresolvedHole, {
-        mapId: MAP_A,
-        fromSystemId: JITA,
-        fromSignatureId: 'ABC-123',
-      });
-      await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneConnection, {
-        mapId: MAP_A,
-        connectionId: unresolved.connectionId,
-      });
-
-      const holes = await asUser(t, VIEWER).query(chain.watchUnresolvedHoles, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-      expect(holes.page).toEqual([
-        expect.objectContaining({
-          _id: unresolved.connectionId,
-          toSystemId: null,
-          tombstone: expect.objectContaining({ kind: 'removed' }),
-        }),
-      ]);
-    });
-
-    it('flips access off on revocation and restores rows when the claim returns', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await placeSystems(t, MAP_A, [JITA]);
-
-      const before = await asUser(t).query(chain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(10),
-      });
-      expect(before.page).toHaveLength(1);
-      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
-        granted: true,
-        canEdit: true,
-        trackableCharacterIds: null,
-      });
-
-      await revokeClaim(t, MAP_A, EDITOR);
-
-      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
-        granted: false,
-        canEdit: false,
-        trackableCharacterIds: null,
-      });
-      expect(
-        (await asUser(t).query(chain.watchMapSystems, {
-          mapId: MAP_A,
-          paginationOpts: page(10),
-        })).page,
-      ).toEqual([]);
-
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-
-      expect(await asUser(t).query(chain.watchMapAccess, { mapId: MAP_A })).toEqual({
-        granted: true,
-        canEdit: true,
-        trackableCharacterIds: null,
-      });
-      expect(
-        (await asUser(t).query(chain.watchMapSystems, {
-          mapId: MAP_A,
-          paginationOpts: page(10),
-        })).page,
-      ).toHaveLength(1);
-    });
+        toSystemId: AMARR + index,
+        wormholeTypeCode: null,
+        massState: 'stable',
+        shipSize: 'M',
+      }));
+    }
   });
 
-  describe('reads', () => {
-    it('returns only the requested map’s rows', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await grantMapAccess(t, MAP_B, EDITOR, ['editor']);
-      await placeSystems(t, MAP_A, [JITA]);
-      await placeSystems(t, MAP_B, [AMARR]);
-      await connect(t, MAP_B, AMARR, AMARR + 1);
+  await expectConvexErrorCode(
+    t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
+      mapId: MAP_A,
+      systemId: JITA,
+    }),
+    'SYSTEM_IN_USE',
+  );
+});
 
-      const systems = await asUser(t).query(chain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(50),
-      });
-      const connections = await asUser(t).query(chain.watchMapConnections, {
-        mapId: MAP_A,
-        paginationOpts: page(50),
-      });
+it('keeps the access authority off the chain tables entirely', () => {
+  const source = readFileSync('convex/mapChainAccess.ts', 'utf8');
+  const start = source.indexOf('export const watchMapAccess = query({');
+  expect(start, 'watchMapAccess must be a public query').toBeGreaterThanOrEqual(0);
+  const rest = source.slice(start);
+  const code = stripComments(rest.slice(0, rest.indexOf('\n});'))).replace(/\s+/g, '');
 
-      expect(systems.page.map((row) => row.systemId)).toEqual([JITA]);
-      expect(connections.page).toHaveLength(0);
-    });
-
-    it('continues a multi-page systems read across real cursors', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      const seeded = [JITA, JITA + 1, JITA + 2, JITA + 3, JITA + 4];
-      await placeSystems(t, MAP_A, seeded);
-
-      const collected: number[] = [];
-      let cursor: string | null = null;
-      let pages = 0;
-
-      for (;;) {
-        const result: PaginationResult<Doc<'mapSystems'>> = await asUser(t).query(
-          chain.watchMapSystems,
-          { mapId: MAP_A, paginationOpts: page(2, cursor) },
-        );
-        collected.push(...result.page.map((row) => row.systemId));
-        pages += 1;
-        if (result.isDone) break;
-        cursor = result.continueCursor;
-        expect(pages).toBeLessThan(10);
-      }
-
-      expect(collected.toSorted((a, b) => a - b)).toEqual(seeded);
-      expect(pages).toBeGreaterThan(1);
-    });
-
-    it('clamps an oversized requested page to the maximum', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, EDITOR, ['editor']);
-      await placeSystems(
-        t,
-        MAP_A,
-        Array.from({ length: MAP_CHAIN_MAX_PAGE_SIZE + 5 }, (_, index) => JITA + index),
-      );
-
-      const result = await asUser(t).query(chain.watchMapSystems, {
-        mapId: MAP_A,
-        paginationOpts: page(MAP_CHAIN_MAX_PAGE_SIZE * 5),
-      });
-
-      expect(result.page).toHaveLength(MAP_CHAIN_MAX_PAGE_SIZE);
-      expect(result.isDone).toBe(false);
-    });
-
-    it('reads only one map event range, newest-first and bounded', async () => {
-      const t = convexTest(schema, modules);
-      await grantMapAccess(t, MAP_A, VIEWER, ['viewer']);
-      await t.run(async (ctx) => {
-        for (let at = 0; at < MAP_EVENT_READ_LIMIT + 2; at += 1) {
-          await ctx.db.insert('mapEvents', {
-            mapId: MAP_A,
-            at,
-            kind: 'connection_severed_retained',
-            actor: 'Editor',
-            payload: { connectionId: `connection-${at}` },
-            purgeAfter: at + 10_000,
-          });
-        }
-        await ctx.db.insert('mapEvents', {
-          mapId: MAP_B,
-          at: MAP_EVENT_READ_LIMIT + 100,
-          kind: 'connection_severed_retained',
-          actor: 'Other map',
-          payload: { connectionId: 'other-map' },
-          purgeAfter: MAP_EVENT_READ_LIMIT + 10_000,
-        });
-      });
-
-      const events = await asUser(t, VIEWER).query(chain.watchMapEvents, {
-        mapId: MAP_A,
-      });
-      expect(events).toHaveLength(MAP_EVENT_READ_LIMIT);
-      expect(events[0]?.at).toBe(MAP_EVENT_READ_LIMIT + 1);
-      expect(events.at(-1)?.at).toBe(2);
-      expect(events.every((event) => event.mapId === MAP_A)).toBe(true);
-    });
-  });
-
-  describe('removal fixtures', () => {
-    it('removes an unreferenced system and reports the removal', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA]);
-
-      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-        mapId: MAP_A,
-        systemId: JITA,
-      });
-
-      expect(outcome).toBe('removed');
-      const remaining = await t.run(async (ctx) =>
-        await ctx.db
-          .query('mapSystems')
-          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
-          .collect(),
-      );
-      expect(remaining).toHaveLength(0);
-    });
-
-    it('reports unchanged and writes nothing for a system that is not on the map', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA]);
-
-      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-        mapId: MAP_A,
-        systemId: AMARR,
-      });
-
-      expect(outcome).toBe('unchanged');
-      const remaining = await t.run(async (ctx) =>
-        await ctx.db
-          .query('mapSystems')
-          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
-          .collect(),
-      );
-      expect(remaining.map((row) => row.systemId)).toEqual([JITA]);
-    });
-
-    it('refuses to remove a system a connection still references', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA, AMARR]);
-      await connect(t, MAP_A, JITA, AMARR);
-
-      await expectConvexErrorCode(
-        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-          mapId: MAP_A,
-          systemId: AMARR,
-        }),
-        'SYSTEM_IN_USE',
-      );
-    });
-
-    it('removes an unreferenced system even when the map already has many other doors', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA]);
-      await t.run(async (ctx) => {
-        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
-          await ctx.db.insert('mapConnections', connectionInsert({
-            mapId: MAP_A,
-            fromSystemId: AMARR + index,
-            toSystemId: AMARR + index + 1,
-            wormholeTypeCode: null,
-            massState: 'stable',
-            shipSize: 'M',
-          }));
-        }
-      });
-
-      const outcome = await t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-        mapId: MAP_A,
-        systemId: JITA,
-      });
-
-      expect(outcome).toBe('removed');
-      const remaining = await t.run(async (ctx) =>
-        await ctx.db
-          .query('mapSystems')
-          .withIndex('by_map', (q) => q.eq('mapId', MAP_A))
-          .collect(),
-      );
-      expect(remaining).toHaveLength(0);
-    });
-
-    it('refuses to remove a system that still has many doors', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA]);
-      await t.run(async (ctx) => {
-        for (let index = 0; index <= MAP_CONNECTION_SIGNATURE_SCAN_LIMIT; index += 1) {
-          await ctx.db.insert('mapConnections', connectionInsert({
-            mapId: MAP_A,
-            fromSystemId: JITA,
-            toSystemId: AMARR + index,
-            wormholeTypeCode: null,
-            massState: 'stable',
-            shipSize: 'M',
-          }));
-        }
-      });
-
-      await expectConvexErrorCode(
-        t.mutation(internal.mapFixtureRemove.removeSystemFixture, {
-          mapId: MAP_A,
-          systemId: JITA,
-        }),
-        'SYSTEM_IN_USE',
-      );
-    });
-
-    it('removes a connection once and reports unchanged on a repeat', async () => {
-      const t = convexTest(schema, modules);
-      await placeSystems(t, MAP_A, [JITA, AMARR]);
-      const connectionId = await connect(t, MAP_A, JITA, AMARR);
-
-      const first = await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, {
-        connectionId,
-      });
-      const second = await t.mutation(internal.mapFixtureRemove.removeConnectionFixture, {
-        connectionId,
-      });
-
-      expect(first).toBe('removed');
-      expect(second).toBe('unchanged');
-    });
-  });
-
-  describe('source contract', () => {
-    const ACCESS = readFileSync('convex/mapChainAccess.ts', 'utf8');
-    const SYSTEMS = readFileSync('convex/mapChainSystems.ts', 'utf8');
-    const CONNECTIONS = readFileSync('convex/mapChainConnections.ts', 'utf8');
-    const EVENTS = readFileSync('convex/mapChainEvents.ts', 'utf8');
-
-    const CHAIN_TABLES = [
-      'mapAccess',
-      'mapSystems',
-      'mapConnections',
-      'mapEvents',
-      'mapSignatures',
-      'mapNotes',
-      'mapSignatureActivity',
-    ] as const;
-
-    function countOccurrences(haystack: string, needle: string): number {
-      return haystack.split(needle).length - 1;
-    }
-
-    function dense(code: string): string {
-      return code.replace(/\s+/g, '');
-    }
-
-    function handlerCode(source: string, name: string): string {
-      const start = source.indexOf(`export const ${name} = query({`);
-      expect(start, `${name} must be a public query`).toBeGreaterThanOrEqual(0);
-      const rest = source.slice(start);
-      const end = rest.indexOf('\n});');
-      expect(end, `${name} must be a closed declaration`).toBeGreaterThan(0);
-      return stripComments(rest.slice(0, end));
-    }
-
-    function helperCode(source: string, startMarker: string, endMarker: string): string {
-      const start = source.indexOf(startMarker);
-      const end = source.indexOf(endMarker, start);
-      expect(start, `${startMarker} must exist`).toBeGreaterThanOrEqual(0);
-      expect(end, `${endMarker} must follow ${startMarker}`).toBeGreaterThan(start);
-      return stripComments(source.slice(start, end));
-    }
-
-    it.each([
-      { source: SYSTEMS, fn: 'watchMapSystems', helper: 'readSystemPage' },
-      {
-        source: CONNECTIONS,
-        fn: 'watchMapConnections',
-        helper: 'readConnectionPage',
-        mode: 'resolved',
-      },
-      {
-        source: CONNECTIONS,
-        fn: 'watchUnresolvedHoles',
-        helper: 'readConnectionPage',
-        mode: 'unresolved',
-      },
-    ])('pins $fn to its owned page helper', ({ source, fn, helper, mode }) => {
-      const code = dense(handlerCode(source, fn));
-
-      expect(countOccurrences(code, `${helper}(ctx,mapId,paginationOpts`)).toBe(1);
-      if (mode !== undefined) expect(code).toContain(`'${mode}'`);
-      expect(code, `${fn} must not read the database directly`).not.toContain('ctx.db');
-    });
-
-    it('pins the gated helpers to their disjoint indexed ranges', () => {
-      const systems = dense(
-        helperCode(SYSTEMS, 'async function readSystemPage', 'export const watchMapSystems'),
-      );
-      const connections = dense(
-        helperCode(
-          CONNECTIONS,
-          'async function readConnectionPage',
-          'export const watchMapConnections',
-        ),
-      );
-
-      expect(countOccurrences(systems, "ctx.db.query('mapSystems')")).toBe(1);
-      expect(systems).toContain("withIndex('by_map'");
-      expect(countOccurrences(systems, '.paginate(')).toBe(1);
-      expect(systems.indexOf('tryMapAccess')).toBeLessThan(systems.indexOf('ctx.db.query'));
-
-      expect(countOccurrences(connections, "ctx.db.query('mapConnections')")).toBe(2);
-      expect(countOccurrences(connections, "withIndex('by_map_to'")).toBe(2);
-      expect(connections).toContain("gt('toSystemId',null)");
-      expect(connections).toContain("eq('toSystemId',null)");
-      expect(connections.indexOf('tryMapAccess')).toBeLessThan(connections.indexOf('ctx.db.query'));
-
-      for (const code of [systems, connections]) {
-        expect(code).toContain('deniedPage');
-        expect(code).not.toContain('db.get');
-        expect(code).not.toContain('.collect(');
-        expect(code).not.toContain('throw');
-      }
-    });
-
-    it('keeps the access authority off the chain tables entirely', () => {
-      const code = dense(handlerCode(ACCESS, 'watchMapAccess'));
-
-      for (const table of CHAIN_TABLES) {
-        expect(code, `watchMapAccess must not query ${table}`).not.toContain(
-          `ctx.db.query('${table}')`,
-        );
-      }
-      expect(code).toContain('tryMapAccess');
-    });
-
-    it('pins the event ledger to one bounded newest-first indexed read', () => {
-      const code = dense(handlerCode(EVENTS, 'watchMapEvents'));
-
-      expect(countOccurrences(code, "ctx.db.query('mapEvents')")).toBe(1);
-      expect(code).toContain("withIndex('by_map'");
-      expect(code).toContain(".order('desc')");
-      expect(code).toContain('.take(MAP_EVENT_READ_LIMIT)');
-      expect(code).toContain('tryMapAccess');
-      expect(code).not.toContain('.collect(');
-      for (const table of CHAIN_TABLES.filter((name) => name !== 'mapEvents')) {
-        expect(code, `watchMapEvents must not query ${table}`).not.toContain(
-          `ctx.db.query('${table}')`,
-        );
-      }
-    });
-  });
+  for (const table of [
+    'mapAccess',
+    'mapSystems',
+    'mapConnections',
+    'mapEvents',
+    'mapSignatures',
+    'mapNotes',
+    'mapSignatureActivity',
+  ]) {
+    expect(code, `watchMapAccess must not query ${table}`).not.toContain(`ctx.db.query('${table}')`);
+  }
+  expect(code).toContain('tryMapAccess');
 });

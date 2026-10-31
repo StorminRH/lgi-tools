@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
 import { postForm } from '@/lib/__tests__/route-requests';
@@ -49,82 +49,58 @@ vi.mock('next/server', async (importOriginal) => ({
 
 const ROUTE = '/api/admin/role';
 
-describe('POST /api/admin/role', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    getSessionMock.mockReset();
-    getUserByIdMock.mockReset();
-    setUserRoleMock.mockReset();
-    emitUsageEventMock.mockReset();
+function resetMocks() {
+  getSessionMock.mockReset();
+  getUserByIdMock.mockReset();
+  setUserRoleMock.mockReset();
+  emitUsageEventMock.mockReset();
+}
+
+test('refuses a non-admin or no session with 403, a self-toggle or unknown role with 400, and a missing target with 404', async () => {
+  resetMocks();
+  const { POST } = await import('./route');
+
+  getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
+  expect((await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }))).status).toBe(403);
+  getSessionMock.mockResolvedValue(null);
+  expect((await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }))).status).toBe(403);
+
+  getSessionMock.mockResolvedValue(ADMIN_VIEWER);
+  expect((await POST(postForm(ROUTE, { userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status).toBe(400);
+  expect((await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }))).status).toBe(400);
+
+  getUserByIdMock.mockResolvedValue(null);
+  expect((await POST(postForm(ROUTE, { userId: 'eve-user-99999', nextRole: 'ADMIN' }))).status).toBe(404);
+  expect(setUserRoleMock).not.toHaveBeenCalled();
+});
+
+test('mutates the role, records it, and redirects to the users page with the sanitised search', async () => {
+  resetMocks();
+  getSessionMock.mockResolvedValue(ADMIN_VIEWER);
+  getUserByIdMock.mockResolvedValue(TARGET_USER);
+  setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
+  const { POST } = await import('./route');
+
+  const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
+  expect(res.status).toBe(303);
+  expect(new URL(res.headers.get('location')!).pathname).toBe('/admin/users');
+  expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');
+  expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/role', {
+    action: 'role_change',
+    characterId: ADMIN_VIEWER.characterId,
+    metadata: {
+      actorUserId: ADMIN_VIEWER.user.id,
+      targetUserId: TARGET_USER.userId,
+      targetCharacterId: TARGET_USER.characterId,
+      from: 'USER',
+      to: 'ADMIN',
+    },
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('returns 403 for a non-admin and for no session at all', async () => {
-    getSessionMock.mockResolvedValue({ ...ADMIN_VIEWER, isAdmin: false });
-    const { POST } = await import('./route');
-    const res = await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }));
-    expect(res.status).toBe(403);
-
-    getSessionMock.mockResolvedValue(null);
-    const anonymous = await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'ADMIN' }));
-    expect(anonymous.status).toBe(403);
-    expect(setUserRoleMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 for self-toggle or an unknown role, and 404 when the target is missing', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
-    const { POST } = await import('./route');
-
-    expect(
-      (await POST(postForm(ROUTE, { userId: ADMIN_VIEWER.user.id, nextRole: 'USER' }))).status,
-    ).toBe(400);
-    expect(
-      (await POST(postForm(ROUTE, { userId: 'eve-user-12345', nextRole: 'SUPERADMIN' }))).status,
-    ).toBe(400);
-
-    getUserByIdMock.mockResolvedValue(null);
-    expect(
-      (await POST(postForm(ROUTE, { userId: 'eve-user-99999', nextRole: 'ADMIN' }))).status,
-    ).toBe(404);
-    expect(setUserRoleMock).not.toHaveBeenCalled();
-  });
-
-  it('mutates the role and redirects on a valid request', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
-    getUserByIdMock.mockResolvedValue(TARGET_USER);
-    setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
-    const { POST } = await import('./route');
-    const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN' }));
-    expect(res.status).toBe(303);
-    expect(new URL(res.headers.get('location')!).pathname).toBe('/admin/users');
-    expect(setUserRoleMock).toHaveBeenCalledWith(TARGET_USER.userId, 'ADMIN');
-    expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/role', {
-      action: 'role_change',
-      characterId: ADMIN_VIEWER.characterId,
-      metadata: {
-        actorUserId: ADMIN_VIEWER.user.id,
-        targetUserId: TARGET_USER.userId,
-        targetCharacterId: TARGET_USER.characterId,
-        from: 'USER',
-        to: 'ADMIN',
-      },
-    });
-  });
-
-  it('carries the sanitised search back to the users page, and drops a blank one', async () => {
-    getSessionMock.mockResolvedValue(ADMIN_VIEWER);
-    getUserByIdMock.mockResolvedValue(TARGET_USER);
-    setUserRoleMock.mockResolvedValue({ ...TARGET_USER, role: 'ADMIN' });
-    const { POST } = await import('./route');
-    const location = async (q: string) => {
-      const res = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN', q }));
-      return new URL(res.headers.get('location')!);
-    };
-
-    expect((await location('  Pilot\u0007 ')).searchParams.get('q')).toBe('Pilot');
-    expect((await location('   ')).searchParams.has('q')).toBe(false);
-  });
+  const location = async (q: string) => {
+    const searched = await POST(postForm(ROUTE, { userId: TARGET_USER.userId, nextRole: 'ADMIN', q }));
+    return new URL(searched.headers.get('location')!);
+  };
+  expect((await location('  Pilot\u0007 ')).searchParams.get('q')).toBe('Pilot');
+  expect((await location('   ')).searchParams.has('q')).toBe(false);
 });

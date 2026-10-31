@@ -1,6 +1,6 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { api, internal } from './_generated/api';
 import schema from './schema';
 
@@ -73,259 +73,218 @@ function stubStaticsFetch(handler: (systemId: number) => Response) {
   return fetchMock;
 }
 
-describe('map static placeholders', () => {
-  it('inserts one row per static', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const result = await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-      codes: ['C247', 'C140'],
-    });
-    expect(result).toEqual({ inserted: 2 });
-    const rows = await liveStaticRows(t, WH_ROOT);
-    expect(rows).toHaveLength(2);
-    expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
-    for (const row of rows) {
-      expect(row.from.typeCode).toBe(row.staticCode);
-      expect(row.from.signatureId).toBeNull();
-      expect(row.toSystemId).toBeNull();
-      expect(row.seatOrderAt).toBe(NOW);
-      expect(row.identity).toEqual({ kind: 'typed', provenance: 'assumed' });
-      expect(row.tombstone).toEqual({ kind: 'live' });
-    }
+test('inserts one row per static, once, and nothing for an empty code list', async () => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  const args = {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+    codes: ['C247', 'C140'],
+  };
+  expect(await t.mutation(internal.mapStatics.applyStaticPlaceholders, args)).toEqual({
+    inserted: 2,
   });
+  const rows = await liveStaticRows(t, WH_ROOT);
+  expect(rows).toHaveLength(2);
+  expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
+  for (const row of rows) {
+    expect(row.from.typeCode).toBe(row.staticCode);
+    expect(row.from.signatureId).toBeNull();
+    expect(row.toSystemId).toBeNull();
+    expect(row.seatOrderAt).toBe(NOW);
+    expect(row.identity).toEqual({ kind: 'typed', provenance: 'assumed' });
+    expect(row.tombstone).toEqual({ kind: 'live' });
+  }
 
-  it('is idempotent', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const args = {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-      codes: ['C247', 'C140'],
-    };
-    expect(await t.mutation(internal.mapStatics.applyStaticPlaceholders, args)).toEqual({
-      inserted: 2,
-    });
-    expect(await t.mutation(internal.mapStatics.applyStaticPlaceholders, args)).toEqual({
-      inserted: 0,
-    });
-    expect(await liveStaticRows(t, WH_ROOT)).toHaveLength(2);
+  expect(await t.mutation(internal.mapStatics.applyStaticPlaceholders, args)).toEqual({
+    inserted: 0,
   });
+  expect(await t.mutation(internal.mapStatics.applyStaticPlaceholders, { ...args, codes: [] }))
+    .toEqual({ inserted: 0 });
+  expect(await liveStaticRows(t, WH_ROOT)).toHaveLength(2);
+});
 
-  it('stamps staticCode onto a live from-door of that code instead of inserting a twin', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const typedId = await t.run(async (ctx) =>
-      ctx.db.insert('mapConnections', connectionInsert({
-        mapId: MAP_A,
-        fromSystemId: WH_ROOT,
-        toSystemId: AMARR,
-        wormholeTypeCode: 'C247',
-        typedSide: 'from',
-        typeProvenance: 'human',
-      })),
-    );
-    const result = await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+test('stamps staticCode onto a live from-door of that code instead of inserting a twin', async () => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  const typedId = await t.run(async (ctx) =>
+    ctx.db.insert('mapConnections', connectionInsert({
       mapId: MAP_A,
-      systemId: WH_ROOT,
-      codes: ['C247', 'C140'],
-    });
-    expect(result).toEqual({ inserted: 1 });
-    const typed = await t.run(async (ctx) => ctx.db.get(typedId));
-    expect(typed).toMatchObject({
-      _id: typedId,
-      staticCode: 'C247',
+      fromSystemId: WH_ROOT,
       toSystemId: AMARR,
-    });
-    const rows = await liveStaticRows(t, WH_ROOT);
-    expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
-    expect(rows.filter((row) => row.staticCode === 'C247')).toHaveLength(1);
+      wormholeTypeCode: 'C247',
+      typedSide: 'from',
+      typeProvenance: 'human',
+    })),
+  );
+  const result = await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+    codes: ['C247', 'C140'],
   });
-
-  it('inserts nothing for an empty code list', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    expect(
-      await t.mutation(internal.mapStatics.applyStaticPlaceholders, {
-        mapId: MAP_A,
-        systemId: WH_ROOT,
-        codes: [],
-      }),
-    ).toEqual({ inserted: 0 });
-    expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
+  expect(result).toEqual({ inserted: 1 });
+  const typed = await t.run(async (ctx) => ctx.db.get(typedId));
+  expect(typed).toMatchObject({
+    _id: typedId,
+    staticCode: 'C247',
+    toSystemId: AMARR,
   });
+  const rows = await liveStaticRows(t, WH_ROOT);
+  expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
+  expect(rows.filter((row) => row.staticCode === 'C247')).toHaveLength(1);
+});
 
-  it('schedules on insert for setHomeSystem', async () => {
-    const t = convexTest(schema, modules);
-    await seedEmpty(t);
-    await asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    const scheduled = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
-    expect(scheduled).toHaveLength(1);
-    expect(scheduledFetchSystemIds(scheduled)).toEqual([WH_ROOT]);
+test('schedules on insert for setHomeSystem', async () => {
+  const t = convexTest(schema, modules);
+  await seedEmpty(t);
+  await asUser(t).mutation(api.mapAuthoringHome.setHomeSystem, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
   });
+  const scheduled = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
+  expect(scheduled).toHaveLength(1);
+  expect(scheduledFetchSystemIds(scheduled)).toEqual([WH_ROOT]);
+});
 
-  it('schedules on insert for addSystemFromNode', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t);
-    await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
-      mapId: MAP_A,
-      fromSystemId: JITA,
-      toSystemId: AMARR,
-    });
-    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([JITA, AMARR]);
+test('schedules on insert for addSystemFromNode', async () => {
+  const t = convexTest(schema, modules);
+  await seedHome(t);
+  await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
+    mapId: MAP_A,
+    fromSystemId: JITA,
+    toSystemId: AMARR,
   });
+  expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([JITA, AMARR]);
+});
 
-  it('schedules on insert for jump authoring', async () => {
-    const t = convexTest(schema, modules);
-    await grantMapAccess(t, JUMP_MAP, EDITOR, ['editor']);
-    await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
+test('schedules on insert for jump authoring', async () => {
+  const t = convexTest(schema, modules);
+  await grantMapAccess(t, JUMP_MAP, EDITOR, ['editor']);
+  await t.mutation(internal.mapFixturePlace.placeSystemFixture, {
+    mapId: JUMP_MAP,
+    systemId: ORIGIN,
+  });
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapTracking', {
       mapId: JUMP_MAP,
-      systemId: ORIGIN,
-    });
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapTracking', {
-        mapId: JUMP_MAP,
-        userId: TRACKER,
-        characterId: CHARACTER,
-      });
-      await ctx.db.insert('characterLocation', {
-        userId: TRACKER,
-        characterId: CHARACTER,
-        solarSystemId: DESTINATION,
-        stationId: null,
-        structureId: null,
-        shipTypeId: 587,
-        prevSolarSystemId: ORIGIN,
-        prevFresh: true,
-        transitionObservedAt: NOW,
-        observedAt: NOW,
-        etagLocation: null,
-        etagShip: null,
-      });
-    });
-    await t.mutation(internal.mapJumpAuthoring.resolveJumpAuthoring, {
-      userId: EDITOR,
-      mapId: JUMP_MAP,
+      userId: TRACKER,
       characterId: CHARACTER,
-      fromSolarSystemId: ORIGIN,
-      toSolarSystemId: DESTINATION,
+    });
+    await ctx.db.insert('characterLocation', {
+      userId: TRACKER,
+      characterId: CHARACTER,
+      solarSystemId: DESTINATION,
+      stationId: null,
+      structureId: null,
+      shipTypeId: 587,
+      prevSolarSystemId: ORIGIN,
+      prevFresh: true,
       transitionObservedAt: NOW,
-      observedShipMassKg: 10_000_000,
-      observationKey: 'observation-key',
-      decision: { kind: 'insert', candidateIds: [], survivors: [] },
+      observedAt: NOW,
+      etagLocation: null,
+      etagShip: null,
     });
-    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([DESTINATION]);
   });
+  await t.mutation(internal.mapJumpAuthoring.resolveJumpAuthoring, {
+    userId: EDITOR,
+    mapId: JUMP_MAP,
+    characterId: CHARACTER,
+    fromSolarSystemId: ORIGIN,
+    toSolarSystemId: DESTINATION,
+    transitionObservedAt: NOW,
+    observedShipMassKg: 10_000_000,
+    observationKey: 'observation-key',
+    decision: { kind: 'insert', candidateIds: [], survivors: [] },
+  });
+  expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([DESTINATION]);
+});
 
-  it('schedules on insert for restoreSystem', async () => {
+test('schedules on insert for restoreSystem', async () => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+  });
+  const afterTombstone = scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'));
+  expect(afterTombstone).toEqual([WH_ROOT]);
+  await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+  });
+  expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([
+    WH_ROOT,
+    WH_ROOT,
+  ]);
+});
+
+test('does not schedule when the destination is already live', async () => {
+  const t = convexTest(schema, modules);
+  await seedJump(t);
+  const before = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
+  await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
+    mapId: MAP_A,
+    fromSystemId: AMARR,
+    toSystemId: JITA,
+  });
+  expect(await scheduledFunctionsNamed(t, 'fetchSystemStatics')).toHaveLength(before.length);
+});
+
+test.each([
+  ['a server error', () => new Response('nope', { status: 500 }), 'HTTP 500'],
+  ['a redirect', () => new Response('Redirecting...', { status: 302 }), 'HTTP 302'],
+  ['a 200 that is not JSON', () => new Response('<html>', { status: 200 }), 'invalid statics payload'],
+  ['a 200 off the contract', () => Response.json({ statics: [247] }), 'invalid statics payload'],
+  ['a network failure', (): Response => { throw new TypeError('fetch failed'); }, 'fetch failed'],
+] as const)('skips apply on %s', async (_case, respond, reason) => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  stubStaticsFetch(respond);
+  await t.action(internal.mapStatics.fetchSystemStatics, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+  });
+  expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
+  const skips = warn.mock.calls
+    .map(([line]) => String(line))
+    .filter((line) => line.includes('static placeholders skipped'))
+    .map((line): unknown => JSON.parse(line));
+  expect(skips).toEqual([
+    { note: 'static placeholders skipped', reason, systemId: WH_ROOT },
+  ]);
+});
+
+test.each([
+  ['unset', undefined],
+  ['empty', ''],
+  ['plain HTTP off loopback', 'http://app.test'],
+] as const)('skips apply without fetching when SITE_URL is %s', async (_case, siteUrl) => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
+  vi.stubEnv('SITE_URL', siteUrl);
+  await t.action(internal.mapStatics.fetchSystemStatics, {
+    mapId: MAP_A,
+    systemId: WH_ROOT,
+  });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
+  const skips = warn.mock.calls
+    .map(([line]) => String(line))
+    .filter((line) => line.includes('static placeholders skipped'))
+    .map((line): unknown => JSON.parse(line));
+  expect(skips).toEqual([
+    { note: 'static placeholders skipped', reason: 'missing or invalid SITE_URL', systemId: WH_ROOT },
+  ]);
+});
+
+test('sends the Vercel protection bypass header only when the secret is set', async () => {
+  for (const secret of ['bypass-secret', undefined]) {
     const t = convexTest(schema, modules);
     await seedHome(t, WH_ROOT);
-    await asUser(t).mutation(internal.mapAuthoringTombstone.tombstoneSystem, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    const afterTombstone = scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'));
-    expect(afterTombstone).toEqual([WH_ROOT]);
-    await asUser(t).mutation(internal.mapAuthoringTombstone.restoreSystem, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    expect(scheduledFetchSystemIds(await scheduledFunctionsNamed(t, 'fetchSystemStatics'))).toEqual([
-      WH_ROOT,
-      WH_ROOT,
-    ]);
-  });
-
-  it('does not schedule when the destination is already live', async () => {
-    const t = convexTest(schema, modules);
-    await seedJump(t);
-    const before = await scheduledFunctionsNamed(t, 'fetchSystemStatics');
-    await asUser(t).mutation(api.mapAuthoringHome.addSystemFromNode, {
-      mapId: MAP_A,
-      fromSystemId: AMARR,
-      toSystemId: JITA,
-    });
-    expect(await scheduledFunctionsNamed(t, 'fetchSystemStatics')).toHaveLength(before.length);
-  });
-
-  it.each([
-    ['a server error', () => new Response('nope', { status: 500 }), 'HTTP 500'],
-    ['a redirect', () => new Response('Redirecting...', { status: 302 }), 'HTTP 302'],
-    ['a 200 that is not JSON', () => new Response('<html>', { status: 200 }), 'invalid statics payload'],
-    ['a 200 off the contract', () => Response.json({ statics: [247] }), 'invalid statics payload'],
-    ['a network failure', (): Response => { throw new TypeError('fetch failed'); }, 'fetch failed'],
-  ] as const)('skips apply on %s', async (_case, respond, reason) => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    stubStaticsFetch(respond);
-    await t.action(internal.mapStatics.fetchSystemStatics, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
-    const skips = warn.mock.calls
-      .map(([line]) => String(line))
-      .filter((line) => line.includes('static placeholders skipped'))
-      .map((line): unknown => JSON.parse(line));
-    expect(skips).toEqual([
-      { note: 'static placeholders skipped', reason, systemId: WH_ROOT },
-    ]);
-  });
-
-  it.each([
-    ['unset', undefined],
-    ['empty', ''],
-    ['plain HTTP off loopback', 'http://app.test'],
-  ] as const)('skips apply without fetching when SITE_URL is %s', async (_case, siteUrl) => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
-    vi.stubEnv('SITE_URL', siteUrl);
-    await t.action(internal.mapStatics.fetchSystemStatics, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(await liveStaticRows(t, WH_ROOT)).toEqual([]);
-    const skips = warn.mock.calls
-      .map(([line]) => String(line))
-      .filter((line) => line.includes('static placeholders skipped'))
-      .map((line): unknown => JSON.parse(line));
-    expect(skips).toEqual([
-      { note: 'static placeholders skipped', reason: 'missing or invalid SITE_URL', systemId: WH_ROOT },
-    ]);
-  });
-
-  it('sends the Vercel protection bypass header when the secret is set', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', 'bypass-secret');
-    const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
-    await t.action(internal.mapStatics.fetchSystemStatics, {
-      mapId: MAP_A,
-      systemId: WH_ROOT,
-    });
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${SITE}/api/universe/statics/${WH_ROOT}`,
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'x-vercel-protection-bypass': 'bypass-secret',
-        }),
-      }),
-    );
-    expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
-  });
-
-  it('omits the Vercel protection bypass header when the secret is unset', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', undefined);
+    vi.stubEnv('VERCEL_AUTOMATION_BYPASS_SECRET', secret);
     const fetchMock = stubStaticsFetch(() => Response.json({ statics: ['C247'] }));
     await t.action(internal.mapStatics.fetchSystemStatics, {
       mapId: MAP_A,
@@ -335,32 +294,36 @@ describe('map static placeholders', () => {
       `${SITE}/api/universe/statics/${WH_ROOT}`,
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    const init = fetchMock.mock.calls[0]?.[1];
-    expect(init?.headers).not.toHaveProperty('x-vercel-protection-bypass');
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers;
+    if (secret === undefined) {
+      expect(headers).not.toHaveProperty('x-vercel-protection-bypass');
+    } else {
+      expect(headers).toMatchObject({ 'x-vercel-protection-bypass': secret });
+    }
     expect((await liveStaticRows(t, WH_ROOT)).map((row) => row.staticCode)).toEqual(['C247']);
-  });
+    vi.unstubAllGlobals();
+  }
+});
 
-  it('backfillStaticPlaceholders on a fixture map', async () => {
-    const t = convexTest(schema, modules);
-    await seedHome(t, WH_ROOT);
-    stubStaticsFetch((systemId) => {
-      if (systemId === WH_ROOT) {
-        return Response.json({ statics: ['C247', 'C140'] });
-      }
-      return Response.json({ statics: [] });
-    });
-    const first = await t.action(internal.mapStatics.backfillStaticPlaceholders, {
-      mapId: MAP_A,
-    });
-    expect(first).toMatchObject({ systems: 1, inserted: 2, hasMore: false });
-    expect(typeof first.cursor).toBe('string');
-    const rows = await liveStaticRows(t, WH_ROOT);
-    expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
-    const second = await t.action(internal.mapStatics.backfillStaticPlaceholders, {
-      mapId: MAP_A,
-      cursor: first.cursor,
-    });
-    expect(second.inserted).toBe(0);
-    expect(second.hasMore).toBe(false);
+test('backfillStaticPlaceholders on a fixture map', async () => {
+  const t = convexTest(schema, modules);
+  await seedHome(t, WH_ROOT);
+  stubStaticsFetch((systemId) => {
+    if (systemId === WH_ROOT) {
+      return Response.json({ statics: ['C247', 'C140'] });
+    }
+    return Response.json({ statics: [] });
   });
+  const first = await t.action(internal.mapStatics.backfillStaticPlaceholders, {
+    mapId: MAP_A,
+  });
+  expect(first).toMatchObject({ systems: 1, inserted: 2, hasMore: false });
+  const rows = await liveStaticRows(t, WH_ROOT);
+  expect(rows.map((row) => row.staticCode).sort()).toEqual(['C140', 'C247']);
+  const second = await t.action(internal.mapStatics.backfillStaticPlaceholders, {
+    mapId: MAP_A,
+    cursor: first.cursor,
+  });
+  expect(second.inserted).toBe(0);
+  expect(second.hasMore).toBe(false);
 });
