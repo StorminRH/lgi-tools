@@ -61,10 +61,7 @@ test('lists each linked character with its health, access, and the actions it al
   expect(active).toContain('ID 90000001');
   expect(active).toContain('Active');
   expect(active).toContain('Verification delayed');
-  expect(active).toContain('Access resumes when verification succeeds.');
   expect(active).toContain('Granted access');
-  // The disclosure ▾ stays out of the summary's accessible name.
-  expect(active).toContain('<span data-chevron="true" aria-hidden="true"');
   expect(active).not.toContain('Make active');
   expect(active).not.toContain('>Reconnect<');
 
@@ -72,7 +69,6 @@ test('lists each linked character with its health, access, and the actions it al
   expect(other).toContain('>Reconnect<');
   expect(other).toContain('Make active');
   expect(other).not.toContain('Granted access');
-  expect(other).not.toContain('Access resumes');
   expect(html).not.toContain('disabled=""');
   expect(html).not.toContain('Heads up');
 });

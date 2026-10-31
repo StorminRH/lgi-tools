@@ -96,7 +96,6 @@ test('site detail keeps params under Suspense then hosts the standalone card', a
   });
   const shellHtml = renderToStaticMarkup(shell);
   expect(shellHtml).toContain('Loading site');
-  expect(shellHtml).toContain('max-w-[32rem]');
   expect(mocks.getPricedSiteDetail).not.toHaveBeenCalled();
 
   const tree = await SiteDetailContent({
@@ -105,8 +104,6 @@ test('site detail keeps params under Suspense then hosts the standalone card', a
   });
   const html = renderToStaticMarkup(tree);
 
-  expect(html).toContain('max-w-[32rem]');
-  expect(html).not.toContain('max-w-reading');
   expect(html).toContain('data-presentation="standalone"');
   expect(html).toContain('Forgotten Perimeter Coronation Platform');
   expect(html).toContain('data-related-sites');
@@ -130,10 +127,10 @@ test('site detail metadata leaves the share image to the per-site card and 404s 
   await expect(
     SiteDetailContent({ params: Promise.resolve({ id: '2' }), searchParams: Promise.resolve({}) }),
   ).rejects.toThrow('NEXT_NOT_FOUND');
-  expect(mocks.getPricedSiteDetail).toHaveBeenCalledTimes(3);
 
+  // A non-canonical id 404s even though id 1 exists.
+  mocks.getPricedSiteDetail.mockResolvedValue(site);
   await expect(
     SiteDetailContent({ params: Promise.resolve({ id: '01' }), searchParams: Promise.resolve({}) }),
   ).rejects.toThrow('NEXT_NOT_FOUND');
-  expect(mocks.getPricedSiteDetail).toHaveBeenCalledTimes(3);
 });

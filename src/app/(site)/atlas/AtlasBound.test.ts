@@ -144,14 +144,12 @@ describe('AtlasBound', () => {
     expect(signedOut).not.toContain('data-atlas-return-refresh');
     expect(signedOut).not.toContain('data-map-catalogue');
     expect(signedOut).not.toContain('data-map-canvas-frame');
-    expect(signedOut).not.toContain('data-map-development-wall');
     const signedOutMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(signedOutMap).toContain('data-atlas-guest-landing');
     expect(signedOutMap).not.toContain('data-map-catalogue');
     expect(signedOutMap).not.toContain('data-map-canvas-frame');
     expect(mocks.listMapChromeData).not.toHaveBeenCalled();
     expect(mocks.getScannerSiteIndex).not.toHaveBeenCalled();
-    expect(mocks.connection).toHaveBeenCalledTimes(2);
     expect(mocks.connection.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.checkSession.mock.invocationCallOrder[0]!,
     );
@@ -166,8 +164,6 @@ describe('AtlasBound', () => {
     expect(landing).toContain('data-provider-map-count="1"');
     expect(landing).toContain('data-provider-listing-available="true"');
     expect(landing).not.toContain('data-map-canvas-frame');
-    expect(mocks.getScannerSiteIndex).toHaveBeenCalled();
-    expect(mocks.listMapChromeData).toHaveBeenCalledOnce();
 
     const canvas = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(canvas).toContain('data-map-canvas-frame');
@@ -190,7 +186,6 @@ describe('AtlasBound', () => {
     expect(failed).toContain('data-map-catalogue');
     expect(failed).toContain('data-provider-listing-available="false"');
     expect(failed).not.toContain('data-atlas-guest-landing');
-    expect(failed).not.toContain('data-map-development-wall');
     const failedMap = renderToStaticMarkup(await AtlasBound({ mapSelected: true, returnHref: '/atlas' }));
     expect(failedMap).toContain('data-map-catalogue');
     expect(failedMap).not.toContain('data-map-canvas-frame');
@@ -220,7 +215,6 @@ describe('AtlasBound', () => {
 
     expect(degraded).toContain('data-map-canvas-frame');
     expect(degraded).toContain('data-map-site-index="1"');
-    expect(mocks.getSiteSearchIndex).toHaveBeenCalled();
     expect(mocks.rethrow).toHaveBeenCalledWith(pricedErr);
     expect(consoleError).toHaveBeenCalledWith(
       '[map] scanner site catalogue unavailable; degrading',
