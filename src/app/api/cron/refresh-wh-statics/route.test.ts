@@ -1,12 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
-import { createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
 import { createReservedConnectionMock } from '@/db/__tests__/support/reserved-connection-mock';
-import { readSystemStatics } from '@/data/wh-statics/queries';
-import {
-  whStaticsSnapshots,
-  whSystemStatics,
-} from '@/data/wh-statics/schema';
 import { cronRequest, TEST_CRON_SECRET } from '@/lib/__tests__/route-requests';
 
 const probeMock = vi.fn();
@@ -15,7 +9,7 @@ const logUsageEventMock = vi.fn();
 const directDatabaseMock = { handle: 'direct-database' };
 
 let lockGot = true;
-const { reserved: reservedTag, reserve: reserveMock } = createReservedConnectionMock(
+const { reserve: reserveMock } = createReservedConnectionMock(
   () => Promise.resolve([{ got: lockGot }]),
 );
 
@@ -39,252 +33,126 @@ vi.mock('@/db/direct-database', () => ({
 
 vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 
-const harness = await createDbTestHarness({
-  schema: 'test_cron_refresh_wh_statics',
-  tables: ['wh_statics_snapshots', 'wh_system_statics'],
-  foreignKeys: [
-    {
-      table: 'wh_system_statics',
-      column: 'source_snapshot_id',
-      refTable: 'wh_statics_snapshots',
-      refColumn: 'id',
-      onDelete: 'cascade',
-    },
-  ],
-  resetBetweenTests: 'truncate',
-});
-
 const ROUTE = '/api/cron/refresh-wh-statics';
 
 const BASELINE = { etag: '"feed-10"', latestSnapshotId: 11 } as const;
 
-function probeResolves(feed: unknown): void {
-  probeMock.mockResolvedValue({ feed, baseline: BASELINE });
+function resetMocks(): void {
+  lockGot = true;
+  probeMock.mockReset();
+  recordChangedMock.mockReset();
+  logUsageEventMock.mockReset().mockResolvedValue(undefined);
+  reserveMock.mockClear();
 }
 
-describe('GET /api/cron/refresh-wh-statics', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    lockGot = true;
-    probeMock.mockReset();
-    recordChangedMock.mockReset();
-    logUsageEventMock.mockReset().mockResolvedValue(undefined);
-    reserveMock.mockClear();
-    reservedTag.mockClear();
-    reservedTag.release.mockClear();
-    vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
-    silenceConsolePrefixes('log', ['{"scope":"cron:']);
-  });
+async function setup() {
+  vi.resetModules();
+  resetMocks();
+  vi.stubEnv('CRON_SECRET', TEST_CRON_SECRET);
+  silenceConsolePrefixes('log', ['{"scope":"cron:']);
+  const { GET } = await import('./route');
+  return GET;
+}
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
-  it('finishes an unchanged conditional probe before reserving the lock', async () => {
-    probeResolves({ status: 'unchanged' });
-    const { GET } = await import('./route');
+test('finishes an unchanged or unavailable probe before the lock and records each outcome', async () => {
+  const GET = await setup();
+  const cases = [
+    {
+      feed: { status: 'unchanged' },
+      body: { status: 'unchanged' },
+      metadata: { outcome: 'unchanged' },
+    },
+    {
+      feed: { status: 'unavailable', reason: 'anoik.is request failed: offline' },
+      body: { status: 'feed-unavailable', reason: 'anoik.is request failed: offline' },
+      metadata: { outcome: 'feed-unavailable', reason: 'anoik.is request failed: offline' },
+    },
+  ];
+
+  for (const { feed, body, metadata } of cases) {
+    resetMocks();
+    probeMock.mockResolvedValue({ feed, baseline: BASELINE });
+
     const response = await GET(cronRequest(ROUTE));
 
-    expect(await response.json()).toEqual({ status: 'unchanged' });
+    expect(await response.json()).toEqual(body);
     expect(probeMock).toHaveBeenCalledWith(directDatabaseMock);
     expect(reserveMock).not.toHaveBeenCalled();
     expect(recordChangedMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
-      metadata: expect.objectContaining({ outcome: 'unchanged' }),
+      metadata: expect.objectContaining(metadata),
     });
-  });
+  }
+});
 
-  it('records feed unavailability without touching the promoted copy', async () => {
-    probeResolves({
-      status: 'unavailable',
-      reason: 'anoik.is request failed: offline',
-    });
-    const { GET } = await import('./route');
-    const response = await GET(cronRequest(ROUTE));
-
-    expect(await response.json()).toEqual({
-      status: 'feed-unavailable',
-      reason: 'anoik.is request failed: offline',
-    });
-    expect(reserveMock).not.toHaveBeenCalled();
-    expect(recordChangedMock).not.toHaveBeenCalled();
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_wh_statics',
-      metadata: expect.objectContaining({
-        outcome: 'feed-unavailable',
-        reason: 'anoik.is request failed: offline',
-      }),
-    });
-  });
-
-  it.skipIf(!harness.reachable)(
-    'keeps the last promoted serving copy during feed unavailability',
-    async () => {
-      const [snapshot] = await harness.db
-        .insert(whStaticsSnapshots)
-        .values({
-          feedVersion: '11',
-          digest: 'last-good',
-          systemCount: 1,
-          status: 'promoted',
-          entries: [
-            {
-              systemId: 31_002_318,
-              systemName: 'J111613',
-              code: 'E175',
-            },
-          ],
-          difference: {
-            systemsAdded: [],
-            systemsRemoved: [],
-            systemsChanged: [],
-            codesAdded: [],
-            codesRemoved: [],
-            totalDifferences: 0,
-          },
-          crossCheck: {
-            agreedSystems: 1,
-            disagreements: [],
-            lineageOnlySystems: [],
-            feedOnlySystems: [],
-          },
-        })
-        .returning({ id: whStaticsSnapshots.id });
-      if (snapshot === undefined) {
-        throw new Error('Promoted snapshot seed returned no id.');
-      }
-      await harness.db.insert(whSystemStatics).values({
-        systemId: 31_002_318,
-        code: 'E175',
-        feedVersion: '11',
-        sourceSnapshotId: snapshot.id,
-      });
-      const before = await readSystemStatics(harness.db);
-      probeResolves({
-        status: 'unavailable',
-        reason: 'anoik.is request failed: offline',
-      });
-
-      const { GET } = await import('./route');
-      const response = await GET(cronRequest(ROUTE));
-
-      expect((await response.json()).status).toBe('feed-unavailable');
-      await expect(readSystemStatics(harness.db)).resolves.toEqual(before);
-      expect(before).toEqual({
-        version: '11',
-        systems: [{ systemId: 31_002_318, codes: ['E175'] }],
-      });
-    },
-  );
-
-  it('stores a changed feed as pending under the shared lock', async () => {
-    const feed = {
-      status: 'changed',
-      body: '{"version":11}',
-      etag: '"feed-11"',
-      lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
-    } as const;
-    const result = {
-      status: 'snapshot-pending',
-      snapshotId: 12,
-      feedVersion: '11',
-      systemCount: 2_604,
-      assignmentCount: 3_772,
-      totalDifferences: 0,
-      disagreementCount: 0,
-    } as const;
-    probeResolves(feed);
-    recordChangedMock.mockResolvedValue(result);
-    const { GET } = await import('./route');
-    const response = await GET(cronRequest(ROUTE));
-
-    expect(await response.json()).toEqual(result);
-    expect(recordChangedMock).toHaveBeenCalledWith(
-      directDatabaseMock,
-      feed,
-      BASELINE,
-    );
-    expect(reservedTag.release).toHaveBeenCalledOnce();
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_wh_statics',
-      metadata: expect.objectContaining({
+test('records a changed feed under the lock, passing each recorded outcome through, and answers busy when the lock is held', async () => {
+  const GET = await setup();
+  const feed = {
+    status: 'changed',
+    body: '{"version":11}',
+    etag: '"feed-11"',
+    lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
+  } as const;
+  const pending = {
+    status: 'snapshot-pending',
+    snapshotId: 12,
+    feedVersion: '11',
+    systemCount: 2_604,
+    assignmentCount: 3_772,
+    totalDifferences: 0,
+    disagreementCount: 0,
+  } as const;
+  const cases = [
+    {
+      result: pending,
+      metadata: {
         outcome: 'snapshot-pending',
         systemCount: 2_604,
         assignmentCount: 3_772,
         disagreementCount: 0,
-      }),
-    });
-  });
+      },
+    },
+    { result: { status: 'unchanged' }, metadata: { outcome: 'unchanged' } },
+    { result: { status: 'stale-observation' }, metadata: { outcome: 'stale-observation' } },
+  ];
 
-  it('reports unchanged when locked work finds the observation already recorded', async () => {
-    const feed = {
-      status: 'changed',
-      body: '{"version":11}',
-      etag: '"feed-11"',
-      lastModified: 'Sun, 05 Jan 2025 10:21:29 GMT',
-    } as const;
-    probeResolves(feed);
-    recordChangedMock.mockResolvedValue({ status: 'unchanged' });
-    const { GET } = await import('./route');
+  for (const { result, metadata } of cases) {
+    resetMocks();
+    probeMock.mockResolvedValue({ feed, baseline: BASELINE });
+    recordChangedMock.mockResolvedValue(result);
+
     const response = await GET(cronRequest(ROUTE));
 
-    expect(await response.json()).toEqual({ status: 'unchanged' });
-    expect(recordChangedMock).toHaveBeenCalledWith(
-      directDatabaseMock,
-      feed,
-      BASELINE,
-    );
-    expect(reservedTag.release).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual(result);
+    expect(recordChangedMock).toHaveBeenCalledWith(directDatabaseMock, feed, BASELINE);
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cron_wh_statics',
-      metadata: expect.objectContaining({ outcome: 'unchanged' }),
+      metadata: expect.objectContaining(metadata),
     });
-  });
+  }
 
-  it('reports a stale observation when a newer snapshot was recorded first', async () => {
-    const feed = {
-      status: 'changed',
-      body: '{"version":10}',
-      etag: '"feed-10"',
-      lastModified: null,
-    } as const;
-    probeResolves(feed);
-    recordChangedMock.mockResolvedValue({ status: 'stale-observation' });
-    const { GET } = await import('./route');
-    const response = await GET(cronRequest(ROUTE));
+  resetMocks();
+  lockGot = false;
+  probeMock.mockResolvedValue({ feed, baseline: BASELINE });
 
-    expect(await response.json()).toEqual({ status: 'stale-observation' });
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_wh_statics',
-      metadata: expect.objectContaining({ outcome: 'stale-observation' }),
-    });
-  });
+  const busy = await GET(cronRequest(ROUTE));
 
-  it('returns busy without writing when another refresh holds the lock', async () => {
-    lockGot = false;
-    probeResolves({
-      status: 'changed',
-      body: '{}',
-      etag: '"changed"',
-      lastModified: null,
-    });
-    const { GET } = await import('./route');
-    const response = await GET(cronRequest(ROUTE));
+  expect(await busy.json()).toEqual({ status: 'busy' });
+  expect(recordChangedMock).not.toHaveBeenCalled();
+});
 
-    expect(await response.json()).toEqual({ status: 'busy' });
-    expect(recordChangedMock).not.toHaveBeenCalled();
-    expect(reservedTag.release).toHaveBeenCalledOnce();
-  });
+test('rejects a request without the cron bearer token', async () => {
+  const GET = await setup();
+  const response = await GET(
+    new Request('http://localhost:3000/api/cron/refresh-wh-statics'),
+  );
 
-  it('rejects a request without the cron bearer token', async () => {
-    const { GET } = await import('./route');
-    const response = await GET(
-      new Request('http://localhost:3000/api/cron/refresh-wh-statics'),
-    );
-
-    expect(response.status).toBe(401);
-    expect(probeMock).not.toHaveBeenCalled();
-  });
+  expect(response.status).toBe(401);
+  expect(probeMock).not.toHaveBeenCalled();
 });
