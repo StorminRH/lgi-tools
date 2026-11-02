@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
@@ -50,7 +50,9 @@ const SCOPED_CHARACTER = {
 
 const ROUTE = '/api/maps/search-characters';
 
-beforeEach(() => {
+const PORTRAIT = (id: number) => `https://images.evetech.net/characters/${id}/portrait?size=64`;
+
+function resetMocks() {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.esiFetch.mockReset();
   h.getFreshAccessTokenForCharacter
@@ -61,226 +63,146 @@ beforeEach(() => {
     '196379789': 'Chribba',
     '2112625428': 'Chribba Prime',
   });
+}
+
+test('POST /api/maps/search-characters uses one owned scoped token for typeahead and resolves result names', async () => {
+  resetMocks();
+  h.esiFetch.mockResolvedValueOnce(
+    Response.json({ character: [196379789, 2112625428] }),
+  );
+
+  const request = postJson(ROUTE, { search: '  Chribba  ' });
+  const response = await POST(request);
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    mode: 'typeahead',
+    results: [
+      { characterId: 196379789, name: 'Chribba', portraitUrl: PORTRAIT(196379789) },
+      { characterId: 2112625428, name: 'Chribba Prime', portraitUrl: PORTRAIT(2112625428) },
+    ],
+  });
+  expect(h.listLinkedCharacters).toHaveBeenCalledWith('user-1');
+  expect(h.getFreshAccessTokenForCharacter).toHaveBeenCalledWith(90000001);
+  const [url, init] = h.esiFetch.mock.calls[0] as [string, RequestInit];
+  const parsed = new URL(url);
+  expect(parsed.pathname).toBe('/characters/90000001/search/');
+  expect(parsed.searchParams.get('categories')).toBe('character');
+  expect(parsed.searchParams.get('search')).toBe('Chribba');
+  expect(parsed.searchParams.get('strict')).toBe('false');
+  expect(init.headers).toEqual({ Authorization: 'Bearer scoped-token' });
+  expect(init.signal).toBe(request.signal);
+  // A user is waiting on the typeahead: the search and its names take the gate's interactive floor.
+  expect(h.esiFetch.mock.calls[0]![2]).toEqual({ interactive: true });
+  expect(h.resolveEntityNamesStrict).toHaveBeenCalledWith([196379789, 2112625428], { interactive: true });
 });
 
-describe('POST /api/maps/search-characters', () => {
-  it('uses one owned scoped token for typeahead and resolves result names', async () => {
-    h.esiFetch.mockResolvedValueOnce(
-      Response.json({ character: [196379789, 2112625428] }),
-    );
+test('POST /api/maps/search-characters uses the public exact-name fallback only when no linked token carries the scope, keeping the submitted casing', async () => {
+  // A linked character without the search scope.
+  resetMocks();
+  h.listLinkedCharacters.mockResolvedValueOnce([
+    { ...SCOPED_CHARACTER, scope: 'publicData' },
+  ]);
+  h.esiFetch.mockResolvedValueOnce(
+    Response.json({ characters: [{ id: 196379789, name: 'Chribba' }] }),
+  );
 
-    const request = postJson(ROUTE, { search: '  Chribba  ' });
-    const response = await POST(request);
+  const unscoped = await POST(postJson(ROUTE, { search: 'Chribba' }));
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      mode: 'typeahead',
-      results: [
-        {
-          characterId: 196379789,
-          name: 'Chribba',
-          portraitUrl:
-            'https://images.evetech.net/characters/196379789/portrait?size=64',
-        },
-        {
-          characterId: 2112625428,
-          name: 'Chribba Prime',
-          portraitUrl:
-            'https://images.evetech.net/characters/2112625428/portrait?size=64',
-        },
-      ],
-    });
-    expect(h.listLinkedCharacters).toHaveBeenCalledWith('user-1');
-    expect(h.getFreshAccessTokenForCharacter).toHaveBeenCalledWith(90000001);
-    const [url, init] = h.esiFetch.mock.calls[0] as [string, RequestInit];
-    const parsed = new URL(url);
-    expect(parsed.pathname).toBe('/characters/90000001/search/');
-    expect(parsed.searchParams.get('categories')).toBe('character');
-    expect(parsed.searchParams.get('search')).toBe('Chribba');
-    expect(parsed.searchParams.get('strict')).toBe('false');
-    expect(init.headers).toEqual({ Authorization: 'Bearer scoped-token' });
-    expect(init.signal).toBe(request.signal);
-    // A user is waiting on the typeahead: the search and its names take the gate's interactive floor.
-    expect(h.esiFetch.mock.calls[0]![2]).toEqual({ interactive: true });
-    expect(h.resolveEntityNamesStrict).toHaveBeenCalledWith([196379789, 2112625428], { interactive: true });
+  expect(unscoped.status).toBe(200);
+  expect(await unscoped.json()).toEqual({
+    mode: 'exact',
+    results: [{ characterId: 196379789, name: 'Chribba', portraitUrl: PORTRAIT(196379789) }],
   });
+  expect(h.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
+  expect(h.resolveEntityNamesStrict).not.toHaveBeenCalled();
+  expect(h.esiFetch).toHaveBeenCalledWith('https://esi.test/universe/ids/', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(['Chribba']),
+  }, { interactive: true });
 
-  it('uses the public exact-name fallback only when no linked token carries the scope', async () => {
-    h.listLinkedCharacters.mockResolvedValueOnce([
-      { ...SCOPED_CHARACTER, scope: 'publicData' },
-    ]);
-    h.esiFetch.mockResolvedValueOnce(
-      Response.json({ characters: [{ id: 196379789, name: 'Chribba' }] }),
-    );
+  // No linked characters: the submitted casing goes to ESI, and the canonical character name comes back.
+  resetMocks();
+  h.listLinkedCharacters.mockResolvedValueOnce([]);
+  h.esiFetch.mockResolvedValueOnce(
+    Response.json({
+      characters: [{ id: 196379789, name: 'Chribba' }],
+      corporations: [{ id: 1, name: 'chribba' }],
+    }),
+  );
 
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
+  const unlinked = await POST(postJson(ROUTE, { search: 'chribba' }));
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      mode: 'exact',
-      results: [
-        {
-          characterId: 196379789,
-          name: 'Chribba',
-          portraitUrl:
-            'https://images.evetech.net/characters/196379789/portrait?size=64',
-        },
-      ],
-    });
-    expect(h.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
-    expect(h.resolveEntityNamesStrict).not.toHaveBeenCalled();
-    expect(h.esiFetch).toHaveBeenCalledWith('https://esi.test/universe/ids/', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(['Chribba']),
-    }, { interactive: true });
+  expect(unlinked.status).toBe(200);
+  expect(await unlinked.json()).toEqual({
+    mode: 'exact',
+    results: [{ characterId: 196379789, name: 'Chribba', portraitUrl: PORTRAIT(196379789) }],
   });
-
-  it('preserves submitted casing and accepts the exact resolver canonical character name', async () => {
-    h.listLinkedCharacters.mockResolvedValueOnce([]);
-    h.esiFetch.mockResolvedValueOnce(
-      Response.json({
-        characters: [{ id: 196379789, name: 'Chribba' }],
-        corporations: [{ id: 1, name: 'chribba' }],
-      }),
-    );
-
-    const response = await POST(postJson(ROUTE, { search: 'chribba' }));
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      mode: 'exact',
-      results: [
-        {
-          characterId: 196379789,
-          name: 'Chribba',
-          portraitUrl:
-            'https://images.evetech.net/characters/196379789/portrait?size=64',
-        },
-      ],
-    });
-    expect(h.esiFetch.mock.calls[0]?.[1]).toMatchObject({
-      body: JSON.stringify(['chribba']),
-    });
+  expect(h.esiFetch.mock.calls[0]?.[1]).toMatchObject({
+    body: JSON.stringify(['chribba']),
   });
+});
 
-  it('rejects short, oversized, and extra-key input before auth-owned search work', async () => {
-    for (const body of [
-      { search: 'x'.repeat(MIN_CHARACTER_SEARCH_LENGTH - 1) },
-      { search: 'x'.repeat(MAX_CHARACTER_SEARCH_LENGTH + 1) },
-      { search: 'Chribba', extra: true },
-    ]) {
-      expect((await POST(postJson(ROUTE, body))).status).toBe(400);
-    }
-    expect(h.listLinkedCharacters).not.toHaveBeenCalled();
-    expect(h.esiFetch).not.toHaveBeenCalled();
+test('POST /api/maps/search-characters returns the declared unavailable problem, never the exact-name fallback, when a scoped search fails', async () => {
+  // ESI fails the scoped search.
+  resetMocks();
+  h.esiFetch.mockResolvedValueOnce(Response.json({ error: 'down' }, { status: 503 }));
+  const esiDown = await POST(postJson(ROUTE, { search: 'Chribba' }));
+  expect(esiDown.status).toBe(503);
+  expect(await esiDown.json()).toMatchObject({ code: 'character_search_unavailable' });
+  expect(h.esiFetch).toHaveBeenCalledTimes(1);
+
+  // The scoped search works but its result names cannot be resolved completely.
+  resetMocks();
+  h.esiFetch.mockResolvedValueOnce(Response.json({ character: [196379789] }));
+  h.resolveEntityNamesStrict.mockRejectedValueOnce(new Error('names unavailable'));
+  const namesDown = await POST(postJson(ROUTE, { search: 'Chribba' }));
+  expect(namesDown.status).toBe(503);
+  expect(await namesDown.json()).toMatchObject({ code: 'character_search_unavailable' });
+  expect(h.esiFetch).toHaveBeenCalledTimes(1);
+
+  // A scoped character exists but cannot vend a usable token.
+  resetMocks();
+  h.getFreshAccessTokenForCharacter.mockResolvedValueOnce({ kind: 'upstream_error' });
+  const noToken = await POST(postJson(ROUTE, { search: 'Chribba' }));
+  expect(noToken.status).toBe(503);
+  expect(h.esiFetch).not.toHaveBeenCalled();
+
+  // ESI refuses every scoped character's search.
+  resetMocks();
+  h.listLinkedCharacters.mockResolvedValueOnce([
+    SCOPED_CHARACTER,
+    { ...SCOPED_CHARACTER, characterId: 90000002, name: 'Alt Pilot' },
+  ]);
+  h.esiFetch.mockImplementation(async () =>
+    Response.json({ error: 'forbidden' }, { status: 403 }),
+  );
+  const refused = await POST(postJson(ROUTE, { search: 'Chribba' }));
+  expect(refused.status).toBe(503);
+  expect(await refused.json()).toMatchObject({ code: 'character_search_unavailable' });
+  expect(h.esiFetch.mock.calls.map(([url]) => new URL(url as string).pathname)).toEqual([
+    '/characters/90000001/search/',
+    '/characters/90000002/search/',
+  ]);
+  expect(h.resolveEntityNamesStrict).not.toHaveBeenCalled();
+});
+
+test('POST /api/maps/search-characters rejects anonymous callers and bad input before reading or searching ESI', async () => {
+  resetMocks();
+  h.checkUserId.mockResolvedValueOnce({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
   });
+  expect((await POST(postJson(ROUTE, { search: 'Chribba' }))).status).toBe(401);
 
-  it('returns the declared unavailable problem instead of silently falling back on scoped failure', async () => {
-    h.esiFetch.mockResolvedValueOnce(Response.json({ error: 'down' }, { status: 503 }));
-
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: 'character_search_unavailable',
-    });
-    expect(h.esiFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns unavailable when scoped result names cannot be resolved completely', async () => {
-    h.esiFetch.mockResolvedValueOnce(Response.json({ character: [196379789] }));
-    h.resolveEntityNamesStrict.mockRejectedValueOnce(new Error('names unavailable'));
-
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: 'character_search_unavailable',
-    });
-    expect(h.esiFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('fails closed when scoped accounts exist but none can vend a usable token', async () => {
-    h.getFreshAccessTokenForCharacter.mockResolvedValueOnce({
-      kind: 'upstream_error',
-    });
-
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
-
-    expect(response.status).toBe(503);
-    expect(h.esiFetch).not.toHaveBeenCalled();
-  });
-
-  it.each([401, 403])('tries the next scoped character when ESI refuses the first search with %i', async (status) => {
-    h.listLinkedCharacters.mockResolvedValueOnce([
-      SCOPED_CHARACTER,
-      { ...SCOPED_CHARACTER, characterId: 90000002, name: 'Alt Pilot' },
-    ]);
-    h.getFreshAccessTokenForCharacter.mockImplementation(async (characterId: number) => ({
-      kind: 'ok',
-      accessToken: `token-${characterId}`,
-      expiresAt: 1,
-    }));
-    h.esiFetch
-      .mockResolvedValueOnce(Response.json({ error: 'refused' }, { status }))
-      .mockResolvedValueOnce(Response.json({ character: [196379789] }));
-
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      mode: 'typeahead',
-      results: [
-        {
-          characterId: 196379789,
-          name: 'Chribba',
-          portraitUrl:
-            'https://images.evetech.net/characters/196379789/portrait?size=64',
-        },
-      ],
-    });
-    expect(
-      h.esiFetch.mock.calls.map(([url, init]) => [
-        new URL(url as string).pathname,
-        (init as RequestInit).headers,
-      ]),
-    ).toEqual([
-      ['/characters/90000001/search/', { Authorization: 'Bearer token-90000001' }],
-      ['/characters/90000002/search/', { Authorization: 'Bearer token-90000002' }],
-    ]);
-  });
-
-  it('returns unavailable without the exact-name fallback when ESI refuses every scoped search', async () => {
-    h.listLinkedCharacters.mockResolvedValueOnce([
-      SCOPED_CHARACTER,
-      { ...SCOPED_CHARACTER, characterId: 90000002, name: 'Alt Pilot' },
-    ]);
-    h.esiFetch.mockImplementation(async () =>
-      Response.json({ error: 'forbidden' }, { status: 403 }),
-    );
-
-    const response = await POST(postJson(ROUTE, { search: 'Chribba' }));
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toMatchObject({
-      code: 'character_search_unavailable',
-    });
-    expect(h.esiFetch.mock.calls.map(([url]) => new URL(url as string).pathname)).toEqual([
-      '/characters/90000001/search/',
-      '/characters/90000002/search/',
-    ]);
-    expect(h.resolveEntityNamesStrict).not.toHaveBeenCalled();
-  });
-
-  it('rejects anonymous callers before reading or searching ESI', async () => {
-    h.checkUserId.mockResolvedValueOnce({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
-
-    expect((await POST(postJson(ROUTE, { search: 'Chribba' }))).status).toBe(401);
-    expect(h.listLinkedCharacters).not.toHaveBeenCalled();
-    expect(h.esiFetch).not.toHaveBeenCalled();
-  });
+  for (const body of [
+    { search: 'x'.repeat(MIN_CHARACTER_SEARCH_LENGTH - 1) },
+    { search: 'x'.repeat(MAX_CHARACTER_SEARCH_LENGTH + 1) },
+    { search: 'Chribba', extra: true },
+  ]) {
+    expect((await POST(postJson(ROUTE, body))).status).toBe(400);
+  }
+  expect(h.listLinkedCharacters).not.toHaveBeenCalled();
+  expect(h.esiFetch).not.toHaveBeenCalled();
 });

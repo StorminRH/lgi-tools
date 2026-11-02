@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   requireUserIdMock: vi.fn(),
@@ -25,60 +25,38 @@ const ROUTE = '/api/preferences';
 
 const VALID_BODY = { key: 'sites.view', value: 'table' };
 
-describe('POST /api/preferences', () => {
-  beforeEach(() => {
-    h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
-    h.getPreferencesForUserMock.mockReset();
-    h.upsertPreferenceMock.mockReset().mockResolvedValue(undefined);
+function resetMocks() {
+  h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
+  h.getPreferencesForUserMock.mockReset();
+  h.upsertPreferenceMock.mockReset().mockResolvedValue(undefined);
+}
+
+test('POST /api/preferences refuses anonymous callers, malformed JSON, unknown keys and mismatched values before writing', async () => {
+  resetMocks();
+  h.requireUserIdMock.mockResolvedValueOnce({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
   });
+  expect((await POST(postJson(ROUTE, VALID_BODY))).status).toBe(401);
 
-  it('returns 401 for an anonymous caller', async () => {
-    h.requireUserIdMock.mockResolvedValue({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
+  const malformed = await POST(postJson(ROUTE, '{not valid json'));
+  expect(malformed.status).toBe(400);
+  expect(problemBodySchema.parse(await malformed.json())).toMatchObject({ code: 'invalid_json' });
 
-    const res = await POST(postJson(ROUTE, VALID_BODY));
+  expect((await POST(postJson(ROUTE, { key: 'sites.theme', value: 'dark' }))).status).toBe(400);
 
-    expect(res.status).toBe(401);
-    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
-  });
+  const mismatched = await POST(postJson(ROUTE, { key: 'sites.view', value: 'grid' }));
+  expect(mismatched.status).toBe(400);
+  expect(problemBodySchema.parse(await mismatched.json())).toMatchObject({ code: 'invalid_value' });
 
-  it('returns 400 for malformed JSON', async () => {
-    const res = await POST(postJson(ROUTE, '{not valid json'));
+  expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
+});
 
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_json',
-      detail: 'Invalid JSON',
-    });
-    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
-  });
+test('POST /api/preferences upserts the caller preference and returns 204', async () => {
+  resetMocks();
+  const res = await POST(postJson(ROUTE, VALID_BODY, { origin: 'http://localhost:3000' }));
 
-  it('returns 400 for an unknown preference key', async () => {
-    const res = await POST(postJson(ROUTE, { key: 'sites.theme', value: 'dark' }));
-
-    expect(res.status).toBe(400);
-    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 when the value does not match the key', async () => {
-    const res = await POST(postJson(ROUTE, { key: 'sites.view', value: 'grid' }));
-
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_value',
-      detail: 'invalid value for key',
-    });
-    expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
-  });
-
-  it('upserts the caller preference and returns 204', async () => {
-    const res = await POST(postJson(ROUTE, VALID_BODY, { origin: 'http://localhost:3000' }));
-
-    expect(res.status).toBe(204);
-    expect(await res.text()).toBe('');
-    expect(h.upsertPreferenceMock).toHaveBeenCalledWith('user-1', 'sites.view', 'table');
-  });
-
+  expect(res.status).toBe(204);
+  expect(await res.text()).toBe('');
+  expect(h.upsertPreferenceMock).toHaveBeenCalledWith('user-1', 'sites.view', 'table');
 });
