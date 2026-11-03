@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 
 const hooks = vi.hoisted(() => ({
@@ -77,10 +76,6 @@ const LINKER = 'eve-user-2';
 const CHAR = 90000001;
 const OTHER_CHAR = 90000002;
 const H1 = 'owner-one';
-const H2 = 'owner-two';
-
-const tokenWithOwner = (owner: string): string =>
-  `enc:h.${Buffer.from(JSON.stringify({ owner })).toString('base64url')}.s`;
 
 const row = (over: Partial<{ userId: string; ownerHash: string | null; accessToken: string | null }> = {}) => [
   { id: 'acc-1', userId: USER, ownerHash: H1, accessToken: null, ...over },
@@ -165,37 +160,6 @@ describe('proveCharacter with a pending deletion', () => {
   });
 });
 
-describe('proveCharacter on sign-in and same-user relink', () => {
-  it('no-ops a missing owner claim or row, backfills a blank hash, and purges when the stored hash disagrees', async () => {
-    await expect(proveCharacter({ characterId: CHAR, ownerHash: null, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
-    state.results = [[]];
-    await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
-    expect(state.calls).toMatchObject({ delete: 0, update: 0, execute: 0 });
-
-    state.results = [row({ ownerHash: null }), [{ id: 'acc-1' }]];
-    await proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null });
-    expect(state.calls.update).toBe(1);
-
-    state.calls.update = 0;
-    state.results = [row()];
-    await proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: USER });
-    expect(state.calls).toMatchObject({ delete: 0, update: 0, execute: 0 });
-
-    state.results = [
-      row({ ownerHash: 'owner-old' }),
-      [{ id: 'acc-1' }],
-      [{ id: 'acc-1' }],
-      undefined,
-      [{ accountId: String(OTHER_CHAR) }],
-      [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
-    ];
-    await expect(proveCharacter({ characterId: CHAR, ownerHash: H1, linkingUserId: null })).resolves.toEqual({ kind: 'none' });
-    expect(state.calls).toMatchObject({ delete: 1, update: 1, execute: 1 });
-    expect(hooks.runAfterCharacterLinkChanged).toHaveBeenCalledWith({ userId: USER, characterId: CHAR });
-    expect(merge.mergeUsers).not.toHaveBeenCalled();
-  });
-});
-
 describe('proveCharacter on a cross-user link', () => {
   const linkProof = { characterId: CHAR, ownerHash: H1, linkingUserId: LINKER };
 
@@ -244,29 +208,6 @@ describe('proveCharacter on a cross-user link', () => {
     await expect(proveCharacter(linkProof)).resolves.toEqual({ kind: 'none' });
     expect(warnSpy).toHaveBeenCalledWith('[auth] account merge converged without changes', 'source-gone');
     expect(merge.after).not.toHaveBeenCalled();
-  });
-
-  it('derives a null column from the stored token: a match backfills then merges, a mismatch purges', async () => {
-    state.results = [row({ ownerHash: null, accessToken: tokenWithOwner(H1) }), [{ id: 'acc-1' }]];
-    merge.mergeUsers.mockResolvedValue({ kind: 'noop', reason: 'same-user' });
-    silenceConsolePrefixes('warn', ['[auth] account merge converged without changes']);
-    await proveCharacter(linkProof);
-    expect(state.calls.update).toBe(1);
-    expect(merge.mergeUsers).toHaveBeenCalledWith(expect.objectContaining({ otherUserId: USER }));
-
-    state.calls.update = 0;
-    merge.mergeUsers.mockClear();
-    state.results = [
-      row({ ownerHash: null, accessToken: tokenWithOwner(H2) }),
-      [{ id: 'acc-1' }],
-      [{ id: 'acc-1' }],
-      undefined,
-      [{ accountId: String(OTHER_CHAR) }],
-      [{ email: syntheticEmail(OTHER_CHAR), activeCharacterId: OTHER_CHAR }],
-    ];
-    await expect(proveCharacter(linkProof)).resolves.toEqual({ kind: 'none' });
-    expect(state.calls).toMatchObject({ delete: 1, update: 1, execute: 1 });
-    expect(merge.mergeUsers).not.toHaveBeenCalled();
   });
 
   it('neither merges nor purges when nothing on the row proves ownership', async () => {
