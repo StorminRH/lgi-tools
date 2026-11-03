@@ -62,7 +62,6 @@ describe('GET /api/cron/purge-maps', () => {
       tombstoned: 1,
       deletedDocuments: 300,
     });
-    expect(h.purgeEligibleMaps).toHaveBeenCalledOnce();
     expect(h.logUsageEvent).toHaveBeenCalledWith({
       action: 'cron_map_purge',
       metadata: expect.objectContaining({

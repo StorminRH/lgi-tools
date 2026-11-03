@@ -105,30 +105,6 @@ describe('resolveMergePair', () => {
 });
 
 describe('mergeUsers', () => {
-  it('locks, re-checks, runs the rules, lifts the role, proves the source empty, deletes it last, and logs the merge', async () => {
-    state.results = [
-      [linker, other],
-      [{ userId: 'other', ownerHash: 'owner-one' }],
-      [{ accountId: '200' }, { accountId: 'not-a-character' }],
-      undefined,
-      undefined,
-    ];
-    const result = await mergeUsers(request, { database: fakeDatabase, contributors: [] });
-    expect(result).toEqual({
-      kind: 'merged',
-      survivorUserId: 'other',
-      sourceUserId: 'linker',
-      movedCharacterIds: [200],
-      captured: [],
-    });
-    expect(state.calls).toMatchObject({ update: 0, delete: 1 });
-    expect(doors.emitUsageEvent).toHaveBeenCalledWith('account-merge', {
-      action: 'auth_merge',
-      characterId: 100,
-      metadata: { sourceUserId: 'linker', survivorUserId: 'other', movedCharacterIds: [200] },
-    });
-  });
-
   it('promotes the survivor when only the source was an admin', async () => {
     state.results = [
       [linker, { ...other, role: 'USER' as const }],

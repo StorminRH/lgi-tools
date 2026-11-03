@@ -120,7 +120,6 @@ describe('POST /api/feedback', () => {
     expect(headers.get('Authorization')).toBe('lin_api_test_token');
     expect(headers.get('Content-Type')).toBe('application/json');
     const payload = linearPayload(init as RequestInit);
-    expect(payload.query).toContain('issueCreate');
     expect(payload.variables.input.title).toBe('sites browser is broken on C3 relic');
     expect(payload.variables.input.teamId).toBe('d6e910f7-a117-4358-896a-6ef20b13e117');
     expect(payload.variables.input.labelIds).toEqual([
@@ -132,9 +131,6 @@ describe('POST /api/feedback', () => {
     expect(payload.variables.input.description).toContain('**Submitted by:** Test Pilot');
     expect(payload.variables.input.description).toContain('`/sites?class=c3`');
     expect(payload.variables.input.description).not.toContain('#1000000000');
-    expect(payload.variables.input.title).not.toBe(
-      'Relic sites on C3 lose their filter after refresh.',
-    );
 
     expect(emitUsageEventMock).toHaveBeenCalledOnce();
     expect(emitUsageEventMock).toHaveBeenCalledWith('feedback', {

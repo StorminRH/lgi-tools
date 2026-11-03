@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
   capabilityOutcomeMock,
   recordedCapabilityOutcomes,
@@ -68,142 +68,90 @@ vi.mock('next/server', async (importOriginal) => ({
 
 const ROUTE = '/api/admin/wh-statics';
 
-describe('POST /api/admin/wh-statics', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    getSessionMock.mockReset().mockResolvedValue(ADMIN);
-    sameOriginMock.mockReset().mockReturnValue({ ok: true });
-    refreshMock.mockReset();
-    promoteMock.mockReset();
-    rejectMock.mockReset();
-    emitCostMetricMock.mockReset();
-  });
+async function setup() {
+  vi.resetModules();
+  getSessionMock.mockReset().mockResolvedValue(ADMIN);
+  sameOriginMock.mockReset().mockReturnValue({ ok: true });
+  refreshMock.mockReset();
+  promoteMock.mockReset();
+  rejectMock.mockReset();
+  emitCostMetricMock.mockReset();
+  const { POST } = await import('./route');
+  return POST;
+}
 
-  it('refuses a caller without admin authority before the origin check', async () => {
-    getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
-    const { POST } = await import('./route');
+test('refuses a non-admin before the origin check, a cross-origin post before the form, and an invalid form', async () => {
+  const POST = await setup();
+
+  getSessionMock.mockResolvedValue({ ...ADMIN, isAdmin: false });
+  expect((await POST(postForm(ROUTE, { action: 'refresh' }))).status).toBe(403);
+  expect(sameOriginMock).not.toHaveBeenCalled();
+
+  getSessionMock.mockResolvedValue(ADMIN);
+  sameOriginMock.mockReturnValue({
+    ok: false,
+    failure: forbiddenFailure('cross_origin', 'Cross-origin requests are not allowed'),
+  });
+  const crossOrigin = await POST(postForm(ROUTE, { action: 'refresh' }));
+  expect(crossOrigin.status).toBe(403);
+  expect(problemBodySchema.parse(await crossOrigin.json())).toMatchObject({ code: 'cross_origin' });
+
+  sameOriginMock.mockReturnValue({ ok: true });
+  expect((await POST(postForm(ROUTE, { action: 'apply' }))).status).toBe(400);
+  expect((await POST(postForm(ROUTE, { action: 'promote' }))).status).toBe(400);
+  expect(refreshMock).not.toHaveBeenCalled();
+  expect(promoteMock).not.toHaveBeenCalled();
+});
+
+test('runs the on-demand refresh and redirects with each outcome, recording a dead feed and a busy run as failures', async () => {
+  const POST = await setup();
+  refreshMock
+    .mockResolvedValueOnce({ status: 'snapshot-pending' })
+    .mockResolvedValueOnce({ status: 'feed-unavailable', reason: 'HTTP 503' })
+    .mockResolvedValueOnce({ status: 'busy' });
+
+  for (const outcome of ['snapshot-pending', 'feed-unavailable', 'busy']) {
     const response = await POST(postForm(ROUTE, { action: 'refresh' }));
-
-    expect(response.status).toBe(403);
-    expect(sameOriginMock).not.toHaveBeenCalled();
-    expect(refreshMock).not.toHaveBeenCalled();
-  });
-
-  it('returns the cross-origin problem before parsing the form', async () => {
-    sameOriginMock.mockReturnValue({
-      ok: false,
-      failure: forbiddenFailure(
-        'cross_origin',
-        'Cross-origin requests are not allowed',
-      ),
-    });
-    const { POST } = await import('./route');
-    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
-
-    expect(response.status).toBe(403);
-    expect(problemBodySchema.parse(await response.json())).toMatchObject({
-      code: 'cross_origin',
-    });
-    expect(refreshMock).not.toHaveBeenCalled();
-  });
-
-  it('rejects an invalid action and missing snapshot id through the slice schema', async () => {
-    const { POST } = await import('./route');
-    const invalidAction = await POST(postForm(ROUTE, { action: 'apply' }));
-    const missingSnapshot = await POST(postForm(ROUTE, { action: 'promote' }));
-
-    expect(invalidAction.status).toBe(400);
-    expect(missingSnapshot.status).toBe(400);
-    expect(refreshMock).not.toHaveBeenCalled();
-    expect(promoteMock).not.toHaveBeenCalled();
-  });
-
-  it('runs the shared on-demand refresh and redirects with its outcome', async () => {
-    refreshMock.mockResolvedValue({ status: 'snapshot-pending' });
-    const { POST } = await import('./route');
-    const response = await POST(postForm(ROUTE, { action: 'refresh' }));
-
-    expect(refreshMock).toHaveBeenCalledOnce();
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=snapshot-pending',
-    );
-    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([{ outcome: 'succeeded', code: 'ok' }]);
-  });
+    expect(response.headers.get('location')).toBe(`http://localhost:3000/admin/statics?outcome=${outcome}`);
+  }
+  expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+    { outcome: 'succeeded', code: 'ok' },
+    { outcome: 'dependency_unavailable', code: 'wh_statics_feed_unavailable' },
+    { outcome: 'conflict', code: 'wh_statics_refresh_busy' },
+  ]);
+});
 
-  it('records an unavailable feed and a busy refresh as failures behind the outcome redirect', async () => {
-    refreshMock
-      .mockResolvedValueOnce({ status: 'feed-unavailable', reason: 'HTTP 503' })
-      .mockResolvedValueOnce({ status: 'busy' });
-    const { POST } = await import('./route');
-    const unavailable = await POST(postForm(ROUTE, { action: 'refresh' }));
-    const busy = await POST(postForm(ROUTE, { action: 'refresh' }));
-
-    expect(unavailable.status).toBe(303);
-    expect(unavailable.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=feed-unavailable',
-    );
-    expect(busy.status).toBe(303);
-    expect(busy.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=busy',
-    );
-    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
-      { outcome: 'dependency_unavailable', code: 'wh_statics_feed_unavailable' },
-      { outcome: 'conflict', code: 'wh_statics_refresh_busy' },
-    ]);
-  });
-
-  it('promotes the named pending snapshot and redirects', async () => {
-    promoteMock.mockResolvedValue({
-      snapshotId: 7,
-      systemCount: 2_604,
-      assignmentCount: 3_772,
-    });
-    const { POST } = await import('./route');
-    const response = await POST(
-      postForm(ROUTE, { action: 'promote', snapshotId: '7' }),
-    );
-
-    expect(promoteMock).toHaveBeenCalledWith(7);
+test('promotes or rejects the named pending snapshot, and sends a no-longer-pending or empty one back with a notice', async () => {
+  const POST = await setup();
+  promoteMock
+    .mockResolvedValueOnce({ snapshotId: 7, systemCount: 2_604, assignmentCount: 3_772 })
+    .mockRejectedValueOnce(new SnapshotStateError(7, 'promoted'))
+    .mockRejectedValueOnce(new EmptySnapshotError(8));
+  rejectMock.mockResolvedValue(undefined);
+  const location = (response: Response) => {
     expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=promoted',
-    );
-  });
+    return response.headers.get('location');
+  };
 
-  it('rejects the named pending snapshot and redirects', async () => {
-    rejectMock.mockResolvedValue(undefined);
-    const { POST } = await import('./route');
-    const response = await POST(
-      postForm(ROUTE, { action: 'reject', snapshotId: '8' }),
-    );
+  expect(location(await POST(postForm(ROUTE, { action: 'promote', snapshotId: '7' })))).toBe(
+    'http://localhost:3000/admin/statics?outcome=promoted',
+  );
+  expect(promoteMock).toHaveBeenCalledWith(7);
+  expect(location(await POST(postForm(ROUTE, { action: 'reject', snapshotId: '8' })))).toBe(
+    'http://localhost:3000/admin/statics?outcome=rejected',
+  );
+  expect(rejectMock).toHaveBeenCalledWith(8);
 
-    expect(rejectMock).toHaveBeenCalledWith(8);
-    expect(response.status).toBe(303);
-    expect(response.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=rejected',
-    );
-  });
-
-  it('sends a no-longer-pending or empty snapshot back to the review page with a notice', async () => {
-    promoteMock
-      .mockRejectedValueOnce(new SnapshotStateError(7, 'promoted'))
-      .mockRejectedValueOnce(new EmptySnapshotError(8));
-    const { POST } = await import('./route');
-    const stale = await POST(postForm(ROUTE, { action: 'promote', snapshotId: '7' }));
-    const empty = await POST(postForm(ROUTE, { action: 'promote', snapshotId: '8' }));
-
-    expect(stale.status).toBe(303);
-    expect(stale.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=snapshot-not-pending',
-    );
-    expect(empty.status).toBe(303);
-    expect(empty.headers.get('location')).toBe(
-      'http://localhost:3000/admin/statics?outcome=snapshot-empty',
-    );
-    expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
-      { outcome: 'conflict', code: 'snapshot_not_pending' },
-      { outcome: 'conflict', code: 'snapshot_empty' },
-    ]);
-  });
+  emitCostMetricMock.mockReset();
+  expect(location(await POST(postForm(ROUTE, { action: 'promote', snapshotId: '7' })))).toBe(
+    'http://localhost:3000/admin/statics?outcome=snapshot-not-pending',
+  );
+  expect(location(await POST(postForm(ROUTE, { action: 'promote', snapshotId: '8' })))).toBe(
+    'http://localhost:3000/admin/statics?outcome=snapshot-empty',
+  );
+  expect(recordedCapabilityOutcomes(emitCostMetricMock)).toEqual([
+    { outcome: 'conflict', code: 'snapshot_not_pending' },
+    { outcome: 'conflict', code: 'snapshot_empty' },
+  ]);
 });

@@ -1,13 +1,8 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import { tryMapAccessForUser } from './lib/mapAccess';
-import {
-  currentRolesFromStored,
-  legacyMapOwnerRoleValidator,
-  mapRoleValidator,
-} from './lib/mapEntityContracts';
 import { MAP_FIXTURE_PAGE_SIZE } from './mapFixtures';
 import { MAP_ACCESS_PURGE_BATCH } from './mapAccessProjection';
 import schema from './schema';
@@ -65,505 +60,462 @@ async function readClaims(t: Chain, mapId: string) {
   );
 }
 
-describe('reconcileMapClaims', () => {
-  it('rejects an in-flight projection reserved before scoped revocation', async () => {
-    const t = convexTest(schema, modules);
-    await reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10);
-    await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
-      userId: EDITOR, mapIds: [MAP_A], revision: 11,
-    });
-    expect(await readClaims(t, MAP_A)).toEqual([]);
-    await expect(reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10))
-      .resolves.toMatchObject({ outcome: 'stale' });
-    expect(await readClaims(t, MAP_A)).toEqual([]);
-    await expect(reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 12))
-      .resolves.toMatchObject({ outcome: 'applied' });
-    // A second barrier reserved after the Neon unlink also fences projections
-    // that started in the interval between the first barrier and that unlink.
-    await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
-      userId: EDITOR, mapIds: [MAP_A], revision: 13,
-    });
-    await expect(reconcileAt(t, MAP_A, [
-      { userId: OWNER, roles: ['admin'] }, { userId: EDITOR, roles: ['editor'] },
-    ], 12)).resolves.toMatchObject({ outcome: 'stale' });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER }]);
+it('reconcileMapClaims rejects an in-flight projection reserved before scoped revocation', async () => {
+  const t = convexTest(schema, modules);
+  await reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10);
+  await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
+    userId: EDITOR, mapIds: [MAP_A], revision: 11,
   });
-
-  it('writes, no-ops an identical re-run, updates a role, and deletes by absence or empty roles', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    const counts = await reconcile(MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    expect(counts).toEqual({ inserted: 2, updated: 0, deleted: 0, unchanged: 0 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: EDITOR, roles: ['editor'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
-      { userId: OWNER, roles: ['admin'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
-    ]);
-
-    const before = await readClaims(t, MAP_A);
-    expect(
-      await reconcile(MAP_A, [
-        { userId: OWNER, roles: ['admin'] },
-        { userId: EDITOR, roles: ['editor'] },
-      ]),
-    ).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
-    expect(await readClaims(t, MAP_A)).toEqual(before);
-
-    expect(
-      await reconcile(MAP_A, [
-        { userId: OWNER, roles: ['admin'] },
-        { userId: EDITOR, roles: ['viewer'] },
-      ]),
-    ).toEqual({ inserted: 0, updated: 1, deleted: 0, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: EDITOR, roles: ['viewer'] },
-      { userId: OWNER, roles: ['admin'] },
-    ]);
-
-    expect(
-      await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]),
-    ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
-
-    await reconcile(MAP_A, [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-    expect(
-      await reconcile(MAP_A, [
-        { userId: OWNER, roles: ['admin'] },
-        { userId: EDITOR, roles: [] },
-      ]),
-    ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+  expect(await readClaims(t, MAP_A)).toEqual([]);
+  await expect(reconcileAt(t, MAP_A, [{ userId: EDITOR, roles: ['editor'] }], 10))
+    .resolves.toMatchObject({ outcome: 'stale' });
+  expect(await readClaims(t, MAP_A)).toEqual([]);
+  await expect(reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 12))
+    .resolves.toMatchObject({ outcome: 'applied' });
+  // A second barrier reserved after the Neon unlink also fences projections
+  // that started in the interval between the first barrier and that unlink.
+  await t.mutation(internal.mapAccessProjection.purgeUserMapClaims, {
+    userId: EDITOR, mapIds: [MAP_A], revision: 13,
   });
-
-  it('rejects an older delivery and accepts an exact retry without rewriting', async () => {
-    const t = convexTest(schema, modules);
-    const current = await reconcileAt(
-      t,
-      MAP_A,
-      [{ userId: OWNER, roles: ['admin'] }],
-      20,
-    );
-    expect(current).toMatchObject({ outcome: 'applied', inserted: 1 });
-    const before = await readClaims(t, MAP_A);
-
-    await expect(reconcileAt(t, MAP_A, [], 19)).resolves.toEqual({
-      inserted: 0,
-      updated: 0,
-      deleted: 0,
-      unchanged: 0,
-      outcome: 'stale',
-    });
-    await expect(
-      reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 20),
-    ).resolves.toEqual({
-      inserted: 0,
-      updated: 0,
-      deleted: 0,
-      unchanged: 0,
-      outcome: 'duplicate',
-    });
-    expect(await readClaims(t, MAP_A)).toEqual(before);
-  });
-
-  it('tears down one map, leaves the other, and restores the full set on resync', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    const claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }> = [
-      { userId: OWNER, roles: ['admin'] },
-      { userId: EDITOR, roles: ['editor', 'viewer'] },
-    ];
-    await reconcile(MAP_A, claims);
-    await reconcile(MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
-
-    expect(await reconcile(MAP_A, [])).toEqual({
-      inserted: 0,
-      updated: 0,
-      deleted: 2,
-      unchanged: 0,
-    });
-    expect(await readClaims(t, MAP_A)).toEqual([]);
-    expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
-
-    expect(await reconcile(MAP_A, claims)).toEqual({
-      inserted: 2,
-      updated: 0,
-      deleted: 0,
-      unchanged: 0,
-    });
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: EDITOR, roles: ['editor', 'viewer'] },
-      { userId: OWNER, roles: ['admin'] },
-    ]);
-    expect(await reconcile(MAP_A, claims)).toEqual({
-      inserted: 0,
-      updated: 0,
-      deleted: 0,
-      unchanged: 2,
-    });
-    expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
-  });
-
-  it('repairs a seeded duplicate (mapId, userId) pair to exactly one row', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
-      await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['editor'] });
-    });
-
-    const counts = await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
-    const rows = await readClaims(t, MAP_A);
-
-    expect(counts.deleted).toBeGreaterThanOrEqual(1);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ userId: EDITOR, roles: ['editor'] });
-
-    await expect(
-      asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection: 'systems',
-        cursor: null,
-      }),
-    ).resolves.toMatchObject({ page: [], isDone: true });
-  });
-
-  it('last-entry-wins when a desired payload repeats one userId', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    const counts = await reconcile(MAP_A, [
-      { userId: EDITOR, roles: ['viewer'] },
-      { userId: EDITOR, roles: ['editor'] },
-    ]);
-
-    expect(counts).toEqual({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: EDITOR, roles: ['editor'] }]);
-  });
-
-  it('stores unordered and duplicated roles in canonical precedence order', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    await reconcile(MAP_A, [
-      { userId: EDITOR, roles: ['viewer', 'admin', 'viewer', 'editor'] },
-    ]);
-
-    expect(await readClaims(t, MAP_A)).toMatchObject([
-      { userId: EDITOR, roles: ['admin', 'editor', 'viewer'] },
-    ]);
-
-    const counts = await reconcile(MAP_A, [
-      { userId: EDITOR, roles: ['viewer', 'editor', 'admin'] },
-    ]);
-    expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 1 });
-  });
+  await expect(reconcileAt(t, MAP_A, [
+    { userId: OWNER, roles: ['admin'] }, { userId: EDITOR, roles: ['editor'] },
+  ], 12)).resolves.toMatchObject({ outcome: 'stale' });
+  expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER }]);
 });
 
-describe('purgeUserClaims', () => {
-  it('batches deletes through by_user with a truthful hasMore', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      for (let index = 0; index < MAP_ACCESS_PURGE_BATCH + 1; index += 1) {
-        await ctx.db.insert('mapAccess', {
-          mapId: `map-${index}`,
-          userId: EDITOR,
-          roles: ['viewer'],
-        });
-      }
+it('reconcileMapClaims writes, no-ops an identical re-run, updates a role, and deletes by absence or empty roles', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  const counts = await reconcile(MAP_A, [
+    { userId: OWNER, roles: ['admin'] },
+    { userId: EDITOR, roles: ['editor'] },
+  ]);
+
+  expect(counts).toEqual({ inserted: 2, updated: 0, deleted: 0, unchanged: 0 });
+  expect(await readClaims(t, MAP_A)).toMatchObject([
+    { userId: EDITOR, roles: ['editor'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
+    { userId: OWNER, roles: ['admin'], keys: ['_creationTime', '_id', 'mapId', 'roles', 'userId'] },
+  ]);
+
+  const before = await readClaims(t, MAP_A);
+  expect(
+    await reconcile(MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['editor'] },
+    ]),
+  ).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 2 });
+  expect(await readClaims(t, MAP_A)).toEqual(before);
+
+  expect(
+    await reconcile(MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: ['viewer'] },
+    ]),
+  ).toEqual({ inserted: 0, updated: 1, deleted: 0, unchanged: 1 });
+  expect(await readClaims(t, MAP_A)).toMatchObject([
+    { userId: EDITOR, roles: ['viewer'] },
+    { userId: OWNER, roles: ['admin'] },
+  ]);
+
+  expect(
+    await reconcile(MAP_A, [{ userId: OWNER, roles: ['admin'] }]),
+  ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
+  expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+
+  await reconcile(MAP_A, [
+    { userId: OWNER, roles: ['admin'] },
+    { userId: EDITOR, roles: ['editor'] },
+  ]);
+  expect(
+    await reconcile(MAP_A, [
+      { userId: OWNER, roles: ['admin'] },
+      { userId: EDITOR, roles: [] },
+    ]),
+  ).toEqual({ inserted: 0, updated: 0, deleted: 1, unchanged: 1 });
+  expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+});
+
+it('reconcileMapClaims rejects an older delivery and accepts an exact retry without rewriting', async () => {
+  const t = convexTest(schema, modules);
+  const current = await reconcileAt(
+    t,
+    MAP_A,
+    [{ userId: OWNER, roles: ['admin'] }],
+    20,
+  );
+  expect(current).toMatchObject({ outcome: 'applied', inserted: 1 });
+  const before = await readClaims(t, MAP_A);
+
+  await expect(reconcileAt(t, MAP_A, [], 19)).resolves.toEqual({
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    outcome: 'stale',
+  });
+  await expect(
+    reconcileAt(t, MAP_A, [{ userId: OWNER, roles: ['admin'] }], 20),
+  ).resolves.toEqual({
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    outcome: 'duplicate',
+  });
+  expect(await readClaims(t, MAP_A)).toEqual(before);
+});
+
+it('reconcileMapClaims tears down one map, leaves the other, and restores the full set on resync', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  const claims: Array<{ userId: string; roles: Array<'viewer' | 'editor' | 'admin'> }> = [
+    { userId: OWNER, roles: ['admin'] },
+    { userId: EDITOR, roles: ['editor', 'viewer'] },
+  ];
+  await reconcile(MAP_A, claims);
+  await reconcile(MAP_B, [{ userId: VIEWER, roles: ['viewer'] }]);
+
+  expect(await reconcile(MAP_A, [])).toEqual({
+    inserted: 0,
+    updated: 0,
+    deleted: 2,
+    unchanged: 0,
+  });
+  expect(await readClaims(t, MAP_A)).toEqual([]);
+  expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
+
+  expect(await reconcile(MAP_A, claims)).toEqual({
+    inserted: 2,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+  });
+  expect(await readClaims(t, MAP_A)).toMatchObject([
+    { userId: EDITOR, roles: ['editor', 'viewer'] },
+    { userId: OWNER, roles: ['admin'] },
+  ]);
+  expect(await reconcile(MAP_A, claims)).toEqual({
+    inserted: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 2,
+  });
+  expect(await readClaims(t, MAP_B)).toMatchObject([{ userId: VIEWER, roles: ['viewer'] }]);
+});
+
+it('reconcileMapClaims repairs a seeded duplicate (mapId, userId) pair to exactly one row', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
+    await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['editor'] });
+  });
+
+  const counts = await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+  const rows = await readClaims(t, MAP_A);
+
+  expect(counts.deleted).toBeGreaterThanOrEqual(1);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ userId: EDITOR, roles: ['editor'] });
+
+  await expect(
+    asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
+      mapId: MAP_A,
+      collection: 'systems',
+      cursor: null,
+    }),
+  ).resolves.toMatchObject({ page: [], isDone: true });
+});
+
+it('reconcileMapClaims keeps the last entry when a desired payload repeats one userId', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  const counts = await reconcile(MAP_A, [
+    { userId: EDITOR, roles: ['viewer'] },
+    { userId: EDITOR, roles: ['editor'] },
+  ]);
+
+  expect(counts).toEqual({ inserted: 1, updated: 0, deleted: 0, unchanged: 0 });
+  expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: EDITOR, roles: ['editor'] }]);
+});
+
+it('reconcileMapClaims stores unordered and duplicated roles in canonical precedence order', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  await reconcile(MAP_A, [
+    { userId: EDITOR, roles: ['viewer', 'admin', 'viewer', 'editor'] },
+  ]);
+
+  expect(await readClaims(t, MAP_A)).toMatchObject([
+    { userId: EDITOR, roles: ['admin', 'editor', 'viewer'] },
+  ]);
+
+  const counts = await reconcile(MAP_A, [
+    { userId: EDITOR, roles: ['viewer', 'editor', 'admin'] },
+  ]);
+  expect(counts).toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 1 });
+});
+
+it('purgeUserClaims batches deletes through by_user with a truthful hasMore', async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (let index = 0; index < MAP_ACCESS_PURGE_BATCH + 1; index += 1) {
       await ctx.db.insert('mapAccess', {
-        mapId: MAP_B,
-        userId: OWNER,
-        roles: ['admin'],
+        mapId: `map-${index}`,
+        userId: EDITOR,
+        roles: ['viewer'],
       });
-    });
-
-    const first = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
-      userId: EDITOR,
-    });
-    expect(first).toEqual({ deleted: MAP_ACCESS_PURGE_BATCH, hasMore: true });
-
-    const second = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
-      userId: EDITOR,
-    });
-    expect(second).toEqual({ deleted: 1, hasMore: false });
-
-    const remaining = await t.run(async (ctx) =>
-      ctx.db.query('mapAccess').withIndex('by_user', (q) => q.eq('userId', OWNER)).collect(),
-    );
-    expect(remaining).toHaveLength(1);
-  });
-
-  it("sweeps the user's mapTracking rows as the account-purge backstop", async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
-      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: 90_000_001 });
-      await ctx.db.insert('mapTracking', { mapId: MAP_B, userId: EDITOR, characterId: 90_000_002 });
-      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 90_000_003 });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: MAP_A,
-        characterId: 90_000_001,
-        lastProcessedTransitionAt: 1,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: MAP_B,
-        characterId: 90_000_002,
-        lastProcessedTransitionAt: 2,
-      });
-      await ctx.db.insert('mapJumpBookkeeping', {
-        mapId: MAP_A,
-        characterId: 90_000_003,
-        lastProcessedTransitionAt: 3,
-      });
-    });
-
-    const result = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
-      userId: EDITOR,
-    });
-    expect(result).toEqual({ deleted: 3, hasMore: false });
-
-    const remaining = await t.run((ctx) => ctx.db.query('mapTracking').collect());
-    expect(remaining.map((row) => row.userId)).toEqual([OWNER]);
-    const stamps = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
-    expect(stamps.map((row) => row.characterId)).toEqual([90_000_003]);
-  });
-});
-
-describe('map role leftover', () => {
-  it('preserves stored owner claims while rejecting new owner writes', async () => {
-    expect(legacyMapOwnerRoleValidator.value).toBe('owner');
-    expect(mapRoleValidator.kind).toBe('union');
-    expect(currentRolesFromStored(['owner', 'viewer'])).toEqual(['admin', 'viewer']);
-    expect(currentRolesFromStored(['admin', 'editor'])).toEqual(['admin', 'editor']);
-
-    const t = convexTest(schema, modules);
-    await t.run((ctx) =>
-      ctx.db.insert('mapAccess', {
-        mapId: MAP_A,
-        userId: OWNER,
-        roles: ['owner'],
-      }),
-    );
-
-    await expect(
-      t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
-        mapId: MAP_A,
-        revision: 1,
-        claims: [{ userId: OWNER, roles: ['owner'] }],
-      } as never),
-    ).rejects.toThrow();
-
-    await expect(
-      t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {}),
-    ).resolves.toEqual({ remapped: 1, continueCursor: null, isDone: true });
-    expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
-  });
-
-  it('remaps every page and leaves current claims unchanged on repeated runs', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      for (let i = 0; i <= MAP_ACCESS_PURGE_BATCH; i += 1) {
-        await ctx.db.insert('mapAccess', {
-          mapId: MAP_A,
-          userId: `legacy-${i}`,
-          roles: ['owner', 'admin', 'viewer'],
-        });
-      }
-      await ctx.db.insert('mapAccess', { mapId: MAP_B, userId: EDITOR, roles: ['editor'] });
-    });
-    const current = await readClaims(t, MAP_B);
-    const first = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
-    expect(first.isDone).toBe(false);
-    expect(first.continueCursor).not.toBeNull();
-    const second = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
-      cursor: first.continueCursor,
-    });
-    expect(second.isDone).toBe(true);
-    expect(second.continueCursor).toBeNull();
-    expect(first.remapped + second.remapped).toBe(MAP_ACCESS_PURGE_BATCH + 1);
-    const migrated = await readClaims(t, MAP_A);
-    expect(migrated).toHaveLength(MAP_ACCESS_PURGE_BATCH + 1);
-    expect(migrated.every((row) => row.roles.join(',') === 'admin,viewer')).toBe(true);
-    const repeated = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
-    expect(repeated.remapped).toBe(0);
-    await expect(t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
-      cursor: repeated.continueCursor,
-    })).resolves.toEqual({ remapped: 0, continueCursor: null, isDone: true });
-    expect(await readClaims(t, MAP_A)).toEqual(migrated);
-    expect(await readClaims(t, MAP_B)).toEqual(current);
-  });
-});
-
-describe('gate returns projected roles', () => {
-  it('keeps a stored owner authorized while the migration is pending', async () => {
-    const t = convexTest(schema, modules);
-    await t.run((ctx) =>
-      ctx.db.insert('mapAccess', {
-        mapId: MAP_A,
-        userId: OWNER,
-        roles: ['owner'],
-      }),
-    );
-
-    const principal = await t.run((ctx) =>
-      tryMapAccessForUser(ctx, MAP_A, OWNER, 'edit'),
-    );
-    expect(principal).toEqual({ userId: OWNER, roles: ['admin'], characters: null });
-  });
-});
-
-describe('revocation', () => {
-  it('flips a previously succeeding gated read to FORBIDDEN after claim removal', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
-    await expect(
-      asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection: 'systems',
-        cursor: null,
-      }),
-    ).resolves.toMatchObject({ isDone: true });
-
-    await reconcile(MAP_A, []);
-
-    const forbidden = await expectConvexErrorCode(
-      asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-        mapId: MAP_A,
-        collection: 'systems',
-        cursor: null,
-      }),
-      'FORBIDDEN',
-    );
-    expect(forbidden.data).toEqual({ code: 'FORBIDDEN' });
-  });
-});
-
-describe('read-set cost', () => {
-  it('drains pinned collection sizes in exact pages of at most 25 rows', async () => {
-    const t = convexTest(schema, modules);
-    const reconcile = appliedReconciler(t);
-    await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
-
-    await t.run(async (ctx) => {
-      for (let index = 0; index < 50; index += 1) {
-        await ctx.db.insert('mapSystems', { mapId: MAP_A, systemId: 30_000_000 + index });
-      }
-      for (let index = 0; index < 30; index += 1) {
-        await ctx.db.insert('mapConnections', connectionInsert({
-          mapId: MAP_A,
-          fromSystemId: 30_000_000 + index,
-          toSystemId: 30_000_100 + index,
-          wormholeTypeCode: null,
-          shipSize: null,
-          massState: 'stable',
-        }));
-      }
-      for (let index = 0; index < 60; index += 1) {
-        await ctx.db.insert('mapSignatures', {
-          mapId: MAP_A,
-          systemId: 30_000_000 + (index % 50),
-          signatureId: `SIG-${String(index).padStart(3, '0')}`,
-          group: null,
-          typeName: null,
-          wormholeTypeCode: null,
-          deletedAt: null,
-          purgeAfter: null,
-        });
-      }
-      for (let index = 0; index < 10; index += 1) {
-        await ctx.db.insert('mapNotes', {
-          mapId: MAP_A,
-          targetKind: 'map',
-          targetId: MAP_A,
-          body: `note-${index}`,
-        });
-      }
-    });
-
-    async function drain(
-      collection: 'systems' | 'connections' | 'signatures' | 'notes',
-    ): Promise<{ rows: number; pages: number; maxPage: number }> {
-      let rows = 0;
-      let pages = 0;
-      let maxPage = 0;
-      let cursor: string | null = null;
-      for (;;) {
-        const page: {
-          page: readonly unknown[];
-          isDone: boolean;
-          continueCursor: string;
-        } = await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
-          mapId: MAP_A,
-          collection,
-          cursor,
-        });
-        pages += 1;
-        rows += page.page.length;
-        maxPage = Math.max(maxPage, page.page.length);
-        expect(page.page.length).toBeLessThanOrEqual(MAP_FIXTURE_PAGE_SIZE);
-        if (page.isDone) break;
-        cursor = page.continueCursor;
-      }
-      return { rows, pages, maxPage };
     }
-
-    expect(await drain('systems')).toEqual({ rows: 50, pages: 2, maxPage: 25 });
-    expect(await drain('connections')).toEqual({ rows: 30, pages: 2, maxPage: 25 });
-    expect(await drain('signatures')).toEqual({ rows: 60, pages: 3, maxPage: 25 });
-    expect(await drain('notes')).toEqual({ rows: 10, pages: 1, maxPage: 10 });
-  });
-});
-
-describe('freezeMapTrackingForScoping', () => {
-  it('lists only the requested map\'s tracked pairs', async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 11 });
-      await ctx.db.insert('mapTracking', { mapId: 'other-map', userId: OWNER, characterId: 12 });
+    await ctx.db.insert('mapAccess', {
+      mapId: MAP_B,
+      userId: OWNER,
+      roles: ['admin'],
     });
-    await expect(t.mutation(internal.mapAccessProjection.freezeMapTrackingForScoping, { mapId: MAP_A }))
-      .resolves.toEqual([{ userId: OWNER, characterId: 11 }]);
   });
+
+  const first = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
+    userId: EDITOR,
+  });
+  expect(first).toEqual({ deleted: MAP_ACCESS_PURGE_BATCH, hasMore: true });
+
+  const second = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
+    userId: EDITOR,
+  });
+  expect(second).toEqual({ deleted: 1, hasMore: false });
+
+  const remaining = await t.run(async (ctx) =>
+    ctx.db.query('mapAccess').withIndex('by_user', (q) => q.eq('userId', OWNER)).collect(),
+  );
+  expect(remaining).toHaveLength(1);
 });
 
-describe('character-scoped claim sets', () => {
+it("purgeUserClaims sweeps the user's mapTracking rows as the account-purge backstop", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapAccess', { mapId: MAP_A, userId: EDITOR, roles: ['viewer'] });
+    await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: EDITOR, characterId: 90_000_001 });
+    await ctx.db.insert('mapTracking', { mapId: MAP_B, userId: EDITOR, characterId: 90_000_002 });
+    await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 90_000_003 });
+    await ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A,
+      characterId: 90_000_001,
+      lastProcessedTransitionAt: 1,
+    });
+    await ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_B,
+      characterId: 90_000_002,
+      lastProcessedTransitionAt: 2,
+    });
+    await ctx.db.insert('mapJumpBookkeeping', {
+      mapId: MAP_A,
+      characterId: 90_000_003,
+      lastProcessedTransitionAt: 3,
+    });
+  });
+
+  const result = await t.mutation(internal.mapAccessProjection.purgeUserClaims, {
+    userId: EDITOR,
+  });
+  expect(result).toEqual({ deleted: 3, hasMore: false });
+
+  const remaining = await t.run((ctx) => ctx.db.query('mapTracking').collect());
+  expect(remaining.map((row) => row.userId)).toEqual([OWNER]);
+  const stamps = await t.run((ctx) => ctx.db.query('mapJumpBookkeeping').collect());
+  expect(stamps.map((row) => row.characterId)).toEqual([90_000_003]);
+});
+
+it('authorizes and preserves stored owner claims while rejecting new owner writes', async () => {
+  const t = convexTest(schema, modules);
+  await t.run((ctx) =>
+    ctx.db.insert('mapAccess', {
+      mapId: MAP_A,
+      userId: OWNER,
+      roles: ['owner'],
+    }),
+  );
+  // The gate reads a stored owner as admin while the migration is pending.
+  expect(await t.run((ctx) => tryMapAccessForUser(ctx, MAP_A, OWNER, 'edit')))
+    .toEqual({ userId: OWNER, roles: ['admin'], characters: null });
+
+  await expect(
+    t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
+      mapId: MAP_A,
+      revision: 1,
+      claims: [{ userId: OWNER, roles: ['owner'] }],
+    } as never),
+  ).rejects.toThrow();
+
+  await expect(
+    t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {}),
+  ).resolves.toEqual({ remapped: 1, continueCursor: null, isDone: true });
+  expect(await readClaims(t, MAP_A)).toMatchObject([{ userId: OWNER, roles: ['admin'] }]);
+});
+
+it('remapLegacyOwnerRoles remaps every page and leaves current claims unchanged on repeated runs', async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (let i = 0; i <= MAP_ACCESS_PURGE_BATCH; i += 1) {
+      await ctx.db.insert('mapAccess', {
+        mapId: MAP_A,
+        userId: `legacy-${i}`,
+        roles: ['owner', 'admin', 'viewer'],
+      });
+    }
+    await ctx.db.insert('mapAccess', { mapId: MAP_B, userId: EDITOR, roles: ['editor'] });
+  });
+  const current = await readClaims(t, MAP_B);
+  const first = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
+  expect(first.isDone).toBe(false);
+  expect(first.continueCursor).not.toBeNull();
+  const second = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
+    cursor: first.continueCursor,
+  });
+  expect(second.isDone).toBe(true);
+  expect(second.continueCursor).toBeNull();
+  expect(first.remapped + second.remapped).toBe(MAP_ACCESS_PURGE_BATCH + 1);
+  const migrated = await readClaims(t, MAP_A);
+  expect(migrated).toHaveLength(MAP_ACCESS_PURGE_BATCH + 1);
+  expect(migrated.every((row) => row.roles.join(',') === 'admin,viewer')).toBe(true);
+  const repeated = await t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {});
+  expect(repeated.remapped).toBe(0);
+  await expect(t.mutation(internal.mapAccessProjection.remapLegacyOwnerRoles, {
+    cursor: repeated.continueCursor,
+  })).resolves.toEqual({ remapped: 0, continueCursor: null, isDone: true });
+  expect(await readClaims(t, MAP_A)).toEqual(migrated);
+  expect(await readClaims(t, MAP_B)).toEqual(current);
+});
+
+it('flips a previously succeeding gated read to FORBIDDEN after claim removal', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+  await expect(
+    asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
+      mapId: MAP_A,
+      collection: 'systems',
+      cursor: null,
+    }),
+  ).resolves.toMatchObject({ isDone: true });
+
+  await reconcile(MAP_A, []);
+
+  const forbidden = await expectConvexErrorCode(
+    asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
+      mapId: MAP_A,
+      collection: 'systems',
+      cursor: null,
+    }),
+    'FORBIDDEN',
+  );
+  expect(forbidden.data).toEqual({ code: 'FORBIDDEN' });
+});
+
+it('drains pinned collection sizes in exact pages of at most 25 rows', async () => {
+  const t = convexTest(schema, modules);
+  const reconcile = appliedReconciler(t);
+  await reconcile(MAP_A, [{ userId: EDITOR, roles: ['editor'] }]);
+
+  await t.run(async (ctx) => {
+    for (let index = 0; index < 50; index += 1) {
+      await ctx.db.insert('mapSystems', { mapId: MAP_A, systemId: 30_000_000 + index });
+    }
+    for (let index = 0; index < 30; index += 1) {
+      await ctx.db.insert('mapConnections', connectionInsert({
+        mapId: MAP_A,
+        fromSystemId: 30_000_000 + index,
+        toSystemId: 30_000_100 + index,
+        wormholeTypeCode: null,
+        shipSize: null,
+        massState: 'stable',
+      }));
+    }
+    for (let index = 0; index < 60; index += 1) {
+      await ctx.db.insert('mapSignatures', {
+        mapId: MAP_A,
+        systemId: 30_000_000 + (index % 50),
+        signatureId: `SIG-${String(index).padStart(3, '0')}`,
+        group: null,
+        typeName: null,
+        wormholeTypeCode: null,
+        deletedAt: null,
+        purgeAfter: null,
+      });
+    }
+    for (let index = 0; index < 10; index += 1) {
+      await ctx.db.insert('mapNotes', {
+        mapId: MAP_A,
+        targetKind: 'map',
+        targetId: MAP_A,
+        body: `note-${index}`,
+      });
+    }
+  });
+
+  async function drain(
+    collection: 'systems' | 'connections' | 'signatures' | 'notes',
+  ): Promise<{ rows: number; pages: number; maxPage: number }> {
+    let rows = 0;
+    let pages = 0;
+    let maxPage = 0;
+    let cursor: string | null = null;
+    for (;;) {
+      const page: {
+        page: readonly unknown[];
+        isDone: boolean;
+        continueCursor: string;
+      } = await asUser(t, EDITOR).query(api.mapFixtures.readMapCollection, {
+        mapId: MAP_A,
+        collection,
+        cursor,
+      });
+      pages += 1;
+      rows += page.page.length;
+      maxPage = Math.max(maxPage, page.page.length);
+      expect(page.page.length).toBeLessThanOrEqual(MAP_FIXTURE_PAGE_SIZE);
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    return { rows, pages, maxPage };
+  }
+
+  expect(await drain('systems')).toEqual({ rows: 50, pages: 2, maxPage: 25 });
+  expect(await drain('connections')).toEqual({ rows: 30, pages: 2, maxPage: 25 });
+  expect(await drain('signatures')).toEqual({ rows: 60, pages: 3, maxPage: 25 });
+  expect(await drain('notes')).toEqual({ rows: 10, pages: 1, maxPage: 10 });
+});
+
+it('freezeMapTrackingForScoping lists only the requested map\'s tracked pairs', async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    await ctx.db.insert('mapTracking', { mapId: MAP_A, userId: OWNER, characterId: 11 });
+    await ctx.db.insert('mapTracking', { mapId: 'other-map', userId: OWNER, characterId: 12 });
+  });
+  await expect(t.mutation(internal.mapAccessProjection.freezeMapTrackingForScoping, { mapId: MAP_A }))
+    .resolves.toEqual([{ userId: OWNER, characterId: 11 }]);
+});
+
+it('reconcileMapClaims confirms scoped delivery and refuses later account-level claims for that map', async () => {
   const scopedClaims = [{
     userId: OWNER, roles: ['admin' as const], characters: [{ characterId: 11, name: 'Main' }],
   }];
-  const reconcile = (t: Chain, claims: unknown, revision: number) =>
+  const t = convexTest(schema, modules);
+  const reconcile = (claims: unknown, revision: number) =>
     t.mutation(internal.mapAccessProjection.reconcileMapClaims, {
       mapId: MAP_A, revision, claims: claims as typeof scopedClaims,
     });
+  await expect(reconcile(scopedClaims, 1))
+    .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
+  await expect(reconcile(scopedClaims, 1))
+    .resolves.toMatchObject({ outcome: 'duplicate', characterScoped: true });
 
-  it('keeps the legacy response shape for claims without characters', async () => {
-    const t = convexTest(schema, modules);
-    const result = await reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 1);
-    expect(result).toEqual({ inserted: 1, updated: 0, deleted: 0, unchanged: 0, outcome: 'applied' });
-    await expect(reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 2))
-      .resolves.toMatchObject({ outcome: 'applied' });
-  });
+  await expect(reconcile([{ userId: OWNER, roles: ['viewer'] }], 2))
+    .resolves.toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'unscoped-refused' });
+  await expect(t.run((ctx) => ctx.db.query('mapAccess').collect()))
+    .resolves.toMatchObject([{ roles: ['admin'], characters: [{ characterId: 11 }] }]);
 
-  it('confirms scoped delivery and refuses later account-level claims for that map', async () => {
-    const t = convexTest(schema, modules);
-    await expect(reconcile(t, scopedClaims, 1))
-      .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
-    await expect(reconcile(t, scopedClaims, 1))
-      .resolves.toMatchObject({ outcome: 'duplicate', characterScoped: true });
-
-    await expect(reconcile(t, [{ userId: OWNER, roles: ['viewer'] }], 2))
-      .resolves.toEqual({ inserted: 0, updated: 0, deleted: 0, unchanged: 0, outcome: 'unscoped-refused' });
-    await expect(t.run((ctx) => ctx.db.query('mapAccess').collect()))
-      .resolves.toMatchObject([{ roles: ['admin'], characters: [{ characterId: 11 }] }]);
-
-    await expect(reconcile(t, [], 3)).resolves.toMatchObject({ outcome: 'applied' });
-    await expect(reconcile(t, [{ userId: OWNER, roles: ['admin'] }], 4))
-      .resolves.toMatchObject({ outcome: 'unscoped-refused' });
-    await expect(reconcile(t, scopedClaims, 5))
-      .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
-  });
+  await expect(reconcile([], 3)).resolves.toMatchObject({ outcome: 'applied' });
+  await expect(reconcile([{ userId: OWNER, roles: ['admin'] }], 4))
+    .resolves.toMatchObject({ outcome: 'unscoped-refused' });
+  await expect(reconcile(scopedClaims, 5))
+    .resolves.toMatchObject({ outcome: 'applied', characterScoped: true });
 });
