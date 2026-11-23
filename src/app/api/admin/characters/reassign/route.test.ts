@@ -36,6 +36,7 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 
 import { postForm } from '@/lib/__tests__/route-requests';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { POST } from './route';
 
 const ROUTE = '/api/admin/characters/reassign';
@@ -82,7 +83,7 @@ describe('POST /api/admin/characters/reassign', () => {
       characterId: 200,
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
-      runners: expect.any(Object),
+      runners: identityProjectionRunners,
     });
     expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith(
       'admin/characters/reassign',
