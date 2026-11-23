@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import {
   reflectedSchemaTables,
   registryCoverageDiff,
-} from '@/db/__tests__/support/schema-reflection';
+} from '@/composition/__tests__/schema-reflection';
 import { filesMatching, listSourceFiles } from '@/lib/__tests__/source-scan';
 import { convexUserKeyedTables } from '@/platform/purge/__tests__/convex-user-homes';
 import {

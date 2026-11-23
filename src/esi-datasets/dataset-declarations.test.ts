@@ -33,7 +33,7 @@ import {
   reflectedSchemaExports,
   reflectedSchemaTables,
   registryCoverageDiff,
-} from '@/db/__tests__/support/schema-reflection';
+} from '@/composition/__tests__/schema-reflection';
 
 const GROWTH_DECLARATION =
   'growth story -> src/composition/__tests__/table-growth-registry.ts';

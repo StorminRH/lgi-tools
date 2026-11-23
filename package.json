@@ -101,7 +101,7 @@
     "@types/yauzl": "^3.4.0",
     "@vitest/coverage-istanbul": "5.1.0",
     "concurrently": "^10.0.7",
-    "convex-test": "0.0.71",
+    "convex-test": "0.0.62",
     "dotenv": "^18.0.10",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",

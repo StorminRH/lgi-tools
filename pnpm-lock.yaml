@@ -139,8 +139,8 @@ importers:
         specifier: ^10.0.7
         version: 10.0.7
       convex-test:
-        specifier: 0.0.71
-        version: 0.0.71(convex@1.50.0(react@19.3.1))
+        specifier: 0.0.62
+        version: 0.0.62(convex@1.50.0(react@19.3.1))
       dotenv:
         specifier: ^18.0.10
         version: 18.0.10
@@ -1911,8 +1911,8 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
-  convex-test@0.0.71:
-    resolution: {integrity: sha512-sHptDSWL0b2Og6to5R9/GoCHF7XGNXIAxQDJnA8UYYZa8yym9mfC03h3C47LS3Bj2BIO9lD0pKIv2H7dP+VKPA==}
+  convex-test@0.0.62:
+    resolution: {integrity: sha512-gvFps/A1JhOlFToZKjStSX8lWQS8oPF4oKm6U5D/ZdmOtfC7bKqw5Ce5ccAf45jvxPKPcFiyWt8JrueE+byB2g==}
     peerDependencies:
       convex: ^1.43.0
 
@@ -5142,7 +5142,7 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex-test@0.0.71(convex@1.50.0(react@19.3.1)):
+  convex-test@0.0.62(convex@1.50.0(react@19.3.1)):
     dependencies:
       convex: 1.50.0(react@19.3.1)
 
