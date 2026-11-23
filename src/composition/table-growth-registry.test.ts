@@ -4,7 +4,7 @@ import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import {
   reflectedSchemaTables,
   registryCoverageDiff,
-} from '@/composition/__tests__/schema-reflection';
+} from '@/db/__tests__/support/schema-reflection';
 import { tableGrowthKey } from './__tests__/table-growth-census';
 import {
   DRIZZLE_MIGRATIONS_TABLE,

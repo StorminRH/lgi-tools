@@ -19,7 +19,7 @@ import { refreshSkillsOnView } from '@/composition/sync/skills-sync';
 import {
   reflectedSchemaTables,
   registryCoverageDiff,
-} from '@/composition/__tests__/schema-reflection';
+} from '@/db/__tests__/support/schema-reflection';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import { routeDeclaration, type EsiRoute } from '@/lib/esi-datasets/routes';
 import type {
