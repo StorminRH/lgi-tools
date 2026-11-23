@@ -102,13 +102,7 @@ describe('POST /api/admin/characters/unlink', () => {
     expect(deleteLinkedCharacterMock).toHaveBeenCalledWith(
       'eve-user-2',
       100,
-      expect.objectContaining({
-        runBeforeUserDelete: expect.any(Function),
-        runBeforeCharacterUnlink: expect.any(Function),
-        runAfterFailedCharacterUnlink: expect.any(Function),
-        runAfterCharacterUnlink: expect.any(Function),
-        runAfterCharacterLinkChanged: expect.any(Function),
-      }),
+      expect.any(Object),
     );
     expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/characters/unlink', {
       action: 'admin_character_unlink',

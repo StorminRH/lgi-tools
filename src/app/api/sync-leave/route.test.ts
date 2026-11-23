@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   checkUserId: vi.fn(),
@@ -30,74 +30,59 @@ import { POST } from './route';
 
 const ROUTE = '/api/sync-leave';
 
-beforeEach(() => {
+const BODY = { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' };
+
+function resetMocks() {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.postLeaveSync.mockReset().mockResolvedValue({ retired: true });
   h.checkRateLimit.mockReset().mockResolvedValue({ ok: true, remaining: 29 });
+}
+
+test('POST /api/sync-leave rejects anonymous callers and a forged body userId, and forwards only the session user', async () => {
+  resetMocks();
+  h.checkUserId.mockResolvedValueOnce({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
+  });
+  const anonymous = await POST(postJson(ROUTE, BODY));
+  expect(anonymous.status).toBe(401);
+
+  const forged = await POST(postJson(ROUTE, { ...BODY, userId: 'someone-else' }));
+  expect(forged.status).toBe(400);
+  expect(problemBodySchema.parse(await forged.json())).toMatchObject({
+    code: 'invalid_body',
+  });
+  expect(h.postLeaveSync).not.toHaveBeenCalled();
+
+  const ok = await POST(postJson(ROUTE, BODY));
+  expect(ok.status).toBe(204);
+  expect(h.postLeaveSync).toHaveBeenCalledWith({
+    userId: 'user-1',
+    dataset: 'characterLocation',
+    tabId: 'tab-aaaa-bbbb',
+  });
 });
 
-describe('POST /api/sync-leave', () => {
-  it('rejects anonymous callers and forwards the session user, never a body userId', async () => {
-    h.checkUserId.mockResolvedValueOnce({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
-    const anonymous = await POST(
-      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
-    );
-    expect(anonymous.status).toBe(401);
-    expect(h.postLeaveSync).not.toHaveBeenCalled();
-
-    const ok = await POST(
-      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
-    );
-    expect(ok.status).toBe(204);
-    expect(h.postLeaveSync).toHaveBeenCalledWith({
-      userId: 'user-1',
-      dataset: 'characterLocation',
-      tabId: 'tab-aaaa-bbbb',
-    });
+test('POST /api/sync-leave throttles before authorizing, with the 429 its contract declares', async () => {
+  resetMocks();
+  h.checkRateLimit.mockResolvedValueOnce({ ok: false, failure: rateLimitedFailure(12) });
+  const throttled = await POST(postJson(ROUTE, BODY));
+  expect(throttled.status).toBe(429);
+  expect(throttled.headers.get('Retry-After')).toBe('12');
+  expect(problemBodySchema.parse(await throttled.json())).toMatchObject({
+    code: 'rate_limited',
+    retryAfterSeconds: 12,
   });
-
-  it('rejects a forged userId in the body', async () => {
-    const forged = await POST(
-      postJson(ROUTE, {
-        dataset: 'characterLocation',
-        tabId: 'tab-aaaa-bbbb',
-        userId: 'someone-else',
-      }),
-    );
-    expect(forged.status).toBe(400);
-    expect(problemBodySchema.parse(await forged.json())).toMatchObject({
-      code: 'invalid_body',
-    });
-    expect(h.postLeaveSync).not.toHaveBeenCalled();
+  expect(h.checkRateLimit).toHaveBeenCalledWith(expect.any(Request), {
+    name: 'sync-leave',
+    perMinute: 30,
   });
+  expect(h.checkUserId).not.toHaveBeenCalled();
+  expect(h.postLeaveSync).not.toHaveBeenCalled();
+});
 
-  it('throttles before authorizing, with the 429 its contract declares', async () => {
-    h.checkRateLimit.mockResolvedValueOnce({ ok: false, failure: rateLimitedFailure(12) });
-    const throttled = await POST(
-      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
-    );
-    expect(throttled.status).toBe(429);
-    expect(throttled.headers.get('Retry-After')).toBe('12');
-    expect(problemBodySchema.parse(await throttled.json())).toMatchObject({
-      code: 'rate_limited',
-      retryAfterSeconds: 12,
-    });
-    expect(h.checkRateLimit).toHaveBeenCalledWith(expect.any(Request), {
-      name: 'sync-leave',
-      perMinute: 30,
-    });
-    expect(h.checkUserId).not.toHaveBeenCalled();
-    expect(h.postLeaveSync).not.toHaveBeenCalled();
-  });
-
-  it('surfaces a Convex door failure as 503', async () => {
-    h.postLeaveSync.mockRejectedValueOnce(new LeaveSyncDoorError('down'));
-    const failed = await POST(
-      postJson(ROUTE, { dataset: 'characterLocation', tabId: 'tab-aaaa-bbbb' }),
-    );
-    expect(failed.status).toBe(503);
-  });
+test('POST /api/sync-leave surfaces a Convex door failure as 503', async () => {
+  resetMocks();
+  h.postLeaveSync.mockRejectedValueOnce(new LeaveSyncDoorError('down'));
+  expect((await POST(postJson(ROUTE, BODY))).status).toBe(503);
 });

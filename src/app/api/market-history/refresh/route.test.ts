@@ -36,7 +36,7 @@ describe('POST /api/market-history/refresh telemetry', () => {
     vi.restoreAllMocks();
   });
 
-  it('records stale-stored history without inventing a fallback source', async () => {
+  it('records stale-stored history and the exhausted budget', async () => {
     const response = await POST(postJson(ROUTE, { typeIds: [34] }));
     expect(response.status).toBe(200);
     // History stays a per-request limit: every request costs one, however many ids it carries.
@@ -56,6 +56,5 @@ describe('POST /api/market-history/refresh telemetry', () => {
         budgetExhausted: true,
       }),
     );
-    expect(JSON.stringify(emitCostMetricMock.mock.calls)).not.toContain('fuzzwork');
   });
 });

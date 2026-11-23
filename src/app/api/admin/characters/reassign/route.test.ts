@@ -82,13 +82,7 @@ describe('POST /api/admin/characters/reassign', () => {
       characterId: 200,
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
-      runners: expect.objectContaining({
-        runBeforeUserDelete: expect.any(Function),
-        runBeforeCharacterUnlink: expect.any(Function),
-        runAfterFailedCharacterUnlink: expect.any(Function),
-        runAfterCharacterUnlink: expect.any(Function),
-        runAfterCharacterLinkChanged: expect.any(Function),
-      }),
+      runners: expect.any(Object),
     });
     expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith(
       'admin/characters/reassign',

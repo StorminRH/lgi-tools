@@ -1,5 +1,6 @@
 // @vitest-environment edge-runtime
 import { convexTest } from 'convex-test';
+import type { FunctionArgs } from 'convex/server';
 import { expect, test, vi } from 'vitest';
 import { MAP_CHAIN_UNDO_WINDOW_MS } from '@/data/maps/chain-contract';
 import type { ScannedRow } from '@/data/maps/scan-parse';
@@ -99,78 +100,54 @@ test('ordinary identify stays available beyond the whole-system scan bound', asy
   );
 });
 
-test('repeat ordinary identification is a no-op', async () => {
-  const t = await createFixture();
-  await apply(t, [signature('GAS-002')]);
-  expect(
-    await asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'GAS-002',
-      group: 'Gas Site',
-    }),
-  ).toEqual({ changed: true, connectionId: null });
-  expect(
-    await asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'GAS-002',
-      group: 'Gas Site',
-    }),
-  ).toEqual({ changed: false, connectionId: null });
-  expect(await readSignature(t, 'GAS-002')).toMatchObject({ group: 'Gas Site' });
-});
-
-test('ordinary identify rejects an already-identified group', async () => {
-  const t = await createFixture();
-  await apply(t, [signature('GAS-003', { group: 'Gas Site' })]);
-  await expectConvexErrorCode(
-    asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'GAS-003',
-      group: 'Relic Site',
-    }),
-    'SIGNATURE_ALREADY_IDENTIFIED',
-  );
-  expect(await readSignature(t, 'GAS-003')).toMatchObject({ group: 'Gas Site' });
-});
-
-test('ordinary identify rejects a missing signature', async () => {
-  const t = await createFixture();
-  await expectConvexErrorCode(
-    asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'MIS-001',
-      group: 'Gas Site',
-    }),
-    'UNKNOWN_SIGNATURE',
-  );
-});
-
-test('ordinary identify rejects a tombstoned signature', async () => {
+test('ordinary identify walks no-op, refusal, tombstone and untracked cases on one system', async () => {
   using _now = vi.spyOn(Date, 'now').mockReturnValue(NOW);
   const t = await createFixture();
-  await apply(t, [signature('TOM-001')]);
+  const identify = (signatureId: string, group: FunctionArgs<typeof api.mapScan.identifySignature>['group']) =>
+    asEditor(t).mutation(api.mapScan.identifySignature, {
+      mapId: MAP,
+      systemId: JITA,
+      signatureId,
+      group,
+    });
+  await apply(t, [
+    signature('GAS-002'),
+    signature('GAS-003', { group: 'Gas Site' }),
+    signature('TOM-001'),
+    signature('UNT-001'),
+  ]);
+
+  expect(await identify('GAS-002', 'Gas Site')).toEqual({ changed: true, connectionId: null });
+  expect(await identify('GAS-002', 'Gas Site')).toEqual({ changed: false, connectionId: null });
+  expect(await readSignature(t, 'GAS-002')).toMatchObject({ group: 'Gas Site' });
+
+  await expectConvexErrorCode(identify('GAS-003', 'Relic Site'), 'SIGNATURE_ALREADY_IDENTIFIED');
+  expect(await readSignature(t, 'GAS-003')).toMatchObject({ group: 'Gas Site' });
+
+  await expectConvexErrorCode(identify('MIS-001', 'Gas Site'), 'UNKNOWN_SIGNATURE');
+
   expect(await asEditor(t).mutation(api.mapScan.removeSignatures, {
     mapId: MAP,
     systemId: JITA,
     signatureIds: ['TOM-001'],
   })).toEqual({ changed: 1 });
-  await expectConvexErrorCode(
-    asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'TOM-001',
-      group: 'Gas Site',
-    }),
-    'UNKNOWN_SIGNATURE',
-  );
+  await expectConvexErrorCode(identify('TOM-001', 'Gas Site'), 'UNKNOWN_SIGNATURE');
   expect(await readSignature(t, 'TOM-001')).toMatchObject({
     deletedAt: NOW,
     purgeAfter: NOW + MAP_CHAIN_UNDO_WINDOW_MS,
   });
+
+  // Identify needs a live system, not a tracked one.
+  await t.run(async (ctx) => {
+    const tracking = await ctx.db
+      .query('mapTracking')
+      .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', EDITOR))
+      .unique();
+    if (tracking === null) throw new Error('missing tracking');
+    await ctx.db.delete(tracking._id);
+  });
+  expect(await identify('UNT-001', 'Gas Site')).toEqual({ changed: true, connectionId: null });
+  expect(await readSignature(t, 'UNT-001')).toMatchObject({ group: 'Gas Site' });
 });
 
 test('wormhole identify associates an inbound connection', async () => {
@@ -248,26 +225,3 @@ test('wormhole identify claims a static placeholder', async () => {
     ),
   )).toEqual([]);
 });
-
-test('ordinary identify on a live untracked system', async () => {
-  const t = await createFixture();
-  await apply(t, [signature('UNT-001')]);
-  await t.run(async (ctx) => {
-    const tracking = await ctx.db
-      .query('mapTracking')
-      .withIndex('by_map_user', (q) => q.eq('mapId', MAP).eq('userId', EDITOR))
-      .unique();
-    if (tracking === null) throw new Error('missing tracking');
-    await ctx.db.delete(tracking._id);
-  });
-  expect(
-    await asEditor(t).mutation(api.mapScan.identifySignature, {
-      mapId: MAP,
-      systemId: JITA,
-      signatureId: 'UNT-001',
-      group: 'Gas Site',
-    }),
-  ).toEqual({ changed: true, connectionId: null });
-  expect(await readSignature(t, 'UNT-001')).toMatchObject({ group: 'Gas Site' });
-});
-

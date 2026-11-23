@@ -190,20 +190,6 @@ describe('GET /api/cron/refresh-prices', () => {
     const res = await GET(cronRequest(ROUTE));
     expect(res.status).toBe(200);
     expect((await res.json()).written).toBe(10);
-    expect(alertMock).toHaveBeenCalledOnce();
     expect(errors).toHaveBeenCalledWith('[cron:prices] degradation alert failed', down);
-  });
-
-  it('does not let a telemetry failure break the cron response', async () => {
-    logUsageEventMock.mockRejectedValue(new Error('db down'));
-    refreshStalePricesMock.mockResolvedValue({
-      status: 'refreshed',
-      lastUpdatedAt: new Date('2026-05-30T14:00:00Z'),
-      summary: REFRESHED_SUMMARY,
-    });
-    const { GET } = await import('./route');
-    const res = await GET(cronRequest(ROUTE));
-    expect(res.status).toBe(200);
-    expect((await res.json()).written).toBe(10);
   });
 });

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
@@ -27,53 +27,39 @@ const VALID_BODY = { userId: 'user-1', characterId: 1 };
 const ROUTE = '/api/internal/eve-token';
 const AUTHORIZED = { authorization: `Bearer ${SECRET}` };
 
-beforeEach(() => {
+function setup(): void {
   vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
   h.serviceMock.mockReset();
   h.accountBelongsToUserMock.mockReset().mockResolvedValue(true);
-});
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
-describe('POST /api/internal/eve-token', () => {
-  it('returns 500 when the service secret is not configured', async () => {
-    silenceConsolePrefixes('error', ['[service-auth] missing required environment variable']);
-    vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
-    expect(res.status).toBe(500);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_configured',
-      detail: 'service authentication is not configured',
-    });
-    expect(h.serviceMock).not.toHaveBeenCalled();
+test('refuses an unconfigured secret, a missing or wrong bearer, and an invalid body before vending', async () => {
+  setup();
+  silenceConsolePrefixes('error', ['[service-auth] missing required environment variable']);
+  vi.stubEnv('CONVEX_SERVICE_SECRET', '');
+  const unconfigured = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
+  expect(unconfigured.status).toBe(500);
+  expect(problemBodySchema.parse(await unconfigured.json())).toMatchObject({
+    code: 'not_configured',
+    detail: 'service authentication is not configured',
   });
 
-  it('returns 401 for a missing bearer token', async () => {
-    const res = await POST(postJson(ROUTE, VALID_BODY));
+  vi.stubEnv('CONVEX_SERVICE_SECRET', SECRET);
+  for (const headers of [undefined, { authorization: 'Bearer nope' }]) {
+    const res = await POST(postJson(ROUTE, VALID_BODY, headers));
     expect(res.status).toBe(401);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'unauthenticated',
     });
-  });
+  }
 
-  it('returns 401 for a wrong bearer token', async () => {
-    const res = await POST(postJson(ROUTE, VALID_BODY, { authorization: 'Bearer nope' }));
-    expect(res.status).toBe(401);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'unauthenticated',
-    });
-    expect(h.serviceMock).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 for invalid JSON', async () => {
-    const res = await POST(postJson(ROUTE, 'not json{', AUTHORIZED));
-    expect(res.status).toBe(400);
-  });
-
-  it.each([
+  for (const body of [
+    'not json{',
     {},
     { characterId: 1 },
     { userId: '', characterId: 1 },
@@ -82,75 +68,56 @@ describe('POST /api/internal/eve-token', () => {
     { userId: 'user-1', characterId: -3 },
     { userId: 'user-1', characterId: 1.5 },
     { userId: 'user-1', characterId: 'x' },
-  ])(
-    'returns 400 for invalid body %j',
-    async (body) => {
-      const res = await POST(postJson(ROUTE, body, AUTHORIZED));
-      expect(res.status).toBe(400);
-    },
+  ]) {
+    expect((await POST(postJson(ROUTE, body, AUTHORIZED))).status, JSON.stringify(body)).toBe(400);
+  }
+  expect(h.accountBelongsToUserMock).not.toHaveBeenCalled();
+  expect(h.serviceMock).not.toHaveBeenCalled();
+});
+
+test('returns 200 with the access token and expiry — never the refresh token', async () => {
+  setup();
+  h.serviceMock.mockResolvedValue({
+    kind: 'ok',
+    accessToken: 'fresh-access-token',
+    expiresAt: 1_700_000_000_000,
+  });
+
+  const res = await POST(
+    postJson(ROUTE, { userId: 'user-1', characterId: 90000001 }, AUTHORIZED),
   );
+  expect(res.status).toBe(200);
 
-  it('returns 200 with the access token and expiry — never the refresh token', async () => {
-    h.serviceMock.mockResolvedValue({
-      kind: 'ok',
-      accessToken: 'fresh-access-token',
-      expiresAt: 1_700_000_000_000,
-    });
-
-    const res = await POST(
-      postJson(ROUTE, { userId: 'user-1', characterId: 90000001 }, AUTHORIZED),
-    );
-    expect(res.status).toBe(200);
-
-    const text = await res.text();
-    const body = JSON.parse(text);
-    expect(body).toEqual({
-      accessToken: 'fresh-access-token',
-      expiresAt: 1_700_000_000_000,
-    });
-    expect('refreshToken' in body).toBe(false);
-    expect(text.toLowerCase()).not.toContain('refresh');
-    expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 90000001);
-    expect(h.serviceMock).toHaveBeenCalledWith(90000001);
+  const text = await res.text();
+  expect(JSON.parse(text)).toEqual({
+    accessToken: 'fresh-access-token',
+    expiresAt: 1_700_000_000_000,
   });
+  expect(text.toLowerCase()).not.toContain('refresh');
+  expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 90000001);
+  expect(h.serviceMock).toHaveBeenCalledWith(90000001);
+});
 
-  it('returns a not-found problem without vending when ownership fails', async () => {
-    h.accountBelongsToUserMock.mockResolvedValue(false);
+test('answers 404 without vending when ownership fails, and maps each service refusal to its status', async () => {
+  setup();
+  h.accountBelongsToUserMock.mockResolvedValue(false);
 
+  const unowned = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
+
+  expect(unowned.status).toBe(404);
+  expect(problemBodySchema.parse(await unowned.json())).toMatchObject({ code: 'not_found' });
+  expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 1);
+  expect(h.serviceMock).not.toHaveBeenCalled();
+
+  h.accountBelongsToUserMock.mockReset().mockResolvedValue(true);
+  for (const [kind, status, code] of [
+    ['not_found', 404, 'not_found'],
+    ['reauth_required', 409, 'reauth_required'],
+    ['upstream_error', 502, 'upstream_error'],
+  ] as const) {
+    h.serviceMock.mockReset().mockResolvedValue({ kind });
     const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
-
-    expect(res.status).toBe(404);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_found',
-    });
-    expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 1);
-    expect(h.serviceMock).not.toHaveBeenCalled();
-  });
-
-  it('maps not_found → 404', async () => {
-    h.serviceMock.mockResolvedValue({ kind: 'not_found' });
-    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
-    expect(res.status).toBe(404);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'not_found',
-    });
-  });
-
-  it('maps reauth_required → 409', async () => {
-    h.serviceMock.mockResolvedValue({ kind: 'reauth_required' });
-    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
-    expect(res.status).toBe(409);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'reauth_required',
-    });
-  });
-
-  it('maps upstream_error → 502', async () => {
-    h.serviceMock.mockResolvedValue({ kind: 'upstream_error' });
-    const res = await POST(postJson(ROUTE, VALID_BODY, AUTHORIZED));
-    expect(res.status).toBe(502);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'upstream_error',
-    });
-  });
+    expect(res.status).toBe(status);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({ code });
+  }
 });

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
 
@@ -24,53 +24,48 @@ import { POST } from './route';
 
 const ROUTE = '/api/industry/skill-levels';
 
-describe('POST /api/industry/skill-levels', () => {
-  beforeEach(() => {
-    getCurrentUserIdMock.mockReset();
-    getSkillLevelsForCharacterOnViewMock.mockReset();
-    measureOwnedDataReadMock.mockReset();
-    measureOwnedDataReadMock.mockImplementation((input: { read: () => Promise<unknown> }) => input.read());
-  });
+function resetMocks(): void {
+  getCurrentUserIdMock.mockReset();
+  getSkillLevelsForCharacterOnViewMock.mockReset();
+  measureOwnedDataReadMock
+    .mockReset()
+    .mockImplementation((input: { read: () => Promise<unknown> }) => input.read());
+}
 
-  it('returns 400 invalid_json for a non-JSON body', async () => {
-    const res = await POST(postJson(ROUTE, 'not json'));
+test('rejects a non-JSON body and a malformed character id before reading', async () => {
+  resetMocks();
+  for (const [body, code] of [
+    ['not json', 'invalid_json'],
+    [{ characterId: -1 }, 'invalid_body'],
+  ] as const) {
+    const res = await POST(postJson(ROUTE, body));
     expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_json',
-    });
-  });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({ code });
+  }
+  expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
+});
 
-  it('returns 400 invalid_body for a malformed character id', async () => {
-    const res = await POST(postJson(ROUTE, { characterId: -1 }));
-    expect(res.status).toBe(400);
-    expect(problemBodySchema.parse(await res.json())).toMatchObject({
-      code: 'invalid_body',
-    });
-    expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
-  });
+test('fails open to levels:null for an anonymous caller or a foreign character, and returns an owned character\'s levels', async () => {
+  resetMocks();
+  getCurrentUserIdMock.mockResolvedValue(null);
+  const anonymous = await POST(postJson(ROUTE, { characterId: 100 }));
+  expect(anonymous.status).toBe(200);
+  expect(await anonymous.json()).toEqual({ levels: null });
+  expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
 
-  it('fails open to levels:null (200) for an anonymous caller', async () => {
-    getCurrentUserIdMock.mockResolvedValue(null);
-    const res = await POST(postJson(ROUTE, { characterId: 100 }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ levels: null });
-    expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
-  });
+  resetMocks();
+  getCurrentUserIdMock.mockResolvedValue('u1');
+  getSkillLevelsForCharacterOnViewMock.mockResolvedValue(null);
+  const foreign = await POST(postJson(ROUTE, { characterId: 999 }));
+  expect(foreign.status).toBe(200);
+  expect(await foreign.json()).toEqual({ levels: null });
+  expect(getSkillLevelsForCharacterOnViewMock).toHaveBeenCalledWith('u1', 999);
 
-  it("fails open to levels:null when the character is not the caller's (the composition's ownership arm)", async () => {
-    getCurrentUserIdMock.mockResolvedValue('u1');
-    getSkillLevelsForCharacterOnViewMock.mockResolvedValue(null);
-    const res = await POST(postJson(ROUTE, { characterId: 999 }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ levels: null });
-    expect(getSkillLevelsForCharacterOnViewMock).toHaveBeenCalledWith('u1', 999);
-  });
-
-  it('returns the levels map for an owned, synced character', async () => {
-    getCurrentUserIdMock.mockResolvedValue('u1');
-    getSkillLevelsForCharacterOnViewMock.mockResolvedValue({ '3380': 5, '3388': 4 });
-    const res = await POST(postJson(ROUTE, { characterId: 100 }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ levels: { '3380': 5, '3388': 4 } });
-  });
+  resetMocks();
+  getCurrentUserIdMock.mockResolvedValue('u1');
+  getSkillLevelsForCharacterOnViewMock.mockResolvedValue({ '3380': 5, '3388': 4 });
+  const owned = await POST(postJson(ROUTE, { characterId: 100 }));
+  expect(owned.status).toBe(200);
+  expect(await owned.json()).toEqual({ levels: { '3380': 5, '3388': 4 } });
+  expect(getSkillLevelsForCharacterOnViewMock).toHaveBeenCalledWith('u1', 100);
 });

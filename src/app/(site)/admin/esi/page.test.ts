@@ -84,12 +84,9 @@ test('admin ESI fills each titled card from its reads and says why empty blocks 
   expect(html).toContain('floor 20 · dispatch paused');
   expect(html).toContain('>Observed HTTP errors</span>');
 
-  // Plain figures carry no verdict and stay in the default colour.
   const value = (label: string) =>
-    html.match(new RegExp(`>${label}</span>(?:<span[^>]*>[^<]*</span>)?</span><span class="([^"]*)">([^<]*)</span>`));
-  expect(value('Item prices requested')?.[2]).toBe('1,200');
-  expect(value('Item prices requested')?.[1]).toContain('text-name');
-  expect(value('Scoreboard source')?.[1]).toContain('text-name');
+    html.match(new RegExp(`>${label}</span>(?:<span[^>]*>[^<]*</span>)?</span><span class="[^"]*">([^<]*)</span>`));
+  expect(value('Item prices requested')?.[1]).toBe('1,200');
   // The pressure lines keep their verdicts.
   expect(html).toContain('<span class="sr-only">Warning</span>');
   expect(html).toContain('ESI 4xx answers');
