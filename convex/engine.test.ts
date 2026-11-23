@@ -1220,7 +1220,9 @@ it('sweep: schedules an immediate continuation when a batch fills', async () => 
 
   const first = await t.mutation(internal.engineSweep.sweep, {});
   expect(first.capped).toBe(true);
-  expect(await scheduledFunctionsNamed(t, 'engineSweep')).toHaveLength(1);
+  const continuations = await scheduledFunctionsNamed(t, 'engineSweep');
+  expect(continuations).toHaveLength(1);
+  expect(continuations[0]?.scheduledTime).toBe(now);
 
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const remaining = await t.run((ctx) => ctx.db.query('syncPresence').collect());
