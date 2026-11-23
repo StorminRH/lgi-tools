@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({
   applyMapAccessUpdate: vi.fn(),
@@ -25,121 +25,96 @@ const UPSERT = {
 
 const ROUTE = '/api/maps/access';
 
-beforeEach(() => {
+function resetMocks(): void {
   h.checkUserId.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
   h.applyMapAccessUpdate.mockReset().mockResolvedValue({ ok: true });
+}
+
+test('applies every validated operation through the same authority path', async () => {
+  resetMocks();
+  const principal = { ownerType: 'corporation', ownerId: 99 };
+  const block = { operation: 'block', mapId: MAP_ID, characterId: 42 };
+  for (const body of [
+    UPSERT,
+    { operation: 'revoke', mapId: MAP_ID, principal },
+    block,
+    { ...block, operation: 'unblock' },
+  ]) {
+    expect((await POST(postJson(ROUTE, body))).status).toBe(204);
+    expect(h.applyMapAccessUpdate).toHaveBeenLastCalledWith('user-1', body);
+  }
 });
 
-describe('POST /api/maps/access', () => {
-  it('applies validated upsert and revoke through the same authority path', async () => {
-    expect((await POST(postJson(ROUTE, UPSERT))).status).toBe(204);
-    expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', UPSERT);
-
-    const revoke = {
-      operation: 'revoke',
-      mapId: MAP_ID,
-      principal: { ownerType: 'corporation', ownerId: 99 },
-    };
-    expect((await POST(postJson(ROUTE, revoke))).status).toBe(204);
-    expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', revoke);
+test('rejects unauthenticated and malformed requests, including a non-UUID map id, before the access owner', async () => {
+  resetMocks();
+  h.checkUserId.mockResolvedValueOnce({
+    ok: false,
+    failure: { category: 'unauthenticated', code: 'unauthenticated' },
   });
+  expect((await POST(postJson(ROUTE, UPSERT))).status).toBe(401);
 
-  it('rejects unauthenticated and malformed requests before the access owner', async () => {
-    h.checkUserId.mockResolvedValueOnce({
-      ok: false,
-      failure: { category: 'unauthenticated', code: 'unauthenticated' },
-    });
-    expect((await POST(postJson(ROUTE, UPSERT))).status).toBe(401);
+  for (const body of [
+    { ...UPSERT, grant: { ...UPSERT.grant, ownerId: 0, role: 'owner' } },
+    { operation: 'block', mapId: MAP_ID, characterId: 0 },
+  ]) {
+    expect((await POST(postJson(ROUTE, body))).status).toBe(400);
+  }
 
-    h.checkUserId.mockResolvedValueOnce({ ok: true, userId: 'user-1' });
-    expect(
-      (
-        await POST(
-          postJson(ROUTE, {
-            ...UPSERT,
-            grant: { ...UPSERT.grant, ownerId: 0, role: 'owner' },
-          }),
-        )
-      ).status,
-    ).toBe(400);
-    expect(h.applyMapAccessUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rejects a map id that is not a UUID as an invalid body before it reaches SQL', async () => {
-    const principal = { ownerType: 'character', ownerId: 7 };
-    for (const body of [
-      { ...UPSERT, mapId: 'map-1' },
-      { operation: 'revoke', mapId: 'map-1', principal },
-      { operation: 'block', mapId: ` ${MAP_ID} `, characterId: 42 },
-      { operation: 'unblock', mapId: MAP_ID.slice(0, -1), characterId: 42 },
-    ]) {
-      const response = await POST(postJson(ROUTE, body));
-      expect(response.status).toBe(400);
-      await expect(response.json()).resolves.toMatchObject({
-        code: 'invalid_body',
-        detail: 'mapId: Invalid UUID',
-      });
-    }
-    expect(h.applyMapAccessUpdate).not.toHaveBeenCalled();
-  });
-
-  it('returns the declared denial for a non-admin map caller', async () => {
-    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'forbidden' });
-
-    const response = await POST(postJson(ROUTE, UPSERT));
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({ code: 'map_admin_required' });
-  });
-
-  it('refuses to strip the creator of their last own character', async () => {
-    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'creator-character-required' });
-
-    const response = await POST(postJson(ROUTE, {
-      operation: 'revoke', mapId: MAP_ID, principal: { ownerType: 'character', ownerId: 7 },
-    }));
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({ code: 'map_creator_character_required' });
-  });
-
-  it('surfaces post-commit projection unavailability for an idempotent retry', async () => {
-    h.applyMapAccessUpdate.mockResolvedValueOnce({
-      ok: false,
-      reason: 'projection-unavailable',
-      cause: new Error('offline'),
-    });
-
-    const response = await POST(postJson(ROUTE, UPSERT));
-    expect(response.status).toBe(503);
+  const principal = { ownerType: 'character', ownerId: 7 };
+  for (const body of [
+    { ...UPSERT, mapId: 'map-1' },
+    { operation: 'revoke', mapId: 'map-1', principal },
+    { operation: 'block', mapId: ` ${MAP_ID} `, characterId: 42 },
+    { operation: 'unblock', mapId: MAP_ID.slice(0, -1), characterId: 42 },
+  ]) {
+    const response = await POST(postJson(ROUTE, body));
+    expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
-      code: 'map_projection_unavailable',
+      code: 'invalid_body',
+      detail: 'mapId: Invalid UUID',
     });
-  });
-
-  it('answers block refusals with their codes and messages, and a successful block with 204', async () => {
-    const block = { operation: 'block', mapId: MAP_ID, characterId: 42 };
-    expect((await POST(postJson(ROUTE, block))).status).toBe(204);
-    expect(h.applyMapAccessUpdate).toHaveBeenCalledWith('user-1', block);
-    expect((await POST(postJson(ROUTE, { ...block, operation: 'unblock' }))).status).toBe(204);
-
-    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'block-owner' });
-    let response = await POST(postJson(ROUTE, block));
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({
-      code: 'map_block_owner',
-      detail: 'This character belongs to the map owner.',
-    });
-
-    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'block-self' });
-    response = await POST(postJson(ROUTE, block));
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toMatchObject({
-      code: 'map_block_self',
-      detail: "You can't block your own character.",
-    });
-
-    h.applyMapAccessUpdate.mockResolvedValueOnce({ ok: false, reason: 'forbidden' });
-    expect((await POST(postJson(ROUTE, block))).status).toBe(403);
-    expect((await POST(postJson(ROUTE, { ...block, characterId: 0 }))).status).toBe(400);
-  });
+  }
+  expect(h.applyMapAccessUpdate).not.toHaveBeenCalled();
 });
 
+test('answers each access refusal with its status, code and, for conflicts, the message the user reads', async () => {
+  resetMocks();
+  const block = { operation: 'block', mapId: MAP_ID, characterId: 42 };
+  const revokeOwn = {
+    operation: 'revoke', mapId: MAP_ID, principal: { ownerType: 'character', ownerId: 7 },
+  };
+  const cases = [
+    { result: { ok: false, reason: 'forbidden' }, body: UPSERT, status: 403, problem: { code: 'map_admin_required' } },
+    {
+      result: { ok: false, reason: 'creator-character-required' },
+      body: revokeOwn,
+      status: 409,
+      problem: { code: 'map_creator_character_required' },
+    },
+    {
+      result: { ok: false, reason: 'projection-unavailable', cause: new Error('offline') },
+      body: UPSERT,
+      status: 503,
+      problem: { code: 'map_projection_unavailable' },
+    },
+    {
+      result: { ok: false, reason: 'block-owner' },
+      body: block,
+      status: 409,
+      problem: { code: 'map_block_owner', detail: 'This character belongs to the map owner.' },
+    },
+    {
+      result: { ok: false, reason: 'block-self' },
+      body: block,
+      status: 409,
+      problem: { code: 'map_block_self', detail: "You can't block your own character." },
+    },
+  ];
+
+  for (const { result, body, status, problem } of cases) {
+    h.applyMapAccessUpdate.mockReset().mockResolvedValue(result);
+    const response = await POST(postJson(ROUTE, body));
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toMatchObject(problem);
+  }
+});

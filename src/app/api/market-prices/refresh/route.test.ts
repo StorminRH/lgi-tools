@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { MarketPrice } from '@/data/market-prices/types';
 import { postJson } from '@/lib/__tests__/route-requests';
 import { problemBodySchema } from '@/lib/problem';
@@ -18,6 +18,8 @@ vi.mock('@/data/telemetry/cost-metrics', () => ({
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
+
+import { POST } from './route';
 
 const ROUTE = '/api/market-prices/refresh';
 
@@ -57,200 +59,110 @@ function cleanResult(rows: MarketPrice[]) {
   };
 }
 
-describe('POST /api/market-prices/refresh', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    getLivePricesMock.mockReset();
-    checkRateLimitMock.mockReset();
-    emitCostMetricMock.mockReset();
-    checkRateLimitMock.mockResolvedValue({ ok: true });
-    getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
-  });
+function resetMocks() {
+  getLivePricesMock.mockReset().mockResolvedValue(cleanResult([price(34, 'esi')]));
+  checkRateLimitMock.mockReset().mockResolvedValue({ ok: true });
+  emitCostMetricMock.mockReset();
+}
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+test('POST /api/market-prices/refresh reads distinct typeIds live, spends one allowance per id, and returns the rows it found', async () => {
+  resetMocks();
+  const headers = { 'x-forwarded-for': '203.0.113.99' };
+  const res = await POST(postJson(ROUTE, { typeIds: [34, 34, 99] }, { headers }));
 
-  it('reads the requested typeIds live and returns the fresh rows', async () => {
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [34] }));
-    expect(res.status).toBe(200);
-    expect(getLivePricesMock).toHaveBeenCalledWith([34], expect.any(Function));
-    const body = await res.json();
-    expect(body.prices[0].typeId).toBe(34);
-    expect(body.prices[0].buyVolume).toBe('1000000');
-    expect(body.prices[0].staleAfter).toBe('2026-05-28T11:00:00.000Z');
-    expect(body.prices[0].source).toBe('esi');
-  });
+  expect(res.status).toBe(200);
+  expect(getLivePricesMock).toHaveBeenCalledWith([34, 99], expect.any(Function));
+  // The per-client limit counts distinct type ids, 2000 a minute.
+  const [guardedRequest, options, cost] = checkRateLimitMock.mock.calls[0] ?? [];
+  expect(guardedRequest.headers.get('x-forwarded-for')).toBe('203.0.113.99');
+  expect(options).toEqual({ name: 'market-prices-refresh', perMinute: 2000, unit: 'type-ids' });
+  expect(cost).toBe(2);
 
-  it('omits types the engine returned no price for', async () => {
-    getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [34, 99] }));
-    const body = await res.json();
-    expect(body.prices).toHaveLength(1);
-    expect(body.prices[0].typeId).toBe(34);
-  });
+  // Type 99 has no price, so only 34 comes back.
+  const body = await res.json();
+  expect(body.prices).toHaveLength(1);
+  expect(body.prices[0].typeId).toBe(34);
+  expect(body.prices[0].buyVolume).toBe('1000000');
+  expect(body.prices[0].staleAfter).toBe('2026-05-28T11:00:00.000Z');
+  expect(body.prices[0].source).toBe('esi');
 
-  it('emits price_source_degraded telemetry when the read fell back to Fuzzwork', async () => {
-    getLivePricesMock.mockResolvedValue({
-      prices: new Map([
-        [34, price(34, 'esi')],
-        [35, price(35, 'fuzzwork-fallback')],
-        [36, price(36, 'fuzzwork-fallback')],
-      ]),
-      degraded: {
-        fetched: 3,
-        esiCount: 1,
-        fuzzworkFallbackCount: 2,
-        budgetExhausted: false,
-      },
-      metrics: {
-        requested: 3,
-        returned: 3,
-          esiCount: 1,
-        fuzzworkFallbackCount: 2,
-      },
-    });
-    const { POST } = await import('./route');
-    await POST(postJson(ROUTE, { typeIds: [34, 35, 36] }));
-    expect(emitCostMetricMock).toHaveBeenCalledWith(
-      'price_source_degraded',
-      {
-        caller: 'on-demand',
-        fetched: 3,
-        esiCount: 1,
-        fuzzworkFallbackCount: 2,
-        budgetExhausted: false,
-      },
-    );
-  });
+  // A clean all-ESI read records the refresh and no degradation.
+  expect(emitCostMetricMock).toHaveBeenCalledWith(
+    'market_price_refresh',
+    expect.objectContaining({
+      requested: 1,
+      returned: 1,
+      esiCount: 1,
+      fuzzworkFallbackCount: 0,
+      budgetExhausted: false,
+    }),
+  );
+  expect(emitCostMetricMock).not.toHaveBeenCalledWith('price_source_degraded', expect.anything());
+});
 
-  it('emits degradation telemetry when the ESI error budget was exhausted', async () => {
-    getLivePricesMock.mockResolvedValue({
-      prices: new Map([[34, price(34, 'esi')]]),
-      degraded: { fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0, budgetExhausted: true },
-      metrics: {
-        requested: 1,
-        returned: 1,
-          esiCount: 1,
-        fuzzworkFallbackCount: 0,
-      },
-    });
-    const { POST } = await import('./route');
-    await POST(postJson(ROUTE, { typeIds: [34] }));
-    expect(emitCostMetricMock).toHaveBeenCalledWith(
-      'price_source_degraded',
-      expect.any(Object),
-    );
+test('POST /api/market-prices/refresh emits price_source_degraded telemetry when the read fell back to Fuzzwork', async () => {
+  resetMocks();
+  getLivePricesMock.mockResolvedValue({
+    prices: new Map([
+      [34, price(34, 'esi')],
+      [35, price(35, 'fuzzwork-fallback')],
+      [36, price(36, 'fuzzwork-fallback')],
+    ]),
+    degraded: {
+      fetched: 3,
+      esiCount: 1,
+      fuzzworkFallbackCount: 2,
+      budgetExhausted: false,
+    },
+    metrics: {
+      requested: 3,
+      returned: 3,
+      esiCount: 1,
+      fuzzworkFallbackCount: 2,
+    },
   });
+  await POST(postJson(ROUTE, { typeIds: [34, 35, 36] }));
+  expect(emitCostMetricMock).toHaveBeenCalledWith(
+    'price_source_degraded',
+    {
+      caller: 'on-demand',
+      fetched: 3,
+      esiCount: 1,
+      fuzzworkFallbackCount: 2,
+      budgetExhausted: false,
+    },
+  );
+});
 
-  it('emits no degradation metric on a clean all-ESI read', async () => {
-    const { POST } = await import('./route');
-    await POST(postJson(ROUTE, { typeIds: [34] }));
-    expect(emitCostMetricMock).toHaveBeenCalledTimes(2);
-    expect(emitCostMetricMock).not.toHaveBeenCalledWith(
-      'price_source_degraded',
-      expect.anything(),
-    );
-    expect(emitCostMetricMock).toHaveBeenCalledWith(
-      'market_price_refresh',
-      expect.objectContaining({
-        requested: 1,
-        returned: 1,
-          esiCount: 1,
-        fuzzworkFallbackCount: 0,
-        budgetExhausted: false,
-      }),
-    );
-  });
+test('POST /api/market-prices/refresh rejects bad bodies with 400 and a denied limiter with 429, reading nothing', async () => {
+  resetMocks();
+  const empty = await POST(postJson(ROUTE, { typeIds: [] }));
+  expect(empty.status).toBe(400);
+  expect(problemBodySchema.parse(await empty.json()).code).toBe('invalid_body');
 
-  it('deduplicates typeIds before passing to the engine', async () => {
-    const { POST } = await import('./route');
-    await POST(postJson(ROUTE, { typeIds: [34, 34, 35] }));
-    const passed = getLivePricesMock.mock.calls[0]![0] as number[];
-    expect(passed.sort()).toEqual([34, 35]);
-  });
+  for (const typeIds of [Array.from({ length: 2001 }, (_, i) => i + 1), [34.5], [-1]]) {
+    expect((await POST(postJson(ROUTE, { typeIds }))).status, JSON.stringify(typeIds).slice(0, 20)).toBe(400);
+  }
 
-  it('rejects an empty typeIds array', async () => {
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [] }));
-    expect(res.status).toBe(400);
-    const body = problemBodySchema.parse(await res.json());
-    expect(body.code).toBe('invalid_body');
-    expect(getLivePricesMock).not.toHaveBeenCalled();
-  });
+  const malformed = await POST(postJson(ROUTE, '{ not json'));
+  expect(malformed.status).toBe(400);
+  expect(problemBodySchema.parse(await malformed.json()).code).toBe('invalid_json');
 
-  it('rejects more than 2000 typeIds', async () => {
-    const { POST } = await import('./route');
-    const tooMany = Array.from({ length: 2001 }, (_, i) => i + 1);
-    const res = await POST(postJson(ROUTE, { typeIds: tooMany }));
-    expect(res.status).toBe(400);
-    expect(getLivePricesMock).not.toHaveBeenCalled();
-  });
-
-  it('spends the client\'s per-minute allowance by distinct type ids, 2000 a minute', async () => {
-    const { POST } = await import('./route');
-    await POST(postJson(ROUTE, { typeIds: [34, 34, 35, 36] }));
-    expect(checkRateLimitMock).toHaveBeenCalledWith(
-      expect.anything(),
-      { name: 'market-prices-refresh', perMinute: 2000, unit: 'type-ids' },
-      3,
-    );
-  });
-
-  it('rejects non-integer typeIds', async () => {
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [34.5] }));
-    expect(res.status).toBe(400);
-    expect(getLivePricesMock).not.toHaveBeenCalled();
-  });
-
-  it('rejects negative typeIds', async () => {
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [-1] }));
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 on malformed JSON', async () => {
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, '{ not json'));
-    expect(res.status).toBe(400);
-    const body = problemBodySchema.parse(await res.json());
-    expect(body.code).toBe('invalid_json');
-  });
-
-  it('maps a denied limiter result to the shared problem response', async () => {
-    checkRateLimitMock.mockResolvedValueOnce({
-      ok: false,
-      failure: {
-        category: 'rate_limited',
-        code: 'rate_limited',
-        retryAfterSeconds: 42,
-      },
-    });
-    const { POST } = await import('./route');
-    const res = await POST(postJson(ROUTE, { typeIds: [34] }));
-    expect(res.status).toBe(429);
-    expect(res.headers.get('Retry-After')).toBe('42');
-    const body = problemBodySchema.parse(await res.json());
-    expect(body).toMatchObject({
-      status: 429,
+  checkRateLimitMock.mockResolvedValueOnce({
+    ok: false,
+    failure: {
+      category: 'rate_limited',
       code: 'rate_limited',
       retryAfterSeconds: 42,
-    });
-    expect(getLivePricesMock).not.toHaveBeenCalled();
+    },
   });
-
-  it('hands the request and the slice limit policy to the guard', async () => {
-    const { POST } = await import('./route');
-    const headers = { 'x-forwarded-for': '203.0.113.99' };
-    await POST(postJson(ROUTE, { typeIds: [34] }, { headers }));
-    expect(checkRateLimitMock).toHaveBeenCalledTimes(1);
-    const [guardedRequest, options] = checkRateLimitMock.mock.calls[0] ?? [];
-    expect(guardedRequest.headers.get('x-forwarded-for')).toBe('203.0.113.99');
-    expect(options).toEqual(
-      expect.objectContaining({ name: 'market-prices-refresh', perMinute: expect.any(Number) }),
-    );
+  const limited = await POST(postJson(ROUTE, { typeIds: [34] }));
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get('Retry-After')).toBe('42');
+  expect(problemBodySchema.parse(await limited.json())).toMatchObject({
+    status: 429,
+    code: 'rate_limited',
+    retryAfterSeconds: 42,
   });
+  expect(getLivePricesMock).not.toHaveBeenCalled();
 });

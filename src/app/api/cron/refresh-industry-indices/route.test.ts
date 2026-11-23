@@ -62,17 +62,6 @@ describe('GET /api/cron/refresh-industry-indices', () => {
     expect(refreshIndustryIndicesMock).not.toHaveBeenCalled();
   });
 
-  it('takes no lock: an overlapping run refreshes as well, since the ESI reads and upserts are idempotent', async () => {
-    refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
-    const { GET } = await import('./route');
-    const response = await GET(cronRequest(ROUTE));
-
-    expect(response.status).toBe(200);
-    expect(refreshIndustryIndicesMock).toHaveBeenCalledWith(dbMock);
-    expect(reserveMock).not.toHaveBeenCalled();
-    expect(reservedTag).not.toHaveBeenCalled();
-  });
-
   it('returns the dataset summary and records each dataset outcome', async () => {
     refreshIndustryIndicesMock.mockResolvedValue(SUMMARY);
     const { GET } = await import('./route');

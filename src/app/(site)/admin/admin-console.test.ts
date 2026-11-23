@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { prerender } from 'react-dom/static';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { expect, onTestFinished, test, vi } from 'vitest';
 import { silenceConsolePrefixes } from '@/lib/__tests__/console-tags';
 import { adminSessionFixture } from '@/composition/__tests__/session-fixture';
 import type { BetterAuthSession } from '@/composition/route-guards';
@@ -46,82 +46,77 @@ function renderConsole(): Promise<string> {
   return render(AdminLayout({ children: staticsFrame() }));
 }
 
-describe('admin console gate', () => {
-  beforeEach(() => {
-    mocks.requireAdminPage.mockReset();
-    silenceConsolePrefixes('error', ['[admin] admin-nav-badges section unavailable']);
-  });
-
-  afterEach(() => {
+function gate(session: BetterAuthSession | null) {
+  mocks.requireAdminPage.mockReset();
+  if (session === null) mocks.requireAdminPage.mockRejectedValue(new Error('NEXT_REDIRECT'));
+  else mocks.requireAdminPage.mockResolvedValue(session);
+  silenceConsolePrefixes('error', ['[admin] admin-nav-badges section unavailable']);
+  onTestFinished(() => {
     vi.restoreAllMocks();
   });
+}
 
-  it('renders only a neutral loading label for a non-admin', async () => {
-    mocks.requireAdminPage.mockRejectedValue(new Error('NEXT_REDIRECT'));
+test('renders only a neutral loading label for a non-admin, with or without the layout', async () => {
+  gate(null);
 
-    const markup = await renderConsole();
+  const markup = await renderConsole();
 
-    expect(markup).toContain('Loading…');
-    for (const adminText of [
-      'Admin sections',
-      'data-admin-layout',
-      'data-admin-nav-item',
-      '>Admin</h1>',
-      'Overview',
-      'Wormhole statics',
-      'Check feed now',
-      'Serving copy',
-      'Pending feed v42',
-    ]) {
-      expect(markup).not.toContain(adminText);
-    }
-  });
+  expect(markup).toContain('Loading…');
+  for (const adminText of [
+    'Admin sections',
+    'data-admin-layout',
+    'data-admin-nav-item',
+    '>Admin</h1>',
+    'Overview',
+    'Wormhole statics',
+    'Check feed now',
+    'Serving copy',
+    'Pending feed v42',
+  ]) {
+    expect(markup).not.toContain(adminText);
+  }
 
-  it('keeps a page segment neutral for a non-admin without the layout', async () => {
-    mocks.requireAdminPage.mockRejectedValue(new Error('NEXT_REDIRECT'));
+  const segment = await render(staticsFrame());
 
-    const markup = await render(staticsFrame());
+  expect(segment).toContain('Loading…');
+  for (const adminText of ['Wormhole statics', 'Check feed now', 'Serving copy', 'Pending feed v42']) {
+    expect(segment).not.toContain(adminText);
+  }
+});
 
-    expect(markup).toContain('Loading…');
-    for (const adminText of ['Wormhole statics', 'Check feed now', 'Serving copy', 'Pending feed v42']) {
-      expect(markup).not.toContain(adminText);
-    }
-  });
+test('renders the console chrome and page for an admin', async () => {
+  gate(adminSessionFixture({ user: { id: 'admin-1' } }));
 
-  it('renders the console chrome and page for an admin', async () => {
-    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
+  const markup = await renderConsole();
 
-    const markup = await renderConsole();
+  for (const adminText of [
+    'Admin sections',
+    'data-admin-layout',
+    '>Admin</h1>',
+    'Overview',
+    'Wormhole statics',
+    'Check feed now',
+    'Pending feed v42',
+  ]) {
+    expect(markup).toContain(adminText);
+  }
+  // Statics reads no range, so its head offers none.
+  expect(markup).not.toContain('Reporting range');
+});
 
-    for (const adminText of [
-      'Admin sections',
-      'data-admin-layout',
-      '>Admin</h1>',
-      'Overview',
-      'Wormhole statics',
-      'Check feed now',
-      'Pending feed v42',
-    ]) {
-      expect(markup).toContain(adminText);
-    }
-    // Statics reads no range, so its head offers none.
-    expect(markup).not.toContain('Reporting range');
-  });
+test('heads a ranged section with its title and a range control linked to its own page', async () => {
+  gate(adminSessionFixture({ user: { id: 'admin-1' } }));
 
-  it('heads a ranged section with its title and a range control linked to its own page', async () => {
-    mocks.requireAdminPage.mockResolvedValue(adminSessionFixture({ user: { id: 'admin-1' } }));
+  const ranged = await render(
+    AdminPageFrame({ section: 'traffic', fallbackLabel: 'Activity', children: createElement('p', null, 'Body') }),
+  );
+  expect(ranged).toContain('>Traffic</h2>');
+  expect(ranged).toContain('Reporting range');
+  expect(ranged).toContain('href="/admin/traffic?range=7d"');
 
-    const ranged = await render(
-      AdminPageFrame({ section: 'traffic', fallbackLabel: 'Activity', children: createElement('p', null, 'Body') }),
-    );
-    expect(ranged).toContain('>Traffic</h2>');
-    expect(ranged).toContain('Reporting range');
-    expect(ranged).toContain('href="/admin/traffic?range=7d"');
-
-    const named = await render(
-      AdminPageFrame({ title: 'User', fallbackLabel: 'Account', children: createElement('p', null, 'Body') }),
-    );
-    expect(named).toContain('>User</h2>');
-    expect(named).not.toContain('Reporting range');
-  });
+  const named = await render(
+    AdminPageFrame({ title: 'User', fallbackLabel: 'Account', children: createElement('p', null, 'Body') }),
+  );
+  expect(named).toContain('>User</h2>');
+  expect(named).not.toContain('Reporting range');
 });

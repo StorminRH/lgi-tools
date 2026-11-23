@@ -44,6 +44,7 @@ vi.mock('next/server', async (importOriginal) => ({
 }));
 
 import { postForm } from '@/lib/__tests__/route-requests';
+import { identityProjectionRunners } from '@/composition/map-access-identity';
 import { POST } from './route';
 
 const ROUTE = '/api/admin/characters/unlink';
@@ -102,13 +103,7 @@ describe('POST /api/admin/characters/unlink', () => {
     expect(deleteLinkedCharacterMock).toHaveBeenCalledWith(
       'eve-user-2',
       100,
-      expect.objectContaining({
-        runBeforeUserDelete: expect.any(Function),
-        runBeforeCharacterUnlink: expect.any(Function),
-        runAfterFailedCharacterUnlink: expect.any(Function),
-        runAfterCharacterUnlink: expect.any(Function),
-        runAfterCharacterLinkChanged: expect.any(Function),
-      }),
+      identityProjectionRunners,
     );
     expect(emitUsageEventMock).toHaveBeenCalledExactlyOnceWith('admin/characters/unlink', {
       action: 'admin_character_unlink',
