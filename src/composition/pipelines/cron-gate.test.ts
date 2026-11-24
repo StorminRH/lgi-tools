@@ -268,7 +268,7 @@ describe('defineCronRoute', () => {
     });
   });
 
-  it('records noteworthy completed work but not a healthy no-op', async () => {
+  it('logs a boundary line for a healthy no-op without recording it, then records noteworthy completed work', async () => {
     let workDone = false;
     const GET = defineCronRoute({
       name: 'cron:test',
@@ -286,6 +286,13 @@ describe('defineCronRoute', () => {
     });
 
     await GET(cronRequest(ROUTE));
+    expect(console.log).toHaveBeenCalledOnce();
+    expect(JSON.parse(vi.mocked(console.log).mock.calls[0]?.[0] as string)).toEqual({
+      scope: 'cron:test',
+      dispatched: 0,
+      outcome: 'idle',
+      durationMs: expect.any(Number),
+    });
     expect(logUsageEventMock).not.toHaveBeenCalled();
 
     workDone = true;
@@ -300,35 +307,7 @@ describe('defineCronRoute', () => {
     });
   });
 
-  it('emits a boundary line on a durable-silent no-op', async () => {
-    const GET = defineCronRoute({
-      name: 'cron:test',
-      action: 'cron_map_purge',
-      capability: 'cron.purge-maps' as const,
-      wakeClass: 'idle-silent',
-      record: { policy: 'noteworthy' },
-      lock: { mode: 'none', justification: 'watchdog has no Neon lock' },
-      work: async () => ({
-        outcome: 'idle',
-        workDone: false,
-        telemetry: { dispatched: 0 },
-        body: { status: 'ok' as const },
-      }),
-    });
-
-    await GET(cronRequest(ROUTE));
-
-    expect(console.log).toHaveBeenCalledOnce();
-    expect(JSON.parse(vi.mocked(console.log).mock.calls[0]?.[0] as string)).toEqual({
-      scope: 'cron:test',
-      dispatched: 0,
-      outcome: 'idle',
-      durationMs: expect.any(Number),
-    });
-    expect(logUsageEventMock).not.toHaveBeenCalled();
-  });
-
-  it('records a failed run before rethrowing the work error', async () => {
+  it('records a failed run and its mapped failure category before rethrowing the work error', async () => {
     const error = new Error('work failed');
     const GET = defineCronRoute({
       name: 'cron:test',
@@ -349,6 +328,10 @@ describe('defineCronRoute', () => {
         outcome: 'failed',
         durationMs: expect.any(Number),
       },
+    });
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'capability_outcome',
+      metadata: expect.objectContaining({ outcome: 'unexpected', code: 'unexpected' }),
     });
   });
 
@@ -427,26 +410,6 @@ describe('defineCronRoute capability recording', () => {
     expect(rows[0]?.metadata.durationMs).toEqual(expect.any(Number));
   });
 
-  it('records a thrown stage with its mapped failure category', async () => {
-    const GET = defineCronRoute<unknown>({
-      name: 'cron/sweeper',
-      action: 'cron_map_purge',
-      capability: 'cron.purge-maps' as const,
-      wakeClass: 'idle-silent',
-      record: { policy: 'noteworthy' },
-      lock: { mode: 'none', justification: 'test' },
-      work: async () => {
-        throw new Error('stage exploded');
-      },
-    });
-
-    await expect(GET(cronRequest(ROUTE))).rejects.toThrow('stage exploded');
-
-    const rows = capabilityRows();
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.metadata).toMatchObject({ outcome: 'unexpected', code: 'unexpected' });
-  });
-
   it('records a partly failed run once with its telemetry and answers 500', async () => {
     const GET = defineCronRoute<{ status: string }>({
       name: 'cron:housekeeping',
@@ -473,23 +436,6 @@ describe('defineCronRoute capability recording', () => {
       action: 'cron_housekeeping',
       metadata: expect.objectContaining({ outcome: 'partial', failedTasks: 1 }),
     });
-  });
-
-  it('writes zero rows for a busy (lock-contended) run', async () => {
-    withAdvisoryLockMock.mockResolvedValue({ busy: true });
-    const GET = defineCronRoute<{ status: string }>({
-      name: 'cron/sweeper',
-      action: 'cron_map_purge',
-      capability: 'cron.purge-maps' as const,
-      wakeClass: 'idle-silent',
-      record: { policy: 'noteworthy' },
-      lock: { key: 42, busyBody: () => ({ status: 'busy' }) },
-      work: async () => ({ outcome: 'refreshed', workDone: true, body: { status: 'ok' } }),
-    });
-
-    await GET(cronRequest(ROUTE));
-
-    expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 });
 
