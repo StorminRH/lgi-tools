@@ -69,22 +69,21 @@ test('renders visible pilots while syncing every eligible pilot, including hidde
   expect(render()).toContain('Pilot Two');
 });
 
-test('a reconnect notice and settings link replace the reconnect pilot’s loading skeleton', () => {
+test('eligible pilots show loading skeletons until their first sync, while a reconnect pilot shows its notice instead', () => {
   live({ loading: true });
-  h.dimmed = [1, 2];
-  const html = render(true);
-  expect(html).toContain('missing the industry scope');
-  expect(html).toContain('href="/settings/characters"');
-  expect(html).toContain('Nothing synced for this character.');
-  expect(html).not.toContain('aria-label="Loading jobs"');
-});
+  h.dimmed = [2];
+  const loading = render(true);
+  expect(loading).toContain('missing the industry scope');
+  expect(loading).toContain('href="/settings/characters"');
+  expect(loading).toContain('Nothing synced for this character.');
+  // Pilot One's card is the only skeleton: the reconnect pilot never waits on a sync.
+  expect(loading.split('aria-label="Loading jobs"')).toHaveLength(2);
+  expect(loading).not.toContain('Awaiting first sync.');
 
-test('eligible pilots show loading skeletons until their first sync', () => {
-  live({ loading: true });
-  expect(render()).toContain('aria-label="Loading jobs"');
-  expect(render()).not.toContain('Awaiting first sync.');
   live();
-  expect(render()).toContain('Awaiting first sync.');
+  const synced = render(true);
+  expect(synced).not.toContain('aria-label="Loading jobs"');
+  expect(synced).toContain('Awaiting first sync.');
 });
 
 test('live jobs and empty boards use the right pilot, names, progress and sync time', () => {

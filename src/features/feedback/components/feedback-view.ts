@@ -8,7 +8,7 @@ export type SubmitState =
   | { kind: 'success' }
   | { kind: 'error'; message: string; field?: 'title' | 'message' };
 
-export const FEEDBACK_NETWORK_ERROR_MESSAGE =
+const FEEDBACK_NETWORK_ERROR_MESSAGE =
   "Couldn't send your feedback. Check your connection and try again.";
 
 export function feedbackSubmitGate(
