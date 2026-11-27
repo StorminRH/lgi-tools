@@ -239,7 +239,7 @@ test('with no profile the build is baseline, wherever it last priced', () => {
   expect(fresh.setLocation).not.toHaveBeenCalled();
 });
 
-test('a profile prices the product where its facility stands, moving the build there', () => {
+test('a profile prices the product where its facility stands: it moves the build, only swaps the structure in the same system, or prices baseline with no system', () => {
   h.profiles = [CAPS];
   h.plan = planAt(facility({ kind: 'station', id: '60003760', name: 'Jita IV - Moon 4', structure: null, systemId: 30002537 }));
   const w = writers(30004759);
@@ -252,6 +252,22 @@ test('a profile prices the product where its facility stands, moving the build t
     { systemId: 30002537, systemName: 'Amamake', security: 0.4 },
     { persist: false, signal: expect.any(AbortSignal) },
   );
+
+  // A structure in the system already in use only swaps the structure.
+  h.plan = planAt(facility({}));
+  const same = writers(30004759);
+  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), same).locationPending).toBe(false);
+  expect(same.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
+  expect(same.applyBuildSystem).not.toHaveBeenCalled();
+  expect(same.setLocation).not.toHaveBeenCalled();
+
+  // A facility with no known system keeps its structure but prices at baseline.
+  h.plan = planAt(facility({ systemId: null }));
+  const unplaced = writers(30002537);
+  useProfileFactors(built(MANUFACTURING_ACTIVITY), unplaced);
+  expect(unplaced.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
+  expect(unplaced.setLocation).toHaveBeenCalledWith(null);
+  expect(unplaced.applyBuildSystem).not.toHaveBeenCalled();
 });
 
 test("only a failed read of the product's own system marks the build location failed", () => {
@@ -260,16 +276,6 @@ test("only a failed read of the product's own system marks the build location fa
   // Another system's failed read, such as the reaction system's, is not the build's.
   expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30004759)).locationFailed).toBe(false);
   expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), writers(null, 30002537)).locationFailed).toBe(true);
-});
-
-test('a structure in the system already in use only swaps the structure', () => {
-  h.profiles = [CAPS];
-  h.plan = planAt(facility({}));
-  const w = writers(30004759);
-  expect(useProfileFactors(built(MANUFACTURING_ACTIVITY), w).locationPending).toBe(false);
-  expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
-  expect(w.applyBuildSystem).not.toHaveBeenCalled();
-  expect(w.setLocation).not.toHaveBeenCalled();
 });
 
 test('a reaction runs at the facility the profile gives reactions', () => {
@@ -288,16 +294,6 @@ test('a reaction runs at the facility the profile gives reactions', () => {
   useProfileFactors(built(REACTION_ACTIVITY), none);
   expect(none.setReactionSystem).toHaveBeenCalledWith(null);
   expect(none.setReactionStructure).toHaveBeenCalledWith(null);
-});
-
-test('a facility with no known system keeps its structure but prices at baseline', () => {
-  h.profiles = [CAPS];
-  h.plan = planAt(facility({ systemId: null }));
-  const w = writers(30002537);
-  useProfileFactors(built(MANUFACTURING_ACTIVITY), w);
-  expect(w.setSelectedStructure).toHaveBeenCalledWith(SOTIYO);
-  expect(w.setLocation).toHaveBeenCalledWith(null);
-  expect(w.applyBuildSystem).not.toHaveBeenCalled();
 });
 
 test('team skills plan per character once the live read lands, and none before', () => {
