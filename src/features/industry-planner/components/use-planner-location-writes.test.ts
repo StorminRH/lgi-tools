@@ -142,8 +142,7 @@ test('a profile with no reaction system disables the read and cannot fetch fees'
   expect(h.apiFetch).not.toHaveBeenCalled();
 });
 
-
-test('component Retry reuses a valid current reaction snapshot without clearing root fees', () => {
+test('component Retry reuses a valid current reaction snapshot without clearing root fees; one from another system or blueprint reads again', () => {
   const snapshot = { systemId: SYSTEM.systemId, blueprintTypeId: 100, costIndex: 0.06 };
   let state = renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, snapshot);
   expect(state.reaction.enabled).toBe(false);
@@ -154,12 +153,9 @@ test('component Retry reuses a valid current reaction snapshot without clearing 
   expect(state.reaction.enabled).toBe(false);
   expect(setReactionLocation).not.toHaveBeenCalled();
   expect(h.apiFetch).not.toHaveBeenCalled();
-});
 
-test.each([
-  { systemId: 30000142, blueprintTypeId: 100 },
-  { systemId: SYSTEM.systemId, blueprintTypeId: 101 },
-])('a snapshot from another system or blueprint still reads the current reaction fees: %j', (key) => {
-  const state = renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...key, costIndex: 0.06 });
-  expect(state.reaction.enabled).toBe(true);
+  rt.unmount();
+  expect(renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...snapshot, systemId: 30000142 }).reaction.enabled).toBe(true);
+  rt.unmount();
+  expect(renderWrites(REACTION_ACTIVITY, SYSTEM.systemId, { ...snapshot, blueprintTypeId: 101 }).reaction.enabled).toBe(true);
 });

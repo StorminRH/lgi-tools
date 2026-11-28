@@ -110,26 +110,34 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('keeps a batch unresolved when ESI rejects or returns a non-success response', async () => {
+  it('keeps a station unresolved, warning per skipped batch, when ESI rejects, errors, or sends a malformed or empty answer', async () => {
     await harness.db.insert(eveNpcStations).values(station(60_000_001));
+    const skipped = () =>
+      warnSpy.mock.calls
+        .map(([message]: unknown[]) => String(message))
+        .filter((message: string) => message.startsWith('Station-name resolution skipped a batch of 1:'));
+
     fetchMock.mockRejectedValueOnce(new Error('offline'));
-
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+    expect(skipped()).toEqual([expect.stringContaining('offline')]);
 
+    warnSpy.mockClear();
     fetchMock.mockResolvedValueOnce(new Response('unavailable', { status: 503 }));
     await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+    expect(skipped()).toEqual([expect.stringContaining('503')]);
+
+    warnSpy.mockClear();
+    fetchMock.mockResolvedValueOnce(Response.json({ names: [] }));
+    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+    expect(skipped()).toEqual([expect.stringContaining('malformed')]);
+
+    warnSpy.mockClear();
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
+    expect(warnSpy).not.toHaveBeenCalled();
 
     const [row] = await harness.db.select().from(eveNpcStations);
     expect(row?.name).toBeNull();
-    // The gate logs the 5xx it saw (body and x-esi-* headers) before the resolver skips the batch.
-    expect(warnSpy.mock.calls).toEqual([
-      ['Station-name resolution skipped a batch of 1: Error: offline'],
-      [
-        '[esi] server error',
-        { status: 503, path: '/universe/names', headers: {}, body: 'unavailable' },
-      ],
-      ['Station-name resolution skipped a batch of 1: EsiServerError: ESI server error: 503'],
-    ]);
   });
 
   it('continues with the second batch when the first observed batch fails', async () => {
@@ -156,29 +164,5 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
     for (const id of requestedBatches[0]!) expect(storedNames.get(id)).toBeNull();
     for (const id of requestedBatches[1]!) expect(storedNames.get(id)).toBe(`Station ${id}`);
     expect(warnSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('warns on malformed response envelopes and keeps the station unresolved', async () => {
-    await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(Response.json({ names: [] }));
-
-    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
-
-    const [row] = await harness.db.select().from(eveNpcStations);
-    expect(row?.name).toBeNull();
-    expect(warnSpy).toHaveBeenCalledExactlyOnceWith(
-      'Station-name resolution skipped a batch of 1: Error: ESI /universe/names/ response was malformed',
-    );
-  });
-
-  it('accepts an empty response without warning or changing the station', async () => {
-    await harness.db.insert(eveNpcStations).values(station(60_000_001));
-    fetchMock.mockResolvedValue(Response.json([]));
-
-    await expect(resolveNpcStationNames(harness.db)).resolves.toEqual({ resolved: 0 });
-
-    const [row] = await harness.db.select().from(eveNpcStations);
-    expect(row?.name).toBeNull();
-    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

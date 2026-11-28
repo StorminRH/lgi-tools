@@ -113,16 +113,6 @@ describe('runHousekeeping', () => {
     expect(h.reconcileTrackingMerges).toHaveBeenCalledExactlyOnceWith({ deadline: expect.any(Number) });
   });
 
-  it('runs one bounded legacy-map scoping batch and marks a kept map partial', async () => {
-    h.scopeLegacyMaps.mockResolvedValueOnce({ succeeded: 2, failed: 1, deferred: 0 });
-    const summary = await runHousekeeping(NOW);
-    expect(h.scopeLegacyMaps).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
-    expect(summary.retries).toContainEqual({
-      task: 'character_scoping', succeeded: 2, failed: 1, deferred: 0, error: null,
-    });
-    expect(summary.status).toBe('partial');
-  });
-
   it('cleans merge receipts after tracking retries and records failures through housekeeping', async () => {
     h.reconcileTrackingMerges.mockImplementationOnce(async () => {
       h.order.push('tracking_merges');
@@ -182,6 +172,16 @@ describe('runHousekeeping', () => {
     const errorSpy = silenceConsolePrefixes('error', ['[housekeeping]']);
     h.retryRequestedDeletions.mockResolvedValueOnce({ succeeded: 0, failed: 1, deferred: 0 });
     await expect(runHousekeeping(NOW)).resolves.toMatchObject({ status: 'partial' });
+
+    // One bounded legacy-map scoping batch; a map it kept for retry marks the run partial.
+    h.scopeLegacyMaps.mockReset().mockResolvedValueOnce({ succeeded: 2, failed: 1, deferred: 0 });
+    const scoping = await runHousekeeping(NOW);
+    expect(h.scopeLegacyMaps).toHaveBeenCalledExactlyOnceWith(expect.any(Number));
+    expect(scoping.retries).toContainEqual({
+      task: 'character_scoping', succeeded: 2, failed: 1, deferred: 0, error: null,
+    });
+    expect(scoping.status).toBe('partial');
+    h.scopeLegacyMaps.mockResolvedValue({ succeeded: 0, failed: 0, deferred: 0 });
 
     h.reconcileTrackingMerges.mockRejectedValueOnce(new Error('direct endpoint unavailable'));
     const summary = await runHousekeeping(NOW);

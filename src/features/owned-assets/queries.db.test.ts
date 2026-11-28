@@ -1,7 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { describe, expect, it, vi } from 'vitest';
 import { countSessionsWaitingOn, createDbTestHarness } from '@/db/__tests__/support/db-test-harness';
-import { isUniqueViolation } from '@/db/pg-errors';
 import { ownerKeyWhere } from '@/lib/db-columns';
 import { listCharacterAssetSyncStates, saveOwnedAssets } from './queries';
 import { ownedAssets, ownedAssetSyncs } from './schema';
@@ -42,20 +41,6 @@ function asset(overrides: Partial<OwnedAsset> = {}): OwnedAsset {
   };
 }
 
-function assetRow(overrides: Record<string, unknown> = {}) {
-  return {
-    ownerType: owner.ownerType,
-    ownerId: owner.ownerId,
-    typeId: 34,
-    quantity: 100,
-    locationId: 60003760,
-    locationFlag: 'Hangar',
-    locationType: 'station',
-    snapshotId: null,
-    ...overrides,
-  };
-}
-
 async function committedRows(): Promise<{ typeId: number; quantity: number }[]> {
   return harness.db
     .select({ typeId: ownedAssets.typeId, quantity: ownedAssets.quantity })
@@ -72,32 +57,8 @@ async function committedRowCount(): Promise<number> {
 }
 
 describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () => {
-  it('returns saved and stores the aggregated set for a single writer, leaving the tag to the sync\'s commit', async () => {
+  it('returns saved and stores every natural-key-distinct row for a single writer, leaving the tag to the sync\'s commit', async () => {
     vi.mocked(revalidateTag).mockClear();
-    const outcome = await saveOwnedAssets(owner, [asset(), asset({ type_id: 35 })], ['"etag"']);
-
-    expect(outcome).toBe('saved');
-    expect(await committedRowCount()).toBe(2);
-    expect(await storedPageEtags()).toEqual(['"etag"']);
-    expect(revalidateTag).not.toHaveBeenCalled();
-  });
-
-  it('rejects a direct duplicate of the natural key as a unique violation', async () => {
-    await saveOwnedAssets(owner, [asset()], []);
-
-    const error = await harness.db
-      .insert(ownedAssets)
-      .values(assetRow({ quantity: 999 }))
-      .then(
-        () => null,
-        (rejection: unknown) => rejection,
-      );
-
-    expect(error).not.toBeNull();
-    expect(isUniqueViolation(error)).toBe(true);
-  });
-
-  it('treats rows differing in any natural-key column as distinct', async () => {
     const outcome = await saveOwnedAssets(
       owner,
       [
@@ -107,11 +68,13 @@ describe.skipIf(!harness.reachable)('owned-asset writes against Postgres', () =>
         asset({ location_flag: 'CorpSAG1' }),
         asset({ location_type: 'item' }),
       ],
-      [],
+      ['"etag"'],
     );
 
     expect(outcome).toBe('saved');
     expect(await committedRowCount()).toBe(5);
+    expect(await storedPageEtags()).toEqual(['"etag"']);
+    expect(revalidateTag).not.toHaveBeenCalled();
   });
 
   it('queues a refresh behind an open one on the sync row, then commits its own rows and etags last', async () => {

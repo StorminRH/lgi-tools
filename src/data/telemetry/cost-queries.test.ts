@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe('cost query result shaping', () => {
-  it('normalizes the price and history source totals', async () => {
+  it('normalizes the price and history source totals, and returns zero totals for an empty window', async () => {
     state.results = [
       [{ esiCount: '7', fuzzworkFallbackCount: '1', requested: '12', returned: '10' }],
       [{ freshEsi: '3', warmStored: '8', staleStored: '2', missing: '1' }],
@@ -42,9 +42,7 @@ describe('cost query result shaping', () => {
       staleStored: 2,
       missing: 1,
     });
-  });
 
-  it('returns zero totals for empty source windows', async () => {
     state.results = [[], []];
     await expect(getPriceSourceSplit(RANGE)).resolves.toEqual({
       esiCount: 0,

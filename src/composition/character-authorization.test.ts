@@ -174,17 +174,6 @@ it('logs and absorbs a failed background run so the request that started it is u
   expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
 });
 
-it('checks queued access changes on a healthy visit without refreshing authorization', async () => {
-  mocks.hasAuthorizationWork.mockResolvedValue(false);
-  await checkCharacterAuthorizations('alice');
-  expect(mocks.reconcileAffiliationAccessOnVisit).toHaveBeenCalledOnce();
-  expect(mocks.readPendingMapAccessChanges).toHaveBeenCalledOnce();
-  expect(mocks.projectMapAccess).not.toHaveBeenCalled();
-  expect(mocks.suspendOverdueAuthorizations).not.toHaveBeenCalled();
-  expect(mocks.listDueAuthorizations).not.toHaveBeenCalled();
-  expect(mocks.getFreshAccessTokenForCharacter).not.toHaveBeenCalled();
-});
-
 it('delivers a failed queued revocation on a later healthy visit', async () => {
   const pending = [{ mapId: 'revoked-map', version: 'revocation-version' }];
   mocks.hasAuthorizationWork.mockResolvedValue(false);

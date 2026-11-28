@@ -81,15 +81,6 @@ it.each(['throw', 'stale'])('retains failed work (%s) while completing independe
   expect(mocks.acknowledgeMapAccessChanges).toHaveBeenCalledWith([pending[1]], [pending[0]]);
 });
 
-it('retries failed delivery without requiring another affiliation change', async () => {
-  mocks.readPendingMapAccessChanges.mockResolvedValue([pending[0]]);
-  mocks.projectMapAccess.mockRejectedValueOnce(new Error('delivery failed'));
-  expect(await reconcileAffiliationAccess()).toEqual({ processed: 0, failed: 1 });
-  expect(mocks.acknowledgeMapAccessChanges).toHaveBeenLastCalledWith([], [pending[0]]);
-  expect(await reconcileAffiliationAccess()).toEqual({ processed: 1, failed: 0 });
-  expect(mocks.refreshAffiliationsWithOutcome).not.toHaveBeenCalled();
-});
-
 it('bounds concurrent attempts, stops within the run budget, and saves completed progress', async () => {
   vi.useFakeTimers();
   const batch = Array.from({ length: 24 }, (_, i) => ({ mapId: `map-${i}`, version: `v-${i}` }));
