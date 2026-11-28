@@ -10,44 +10,30 @@ import { deferWork, setWorkDeferrer } from '@/lib/deferred-work';
 afterEach(() => {
   setWorkDeferrer(null);
   afterMock.mockReset();
+  vi.unstubAllEnvs();
 });
 
 test('pins leftover runtime exports on the test graph', () => {
   expect([registerNeonColdStartTelemetry, registerAfterResponseWork, register]).not.toContain(undefined);
 });
 
-test('defers work through after() inside a request scope', async () => {
-  registerAfterResponseWork();
-  const task = vi.fn(async () => {});
+test('register installs a deferrer that hands work to after() in a request and runs it now outside one', async () => {
+  vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+  await register();
+  const deferred = vi.fn(async () => {});
 
-  await deferWork(task);
+  await deferWork(deferred);
 
-  expect(afterMock).toHaveBeenCalledWith(task);
-  expect(task).not.toHaveBeenCalled();
-});
+  expect(afterMock).toHaveBeenCalledWith(deferred);
+  expect(deferred).not.toHaveBeenCalled();
 
-test('runs work now when after() refuses because there is no request scope', async () => {
+  afterMock.mockReset();
   afterMock.mockImplementation(() => {
     throw new Error('`after` was called outside a request scope.');
   });
-  registerAfterResponseWork();
-  const task = vi.fn(async () => {});
+  const immediate = vi.fn(async () => {});
 
-  await deferWork(task);
+  await deferWork(immediate);
 
-  expect(task).toHaveBeenCalledOnce();
-});
-
-test('register installs the after-response deferrer on the Node runtime', async () => {
-  vi.stubEnv('NEXT_RUNTIME', 'nodejs');
-  try {
-    await register();
-    const task = vi.fn(async () => {});
-
-    await deferWork(task);
-
-    expect(afterMock).toHaveBeenCalledWith(task);
-  } finally {
-    vi.unstubAllEnvs();
-  }
+  expect(immediate).toHaveBeenCalledOnce();
 });

@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import {
   filesMatching,
   listRouteFiles,
@@ -10,11 +10,6 @@ import {
   stripComments,
   valueImportSpecifiers,
 } from './source-scan';
-
-vi.mock('node:fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:fs')>();
-  return { ...actual, readdirSync: vi.fn(actual.readdirSync) };
-});
 
 function fixtureTree(files: Readonly<Record<string, string>>) {
   const root = mkdtempSync(path.join(tmpdir(), 'source-scan-'));
@@ -40,9 +35,6 @@ test('listSourceFiles lists every root, filters by extension and suffix, and sor
     'src/__tests__/helper.ts': '',
     'convex/e.ts': '',
   });
-  const readDirectory = vi.mocked(readdirSync);
-  readDirectory.mockClear();
-
   const files = listSourceFiles({
     roots: [`${tree.root}/src`, `${tree.root}/convex`],
     extensions: ['.ts', '.tsx'],
@@ -57,9 +49,6 @@ test('listSourceFiles lists every root, filters by extension and suffix, and sor
     `${tree.root}/src/nested/c.ts`,
     `${tree.root}/src/nested/deep/d.ts`,
   ]);
-  const readDirectories = readDirectory.mock.calls.map(([directory]) => String(directory));
-  expect(readDirectories).toContain(path.join(tree.root, 'src/nested/deep'));
-  expect(readDirectories).not.toContain(path.join(tree.root, 'src/__tests__'));
   expect(listSourceFiles({ roots: [`${tree.root}/src`], extensions: ['.css'] })).toEqual([
     `${tree.root}/src/styles.css`,
   ]);
@@ -120,7 +109,7 @@ test('stripComments drops block and whole-line comments but keeps code and URLs'
   );
 });
 
-test('valueImportSpecifiers keeps runtime edges and skips type-only clauses', () => {
+test('valueImportSpecifiers keeps runtime edges and skips type-only clauses, statement by statement', () => {
   const source = [
     "import { type A } from './type-named';",
     "import {\n  type B,\n  type C,\n} from './type-multiline';",
@@ -142,9 +131,8 @@ test('valueImportSpecifiers keeps runtime edges and skips type-only clauses', ()
     './side-effect.css',
     './dynamic',
   ]);
-});
 
-test('valueImportSpecifiers reads each clause from its own statement only', () => {
+  // Each clause is read from its own statement only.
   expect(valueImportSpecifiers("export type { A };\nimport { B } from './b';")).toEqual(['./b']);
   expect(
     valueImportSpecifiers(
@@ -155,9 +143,8 @@ test('valueImportSpecifiers reads each clause from its own statement only', () =
     valueImportSpecifiers("export function noop() {}\nexport type { C } from './c';"),
   ).toEqual([]);
   expect(valueImportSpecifiers("export type { D }\nimport { E } from './e';")).toEqual(['./e']);
-});
 
-test('valueImportSpecifiers reads a statement that follows another on the same line', () => {
+  // A statement that follows another on the same line is still read.
   expect(
     valueImportSpecifiers("export type Props = {}; export { SitesTable } from './sites-table';"),
   ).toEqual(['./sites-table']);

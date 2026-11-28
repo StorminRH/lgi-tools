@@ -98,75 +98,25 @@ test('projects one node per reconciled system, relabels in place, and drops a de
   expect(dropped.map((node) => node.id)).toEqual([String(JITA)]);
 });
 
-test('projects one edge per visible connection', () => {
-  const state = stateOf(
-    chainSnapshot([JITA, AMARR], [
-      { connectionId: 'c1', fromSystemId: JITA, toSystemId: AMARR },
-    ]),
-  );
-
-  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]))).toEqual([
-    {
-      id: 'c1',
-      source: String(JITA),
-      target: String(AMARR),
-      data: { loop: false, tombstoneState: 'active' },
-    },
-  ]);
-});
-
-test('hides a dying corpse when a live line already spans the same pair', () => {
+test('draws a dying tie until it purges, hides it behind a live line on the same pair, and keeps skeleton ties off the canvas', () => {
   const now = 1_700_000_000_000;
+  const parents = new Map([[AMARR, JITA]]);
+  const dying = {
+    connectionId: 'dying',
+    fromSystemId: JITA,
+    toSystemId: AMARR,
+    deletedAt: now - 1,
+    purgeAfter: now + 1,
+  };
   const state = stateOf(
     chainSnapshot([JITA, AMARR], [
-      {
-        connectionId: 'live',
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-      },
-      {
-        connectionId: 'dying',
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        deletedAt: now - 1,
-        purgeAfter: now + 1,
-      },
-    ]),
-  );
-
-  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
-    {
-      id: 'live',
-      source: String(JITA),
-      target: String(AMARR),
-      data: { loop: false, tombstoneState: 'active' },
-    },
-  ]);
-});
-
-test('renders dying ties but keeps skeleton ties out of the canvas', () => {
-  const now = 1_700_000_000_000;
-  const state = stateOf(
-    chainSnapshot([JITA, AMARR], [
-      {
-        connectionId: 'dying',
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        deletedAt: now - 1,
-        purgeAfter: now + 1,
-      },
-      {
-        connectionId: 'skeleton',
-        fromSystemId: JITA,
-        toSystemId: AMARR,
-        deletedAt: now - 2,
-        purgeAfter: null,
-      },
+      dying,
+      { connectionId: 'skeleton', fromSystemId: JITA, toSystemId: AMARR, deletedAt: now - 2, purgeAfter: null },
     ]),
   );
 
   const positionsBefore = [...state.systems.values()].map((row) => row.position);
-  expect(buildEdges(state.connections, new Map([[AMARR, JITA]]), now)).toEqual([
+  expect(buildEdges(state.connections, parents, now)).toEqual([
     {
       id: 'dying',
       source: String(JITA),
@@ -174,13 +124,24 @@ test('renders dying ties but keeps skeleton ties out of the canvas', () => {
       data: { loop: false, tombstoneState: 'dying' },
     },
   ]);
-  expect(
-    buildEdges(state.connections, new Map([[AMARR, JITA]]), now + 2),
-  ).toEqual([]);
-  expect([...state.systems.values()].map((row) => row.position)).toEqual(
-    positionsBefore,
-  );
+  expect(buildEdges(state.connections, parents, now + 2)).toEqual([]);
+  expect([...state.systems.values()].map((row) => row.position)).toEqual(positionsBefore);
   expect(state.connections.has('skeleton')).toBe(true);
+
+  const withLive = stateOf(
+    chainSnapshot([JITA, AMARR], [
+      { connectionId: 'live', fromSystemId: JITA, toSystemId: AMARR },
+      dying,
+    ]),
+  );
+  expect(buildEdges(withLive.connections, parents, now)).toEqual([
+    {
+      id: 'live',
+      source: String(JITA),
+      target: String(AMARR),
+      data: { loop: false, tombstoneState: 'active' },
+    },
+  ]);
 });
 
 test('classifies tree links solid and loop closures dashed, once per pair', () => {
@@ -218,7 +179,7 @@ const placedHalo = (fogged: boolean, systemId: number = fogged ? RING3 : RING1) 
   position: { x: 500, y: 500 },
 });
 
-test('appends kernel-owned halo nodes: declared frame, never draggable, fogged ring inert', () => {
+test('halo nodes append with a declared frame, never drag, keep selection, and give way to an authored system', () => {
   const nodes = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
     placedHalo(false),
     placedHalo(true),
@@ -245,41 +206,34 @@ test('appends kernel-owned halo nodes: declared frame, never draggable, fogged r
     style: { pointerEvents: 'none' },
     data: { halo: { ring: 3, fogged: true } },
   });
-});
 
-test('retains selection for a drawn halo node across merges', () => {
-  const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
-    placedHalo(false),
-  ]);
-  const selected = before.map((node) =>
+  // A drawn halo node keeps its selection across merges.
+  const selected = nodes.map((node) =>
     node.id === String(RING1) ? { ...node, selected: true } : node,
   );
-  const after = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
+  const merged = syncNodes(selected, stateFor([JITA]).systems, fallbackLabel, [
     placedHalo(false),
   ]);
-  expect(after.find((node) => node.id === String(RING1))?.selected).toBe(true);
-});
+  expect(merged.find((node) => node.id === String(RING1))?.selected).toBe(true);
 
-test('upgrades a halo node in place when its system becomes authored, shedding derived controls', () => {
-  const before = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
+  // A fogged halo node whose system becomes authored upgrades in place.
+  const foggedRing1 = syncNodes([], stateFor([JITA]).systems, fallbackLabel, [
     placedHalo(true, RING1),
   ]);
-  const after = syncNodes(before, stateFor([JITA, RING1]).systems, fallbackLabel, []);
-
-  expect(after.filter((node) => node.id === String(RING1))).toHaveLength(1);
-  const upgraded = after.find((node) => node.id === String(RING1));
+  const authored = syncNodes(foggedRing1, stateFor([JITA, RING1]).systems, fallbackLabel, []);
+  expect(authored.filter((node) => node.id === String(RING1))).toHaveLength(1);
+  const upgraded = authored.find((node) => node.id === String(RING1));
   expect(upgraded?.data.halo).toBeUndefined();
   expect(upgraded?.draggable).toBeUndefined();
   expect(upgraded?.selectable).toBeUndefined();
   expect(upgraded?.style).toEqual({ pointerEvents: 'none' });
-});
 
-test('never renders a halo entry whose id is already reconciled (no duplicate mid-window)', () => {
-  const nodes = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
+  // A halo entry for a system already reconciled is never drawn twice.
+  const midWindow = syncNodes([], stateFor([JITA, RING1]).systems, fallbackLabel, [
     placedHalo(false, RING1),
   ]);
-  expect(nodes.filter((node) => node.id === String(RING1))).toHaveLength(1);
-  expect(nodes.find((node) => node.id === String(RING1))?.data.halo).toBeUndefined();
+  expect(midWindow.filter((node) => node.id === String(RING1))).toHaveLength(1);
+  expect(midWindow.find((node) => node.id === String(RING1))?.data.halo).toBeUndefined();
 });
 
 test('appends prefixed halo links sharing the pair-claiming, skipping authored pairs', () => {
